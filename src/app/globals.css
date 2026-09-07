@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  @apply bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100;
+}
+
+textarea,
+input,
+select {
+  @apply bg-white dark:bg-neutral-900;
+}
+
+.input {
+  @apply w-full rounded border border-neutral-300 px-2 py-1.5 dark:border-neutral-700;
+}
+
+/* Preview bản dịch */
+.md-preview {
+  @apply text-[15px] leading-relaxed;
+}
+.md-preview h1 { @apply mb-3 mt-6 text-2xl font-bold; }
+.md-preview h2 { @apply mb-2 mt-5 text-xl font-semibold; }
+.md-preview h3 { @apply mb-2 mt-4 text-lg font-semibold; }
+.md-preview h4 { @apply mb-1 mt-3 font-semibold; }
+.md-preview p { @apply my-3; }
+.md-preview ul { @apply my-3 list-disc pl-6; }
+.md-preview ol { @apply my-3 list-decimal pl-6; }
+.md-preview li { @apply my-1; }
+.md-preview a { @apply text-blue-600 underline; }
+.md-preview blockquote {
+  @apply my-3 border-l-4 border-neutral-300 pl-4 italic text-neutral-600 dark:border-neutral-600 dark:text-neutral-400;
+}
+.md-preview code {
+  @apply rounded bg-neutral-100 px-1 py-0.5 font-mono text-[13px] dark:bg-neutral-800;
+}
+.md-preview pre {
+  @apply my-3 overflow-x-auto rounded bg-neutral-100 p-3 dark:bg-neutral-950;
+}
+.md-preview pre code { @apply bg-transparent p-0 text-[13px]; }
+.md-preview table { @apply my-3 w-full border-collapse text-sm; }
+.md-preview th, .md-preview td {
+  @apply border border-neutral-300 px-2 py-1 text-left dark:border-neutral-700;
+}
+.md-preview th { @apply bg-neutral-100 font-semibold dark:bg-neutral-800; }
+.md-preview hr { @apply my-6 border-neutral-300 dark:border-neutral-700; }
+.md-preview img { @apply my-3 rounded; }
