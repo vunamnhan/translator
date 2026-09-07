@@ -11,6 +11,22 @@ createServer((req, res) => {
     const user = parsed.messages.find((m) => m.role === "user").content;
     const src = user.replace(/^<source>\n/, "").replace(/\n<\/source>$/, "");
 
+    // Chunk chứa "FORCE_429" → trả 429 để test hiện mã lỗi.
+    if (src.includes("FORCE_429")) {
+      res.writeHead(429, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: { message: "Rate limit reached for mock-model" } }));
+      return;
+    }
+
+    // Chunk chứa "FORCE_SLOW" → trả chậm để nhìn thấy trạng thái loading.
+    if (src.includes("FORCE_SLOW")) {
+      setTimeout(() => {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ choices: [{ message: { content: `<translation>\n${src}\n</translation>` } }] }));
+      }, 6000);
+      return;
+    }
+
     // Chunk chứa "FORCE_NOTAG" → cố tình quên thẻ để test retry.
     if (src.includes("FORCE_NOTAG")) {
       res.writeHead(200, { "content-type": "application/json" });

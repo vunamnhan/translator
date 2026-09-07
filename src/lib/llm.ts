@@ -3,7 +3,13 @@ import { extractTranslation } from "./postprocess";
 
 const CALL_TIMEOUT_MS = 120_000;
 const TAG_RETRIES = 3;
-const HTTP_BACKOFF_MS = [2000, 4000, 8000];
+/** Backoff cho 429/5xx. Đọc lúc gọi để test ghi đè được qua LLM_BACKOFF_MS. */
+function backoffs(): number[] {
+  return (process.env.LLM_BACKOFF_MS ?? "2000,4000,8000")
+    .split(",")
+    .map((v) => Number(v.trim()))
+    .filter((v) => Number.isFinite(v));
+}
 
 export class LlmError extends Error {
   constructor(message: string, readonly raw: string | null = null) {
@@ -28,6 +34,23 @@ export function assertEndpointAllowed(endpoint: string): void {
   if (url.protocol === "https:") return;
   if (url.protocol === "http:" && process.env.ALLOW_HTTP_ENDPOINT === "1") return;
   throw new LlmError("Chỉ cho phép endpoint https:// (bật ALLOW_HTTP_ENDPOINT=1 để dùng http)");
+}
+
+/** Lôi status + message thật ra khỏi body lỗi của provider (mỗi hãng một kiểu). */
+function describeBody(body: string): { status?: number; message?: string } {
+  try {
+    const j = JSON.parse(body) as {
+      error?: { message?: string; code?: unknown; status?: unknown; type?: string };
+      message?: string;
+    };
+    const err = j.error;
+    const rawCode = err?.code ?? err?.status;
+    const status = typeof rawCode === "number" ? rawCode : Number(rawCode) || undefined;
+    const message = err?.message ?? j.message;
+    return { status, message: typeof message === "string" ? message.slice(0, 300) : undefined };
+  } catch {
+    return {};
+  }
 }
 
 export interface TranslateParams {
@@ -56,8 +79,9 @@ async function callOnce(
 ): Promise<RawCall> {
   const url = normalizeEndpoint(p.endpoint);
   let lastErr: LlmError | null = null;
+  const backoff = backoffs();
 
-  for (let i = 0; i <= HTTP_BACKOFF_MS.length; i++) {
+  for (let i = 0; i <= backoff.length; i++) {
     let res: Response;
     try {
       res = await fetch(url, {
@@ -80,8 +104,8 @@ async function callOnce(
           ? "Timeout sau 120s"
           : `Không gọi được endpoint: ${(e as Error).message}`
       );
-      if (i < HTTP_BACKOFF_MS.length) {
-        await sleep(HTTP_BACKOFF_MS[i]);
+      if (i < backoff.length) {
+        await sleep(backoff[i]);
         continue;
       }
       throw lastErr;
@@ -90,27 +114,43 @@ async function callOnce(
     if (res.ok) {
       const json = (await res.json()) as {
         choices?: { message?: { content?: string } }[];
+        error?: unknown;
       };
       const content = json.choices?.[0]?.message?.content;
       if (typeof content !== "string") {
-        throw new LlmError("Response không có choices[0].message.content", JSON.stringify(json).slice(0, 4000));
+        const raw = JSON.stringify(json);
+        const { status, message } = describeBody(raw);
+        // Nhiều provider trả HTTP 200 nhưng nhét lỗi (kể cả 429) vào body.
+        const label = status ? `HTTP ${status}: ` : "";
+        const detail = message ?? "response không có choices[0].message.content";
+        if (status === 429 || (status && status >= 500)) {
+          lastErr = new LlmError(`${label}${detail}`, raw.slice(0, 4000));
+          if (i < backoff.length) {
+            await sleep(backoff[i]);
+            continue;
+          }
+          throw lastErr;
+        }
+        throw new LlmError(`${label}${detail}`, raw.slice(0, 4000));
       }
       return { content };
     }
 
     const body = await res.text().catch(() => "");
+    const detail = describeBody(body).message;
+    const suffix = detail ? ` — ${detail}` : "";
     if (res.status === 401 || res.status === 403) {
-      throw new LlmError(`LLM từ chối (HTTP ${res.status}) — kiểm tra API key`, body.slice(0, 4000));
+      throw new LlmError(`HTTP ${res.status}: LLM từ chối, kiểm tra API key${suffix}`, body.slice(0, 4000));
     }
     if (res.status === 429 || res.status >= 500) {
-      lastErr = new LlmError(`LLM lỗi tạm thời (HTTP ${res.status})`, body.slice(0, 4000));
-      if (i < HTTP_BACKOFF_MS.length) {
-        await sleep(HTTP_BACKOFF_MS[i]);
+      lastErr = new LlmError(`HTTP ${res.status}: LLM lỗi tạm thời${suffix}`, body.slice(0, 4000));
+      if (i < backoff.length) {
+        await sleep(backoff[i]);
         continue;
       }
       throw lastErr;
     }
-    throw new LlmError(`LLM lỗi (HTTP ${res.status})`, body.slice(0, 4000));
+    throw new LlmError(`HTTP ${res.status}: LLM báo lỗi${suffix}`, body.slice(0, 4000));
   }
 
   throw lastErr ?? new LlmError("Lỗi không xác định");

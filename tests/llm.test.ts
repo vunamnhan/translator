@@ -8,6 +8,8 @@ function jsonRes(content: string, status = 200) {
   });
 }
 
+process.env.LLM_BACKOFF_MS = "1,1,1";
+
 const params = {
   endpoint: "https://api.example.com/v1",
   apiKey: "sk-test",
@@ -74,6 +76,36 @@ describe("translate", () => {
     const out = await translate(params);
     expect(out.translated).toBe("ok");
     expect(out.attempts).toBe(2);
+  });
+
+  it("HTTP 200 nhưng body là lỗi → lấy đúng mã + message của provider", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({ error: { code: 400, message: "Model không tồn tại" } }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const out = await translate(params);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(out.error).toBe("HTTP 400: Model không tồn tại");
+    expect(out.raw).toContain("Model không tồn tại");
+  });
+
+  it("429 kèm message của provider hiện ra trong error", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ error: { message: "Rate limit reached for gpt-4o-mini" } }), {
+            status: 429,
+          })
+      )
+    );
+    const out = await translate({ ...params });
+    expect(out.error).toMatch(/^HTTP 429:/);
+    expect(out.error).toMatch(/Rate limit reached/);
   });
 
   it("401 → fail ngay, không retry", async () => {

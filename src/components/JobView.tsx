@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import ChunkBar from "./ChunkBar";
+import JobTitle from "./JobTitle";
 import Preview from "./Preview";
 import ExportModal from "./ExportModal";
 import { useSettings } from "@/lib/useSettings";
@@ -102,6 +103,23 @@ export default function JobView({ jobId }: { jobId: string }) {
     setRunning(false);
   }, [translateOne]);
 
+  const rename = useCallback(
+    async (name: string) => {
+      const res = await fetch(`/api/jobs/${jobId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) {
+        setNotice("Đổi tên thất bại");
+        return;
+      }
+      const updated: JobDTO = await res.json();
+      setJob(updated);
+    },
+    [jobId]
+  );
+
   const pause = useCallback(() => {
     runRef.current = false;
     setRunning(false);
@@ -165,6 +183,8 @@ export default function JobView({ jobId }: { jobId: string }) {
         setNotice("Chưa có API key — mở Settings trên thanh trên cùng để nhập.");
         return;
       }
+      // Khoá nút ngay, đừng chờ round-trip DB — nếu không user bấm thêm lần nữa.
+      patchChunk(id, { status: "translating", error: null, warning: null });
       await fetch(`/api/chunks/${id}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
@@ -172,11 +192,12 @@ export default function JobView({ jobId }: { jobId: string }) {
       });
       await translateOne(id);
     },
-    [translateOne]
+    [patchChunk, translateOne]
   );
 
   const retryErrors = useCallback(async () => {
     const errored = chunksRef.current.filter((c) => c.status === "error");
+    if (errored.length === 0) return;
     await Promise.all(
       errored.map((c) =>
         fetch(`/api/chunks/${c.id}`, {
@@ -218,7 +239,7 @@ export default function JobView({ jobId }: { jobId: string }) {
         <Link href="/" className="text-sm text-blue-600 hover:underline">
           ←
         </Link>
-        <h1 className="font-semibold">{job.name}</h1>
+        <JobTitle name={job.name} onRename={rename} />
         <span className="text-sm text-neutral-500">
           {stats.done}/{stats.total} xong
           {stats.errors > 0 && <span className="ml-2 text-red-600">{stats.errors} lỗi</span>}

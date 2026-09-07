@@ -19,7 +19,9 @@ export default function Preview({ chunks, selectedId, onSelect }: Props) {
         id: c.id,
         idx: c.idx,
         status: c.status,
-        html: c.status === "done" && c.translated ? renderMarkdown(c.translated) : "",
+        // Giữ bản dịch cũ trên màn hình trong lúc dịch lại, chỉ làm mờ đi.
+        html: c.translated ? renderMarkdown(c.translated) : "",
+        stale: c.status === "translating" && Boolean(c.translated),
       })),
     [chunks]
   );
@@ -57,10 +59,18 @@ export default function Preview({ chunks, selectedId, onSelect }: Props) {
               }`}
             >
               {r.html ? (
-                <div dangerouslySetInnerHTML={{ __html: r.html }} />
+                <div
+                  className={r.stale ? "animate-pulse opacity-50" : undefined}
+                  dangerouslySetInnerHTML={{ __html: r.html }}
+                />
               ) : (
                 <p className="my-1 text-xs italic text-neutral-400">
-                  #{r.idx} · {r.status === "skipped" ? "front matter, không dịch" : "chưa dịch"}
+                  #{r.idx} ·{" "}
+                  {r.status === "skipped"
+                    ? "front matter, không dịch"
+                    : r.status === "translating"
+                      ? "đang dịch…"
+                      : "chưa dịch"}
                 </p>
               )}
             </section>
