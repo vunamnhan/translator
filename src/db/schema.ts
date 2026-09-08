@@ -17,6 +17,10 @@ export const jobs = pgTable("jobs", {
   model: text("model").notNull(),
   endpoint: text("endpoint").notNull(),
   chunkTokens: integer("chunk_tokens").notNull(),
+  context: text("context"),
+  contextEdited: boolean("context_edited").notNull().default(false),
+  summaryTokens: integer("summary_tokens").notNull().default(6000),
+  contextMaxTokens: integer("context_max_tokens").notNull().default(80000),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -43,5 +47,27 @@ export const chunks = pgTable(
   (t) => [uniqueIndex("chunks_job_idx").on(t.jobId, t.idx), index("chunks_job").on(t.jobId)]
 );
 
+export const sections = pgTable(
+  "sections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    jobId: uuid("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    idx: integer("idx").notNull(),
+    heading: text("heading").notNull(),
+    chunkFrom: integer("chunk_from").notNull(),
+    chunkTo: integer("chunk_to").notNull(),
+    summary: text("summary"),
+    status: text("status").notNull().default("pending"),
+    error: text("error"),
+    rawResponse: text("raw_response"),
+    attempts: integer("attempts").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("sections_job_idx").on(t.jobId, t.idx), index("sections_job").on(t.jobId)]
+);
+
 export type Job = typeof jobs.$inferSelect;
 export type Chunk = typeof chunks.$inferSelect;
+export type Section = typeof sections.$inferSelect;

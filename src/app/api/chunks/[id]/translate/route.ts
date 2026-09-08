@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { chunks } from "@/db/schema";
+import { chunks, jobs } from "@/db/schema";
 import { bad, ok, readJson } from "@/lib/http";
 import { assertEndpointAllowed, LlmError, translate } from "@/lib/llm";
 import { postProcess } from "@/lib/postprocess";
@@ -17,6 +17,8 @@ interface Body {
   model?: string;
   systemPrompt?: string;
   temperature?: number;
+  /** Bơm ngữ cảnh chung vào prompt dịch. Context rỗng thì dịch như v0, không báo lỗi. */
+  useContext?: boolean;
 }
 
 export async function POST(req: Request, { params }: Ctx) {
@@ -42,6 +44,12 @@ export async function POST(req: Request, { params }: Ctx) {
 
   const source = chunk.sourceOverride ?? chunk.source;
 
+  let documentContext: string | null = null;
+  if (body.useContext !== false) {
+    const [job] = await db.select().from(jobs).where(eq(jobs.id, chunk.jobId));
+    documentContext = job?.context ?? null;
+  }
+
   await db
     .update(chunks)
     .set({ status: "translating", error: null, updatedAt: new Date() })
@@ -54,6 +62,7 @@ export async function POST(req: Request, { params }: Ctx) {
     systemPrompt: body.systemPrompt,
     temperature: clampTemperature(body.temperature),
     source,
+    documentContext,
   });
 
   if (outcome.translated === null) {

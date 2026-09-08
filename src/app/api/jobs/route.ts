@@ -3,7 +3,8 @@ import { chunks, jobs } from "@/db/schema";
 import { chunkMarkdown } from "@/lib/chunker";
 import { DEFAULT_SETTINGS, MAX_UPLOAD_BYTES } from "@/lib/defaults";
 import { bad, ok, readJson } from "@/lib/http";
-import { clampTokens } from "@/lib/validate";
+import { clampSummaryTokens, clampContextMaxTokens, clampTokens } from "@/lib/validate";
+import { regenerateSections } from "@/lib/sectionStore";
 import { desc, eq, sql } from "drizzle-orm";
 
 export const runtime = "nodejs";
@@ -34,6 +35,8 @@ interface CreateBody {
   model?: string;
   endpoint?: string;
   chunkTokens?: number;
+  summaryTokens?: number;
+  contextMaxTokens?: number;
 }
 
 export async function POST(req: Request) {
@@ -47,6 +50,8 @@ export async function POST(req: Request) {
   }
 
   const chunkTokens = clampTokens(body.chunkTokens);
+  const summaryTokens = clampSummaryTokens(body.summaryTokens);
+  const contextMaxTokens = clampContextMaxTokens(body.contextMaxTokens);
   const pieces = chunkMarkdown(source, chunkTokens);
 
   const [job] = await db
@@ -58,6 +63,8 @@ export async function POST(req: Request) {
       model: body.model ?? DEFAULT_SETTINGS.model,
       endpoint: body.endpoint ?? DEFAULT_SETTINGS.endpoint,
       chunkTokens,
+      summaryTokens,
+      contextMaxTokens,
     })
     .returning();
 
@@ -73,5 +80,10 @@ export async function POST(req: Request) {
     )
     .returning();
 
-  return ok({ job, chunks: inserted.sort((a, b) => a.idx - b.idx) }, 201);
+  const sectionRows = await regenerateSections(job.id, summaryTokens);
+
+  return ok(
+    { job, chunks: inserted.sort((a, b) => a.idx - b.idx), sections: sectionRows },
+    201
+  );
 }

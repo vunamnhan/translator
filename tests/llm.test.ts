@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { assertEndpointAllowed, normalizeEndpoint, translate } from "@/lib/llm";
+import { assertEndpointAllowed, buildContext, normalizeEndpoint, summarize, translate } from "@/lib/llm";
 
 function jsonRes(content: string, status = 200) {
   return new Response(JSON.stringify({ choices: [{ message: { content } }] }), {
@@ -114,5 +114,53 @@ describe("translate", () => {
     const out = await translate(params);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(out.error).toMatch(/401/);
+  });
+});
+
+/** System message của call đầu tiên. */
+function systemOf(fetchMock: ReturnType<typeof vi.fn>): string {
+  const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+  return body.messages[0].content as string;
+}
+
+describe("bơm ngữ cảnh chung", () => {
+  it("có documentContext → payload chứa block, đặt trước output contract", async () => {
+    const fetchMock = vi.fn(async () => jsonRes("<translation>ok</translation>"));
+    vi.stubGlobal("fetch", fetchMock);
+    await translate({ ...params, documentContext: "## Tổng quan\nTài liệu về X" });
+
+    const system = systemOf(fetchMock);
+    expect(system).toContain("<document_context>");
+    expect(system).toContain("Tài liệu về X");
+    expect(system.indexOf("<document_context>")).toBeGreaterThan(system.indexOf(params.systemPrompt));
+    expect(system.indexOf("<document_context>")).toBeLessThan(system.indexOf("QUY TẮC ĐẦU RA"));
+  });
+
+  it("không truyền / rỗng → payload không có block", async () => {
+    const fetchMock = vi.fn(async () => jsonRes("<translation>ok</translation>"));
+    vi.stubGlobal("fetch", fetchMock);
+    await translate({ ...params, documentContext: "   " });
+    expect(systemOf(fetchMock)).not.toContain("<document_context>");
+  });
+});
+
+describe("summarize / buildContext", () => {
+  it("summarize bóc thẻ <summary>", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonRes("<summary>\n- ý chính\n</summary>")));
+    const out = await summarize({ ...params, documentContext: "ngữ cảnh" });
+    expect(out.translated).toBe("- ý chính");
+    expect(out.error).toBeNull();
+  });
+
+  it("summarize quên thẻ → báo đúng tên thẻ", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonRes("không thẻ")));
+    const out = await summarize(params);
+    expect(out.error).toMatch(/<summary>/);
+  });
+
+  it("buildContext bóc thẻ <context>", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonRes("<context>## Tổng quan\nabc</context>")));
+    const out = await buildContext(params);
+    expect(out.translated).toBe("## Tổng quan\nabc");
   });
 });

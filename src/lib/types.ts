@@ -1,4 +1,4 @@
-import type { ChunkStatus } from "./defaults";
+import type { ChunkStatus, SectionStatus } from "./defaults";
 
 export interface JobDTO {
   id: string;
@@ -8,6 +8,10 @@ export interface JobDTO {
   model: string;
   endpoint: string;
   chunkTokens: number;
+  context: string | null;
+  contextEdited: boolean;
+  summaryTokens: number;
+  contextMaxTokens: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -25,6 +29,21 @@ export interface ChunkDTO {
   rawResponse: string | null;
   attempts: number;
   edited: boolean;
+  updatedAt: string;
+}
+
+export interface SectionDTO {
+  id: string;
+  jobId: string;
+  idx: number;
+  heading: string;
+  chunkFrom: number;
+  chunkTo: number;
+  summary: string | null;
+  status: SectionStatus;
+  error: string | null;
+  rawResponse: string | null;
+  attempts: number;
   updatedAt: string;
 }
 

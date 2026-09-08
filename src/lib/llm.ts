@@ -1,5 +1,13 @@
-import { OUTPUT_CONTRACT, REMINDER } from "./defaults";
-import { extractTranslation } from "./postprocess";
+import {
+  CONTEXT_CONTRACT,
+  CONTEXT_REMINDER,
+  documentContextBlock,
+  OUTPUT_CONTRACT,
+  REMINDER,
+  SUMMARY_CONTRACT,
+  SUMMARY_REMINDER,
+} from "./defaults";
+import { extractTag } from "./postprocess";
 
 const CALL_TIMEOUT_MS = 120_000;
 const TAG_RETRIES = 3;
@@ -60,6 +68,8 @@ export interface TranslateParams {
   systemPrompt: string;
   temperature: number;
   source: string;
+  /** Ngữ cảnh chung của job. Rỗng/null → không bơm block nào. */
+  documentContext?: string | null;
 }
 
 export interface TranslateOutcome {
@@ -156,26 +166,42 @@ async function callOnce(
   throw lastErr ?? new LlmError("Lỗi không xác định");
 }
 
-/** Gọi LLM, retry khi model quên thẻ <translation>. */
-export async function translate(p: TranslateParams): Promise<TranslateOutcome> {
+interface TagSpec {
+  tag: string;
+  contract: string;
+  reminder: string;
+}
+
+const TRANSLATE_SPEC: TagSpec = { tag: "translation", contract: OUTPUT_CONTRACT, reminder: REMINDER };
+const SUMMARY_SPEC: TagSpec = { tag: "summary", contract: SUMMARY_CONTRACT, reminder: SUMMARY_REMINDER };
+const CONTEXT_SPEC: TagSpec = { tag: "context", contract: CONTEXT_CONTRACT, reminder: CONTEXT_REMINDER };
+
+/**
+ * Gọi LLM, retry khi model quên thẻ output.
+ * Thứ tự system message: prompt user → block ngữ cảnh chung → output contract.
+ */
+async function runTagged(p: TranslateParams, spec: TagSpec): Promise<TranslateOutcome> {
   let raw: string | null = null;
   let attempts = 0;
+  const ctx = p.documentContext?.trim() ? documentContextBlock(p.documentContext.trim()) : null;
 
   for (let attempt = 1; attempt <= TAG_RETRIES; attempt++) {
     attempts = attempt;
-    const system =
-      attempt === 1
-        ? `${p.systemPrompt}\n\n${OUTPUT_CONTRACT}`
-        : `${REMINDER}\n\n${p.systemPrompt}\n\n${OUTPUT_CONTRACT}`;
+    const parts = [
+      attempt === 1 ? null : spec.reminder,
+      p.systemPrompt,
+      ctx,
+      spec.contract,
+    ].filter((v): v is string => Boolean(v));
     const messages = [
-      { role: "system", content: system },
+      { role: "system", content: parts.join("\n\n") },
       { role: "user", content: `<source>\n${p.source}\n</source>` },
     ];
 
     try {
       const { content } = await callOnce(p, messages);
       raw = content;
-      const extracted = extractTranslation(content);
+      const extracted = extractTag(content, spec.tag);
       if (extracted !== null) {
         return { translated: extracted, raw, attempts, error: null };
       }
@@ -189,8 +215,23 @@ export async function translate(p: TranslateParams): Promise<TranslateOutcome> {
     translated: null,
     raw,
     attempts,
-    error: `LLM không trả thẻ <translation> sau ${TAG_RETRIES} lần thử`,
+    error: `LLM không trả thẻ <${spec.tag}> sau ${TAG_RETRIES} lần thử`,
   };
+}
+
+/** Dịch 1 chunk. */
+export function translate(p: TranslateParams): Promise<TranslateOutcome> {
+  return runTagged(p, TRANSLATE_SPEC);
+}
+
+/** Tóm tắt 1 section. */
+export function summarize(p: TranslateParams): Promise<TranslateOutcome> {
+  return runTagged(p, SUMMARY_SPEC);
+}
+
+/** Tạo ngữ cảnh chung cho cả tài liệu. */
+export function buildContext(p: TranslateParams): Promise<TranslateOutcome> {
+  return runTagged(p, CONTEXT_SPEC);
 }
 
 function sleep(ms: number) {

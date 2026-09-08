@@ -5,13 +5,15 @@ export interface PostProcessResult {
   warning: string | null;
 }
 
-/** Lấy nội dung trong cặp <translation></translation> đầu tiên. */
-export function extractTranslation(raw: string): string | null {
-  const m = raw.match(/<translation>([\s\S]*?)<\/translation>/i);
+/** Lấy nội dung trong cặp thẻ đầu tiên, ví dụ <translation></translation>. */
+export function extractTag(raw: string, tag: string): string | null {
+  const m = raw.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, "i"));
   if (!m) return null;
-  let body = m[1];
-  body = body.replace(/^\r?\n/, "").replace(/\r?\n$/, "");
-  return body;
+  return m[1].replace(/^\r?\n/, "").replace(/\r?\n$/, "");
+}
+
+export function extractTranslation(raw: string): string | null {
+  return extractTag(raw, "translation");
 }
 
 /**

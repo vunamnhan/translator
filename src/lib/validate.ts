@@ -10,3 +10,15 @@ export function clampTemperature(v: unknown): number {
   const n = typeof v === "number" && Number.isFinite(v) ? v : DEFAULT_SETTINGS.temperature;
   return Math.min(2, Math.max(0, n));
 }
+
+export function clampSummaryTokens(v: unknown): number {
+  const n =
+    typeof v === "number" && Number.isFinite(v) ? Math.round(v) : DEFAULT_SETTINGS.summaryTokens;
+  return Math.min(100000, Math.max(500, n));
+}
+
+export function clampContextMaxTokens(v: unknown): number {
+  const n =
+    typeof v === "number" && Number.isFinite(v) ? Math.round(v) : DEFAULT_SETTINGS.contextMaxTokens;
+  return Math.min(1000000, Math.max(1000, n));
+}

@@ -18,3 +18,22 @@ export function assembleMarkdown(chunks: AssemblePiece[]): string {
     })
     .join("");
 }
+
+export interface SummaryPiece {
+  idx: number;
+  heading: string;
+  summary: string | null;
+}
+
+/** Export tóm tắt: ngữ cảnh chung ở đầu, rồi `## heading` + summary từng section theo idx. */
+export function assembleSummary(context: string | null, sections: SummaryPiece[]): string {
+  const parts: string[] = [];
+  if (context && context.trim()) parts.push(context.trim());
+
+  for (const s of [...sections].sort((a, b) => a.idx - b.idx)) {
+    const body = s.summary?.trim() ? s.summary.trim() : "_(chưa tóm tắt)_";
+    parts.push(`## ${s.heading}\n\n${body}`);
+  }
+
+  return parts.join("\n\n") + (parts.length > 0 ? "\n" : "");
+}

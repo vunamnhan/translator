@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { chunks, jobs } from "@/db/schema";
+import { chunks, jobs, sections } from "@/db/schema";
 import { bad, ok, readJson } from "@/lib/http";
 import { asc, eq } from "drizzle-orm";
 
@@ -13,7 +13,12 @@ export async function GET(_req: Request, { params }: Ctx) {
   const [job] = await db.select().from(jobs).where(eq(jobs.id, id));
   if (!job) return bad("Không tìm thấy job", 404);
   const rows = await db.select().from(chunks).where(eq(chunks.jobId, id)).orderBy(asc(chunks.idx));
-  return ok({ job, chunks: rows });
+  const sectionRows = await db
+    .select()
+    .from(sections)
+    .where(eq(sections.jobId, id))
+    .orderBy(asc(sections.idx));
+  return ok({ job, chunks: rows, sections: sectionRows });
 }
 
 interface PatchBody {

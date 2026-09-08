@@ -1,24 +1,24 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { assembleMarkdown } from "@/lib/assemble";
-import type { ChunkDTO } from "@/lib/types";
+import { useState } from "react";
 
 interface Props {
-  jobId: string;
-  name: string;
-  chunks: ChunkDTO[];
+  title: string;
+  /** Nội dung hiển thị + copy. */
+  text: string;
+  /** Link tải file từ server. */
+  href: string;
+  filename: string;
+  note?: string | null;
   onClose: () => void;
 }
 
-export default function ExportModal({ jobId, name, chunks, onClose }: Props) {
+export default function ExportModal({ title, text, href, filename, note, onClose }: Props) {
   const [copied, setCopied] = useState(false);
-  const md = useMemo(() => assembleMarkdown(chunks), [chunks]);
-  const untranslated = chunks.filter((c) => c.status !== "done" && c.status !== "skipped").length;
 
   async function copy() {
     try {
-      await navigator.clipboard.writeText(md);
+      await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -33,21 +33,13 @@ export default function ExportModal({ jobId, name, chunks, onClose }: Props) {
         className="flex max-h-[85vh] w-full max-w-6xl flex-col rounded bg-white p-4 shadow-xl dark:bg-neutral-900"
       >
         <div className="mb-3 flex items-center gap-3">
-          <h2 className="text-lg font-semibold">Export</h2>
-          {untranslated > 0 && (
-            <span className="text-sm text-yellow-700">
-              {untranslated} chunk chưa dịch → giữ source gốc + marker
-            </span>
-          )}
+          <h2 className="text-lg font-semibold">{title}</h2>
+          {note && <span className="text-sm text-yellow-700">{note}</span>}
           <div className="ml-auto flex gap-2 text-sm">
             <button onClick={copy} className="rounded border border-neutral-400 px-3 py-1.5">
               {copied ? "Đã copy" : "Copy"}
             </button>
-            <a
-              href={`/api/jobs/${jobId}/export`}
-              download={`${name.replace(/\.md$/i, "")}.vi.md`}
-              className="rounded bg-blue-600 px-3 py-1.5 text-white"
-            >
+            <a href={href} download={filename} className="rounded bg-blue-600 px-3 py-1.5 text-white">
               Download .md
             </a>
             <button onClick={onClose} className="rounded px-3 py-1.5 text-neutral-500">
@@ -56,7 +48,7 @@ export default function ExportModal({ jobId, name, chunks, onClose }: Props) {
           </div>
         </div>
         <pre className="flex-1 overflow-auto rounded bg-neutral-100 p-3 font-mono text-xs whitespace-pre-wrap dark:bg-neutral-950">
-          {md}
+          {text}
         </pre>
       </div>
     </div>
