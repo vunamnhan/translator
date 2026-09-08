@@ -35,9 +35,21 @@ export default function SettingsDrawer({ open, onClose, settings, updateSettings
   const [tab, setTab] = useState<Tab>("general");
   const { ask, dialog } = useConfirm();
 
+  /**
+   * Ô key giữ nguyên văn người dùng gõ (kể cả rỗng / trùng) để không nuốt ô đang nhập dở,
+   * nên nó là state riêng — mọi chỗ đặt lại draft đều phải đặt lại nó cùng lúc, nếu không
+   * màn hình sẽ hiện một đằng còn giá trị thật một nẻo.
+   */
+  const [keyRows, setKeyRowsRaw] = useState<string[]>([]);
+
+  const syncFrom = useCallback((next: Settings) => {
+    setDraft(next);
+    setKeyRowsRaw(next.apiKeys.length > 0 ? next.apiKeys : [""]);
+  }, []);
+
   useEffect(() => {
     if (open) {
-      setDraft(settings);
+      syncFrom(settings);
       setSavedAt(null);
       setTab("general");
     }
@@ -52,16 +64,6 @@ export default function SettingsDrawer({ open, onClose, settings, updateSettings
   const generalDirty = changed.some((k) => !PROMPT_KEYS.includes(k));
 
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => setDraft((d) => ({ ...d, [k]: v }));
-
-  /**
-   * Ô key giữ nguyên văn người dùng gõ (kể cả rỗng / trùng) để không nuốt ô đang nhập dở;
-   * chuẩn hoá chỉ xảy ra khi ghi vào draft.
-   */
-  const [keyRows, setKeyRowsRaw] = useState<string[]>([]);
-  useEffect(() => {
-    if (open) setKeyRowsRaw(settings.apiKeys.length > 0 ? settings.apiKeys : [""]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
 
   const setKeyRows = useCallback((rows: string[]) => {
     setKeyRowsRaw(rows);
@@ -78,8 +80,10 @@ export default function SettingsDrawer({ open, onClose, settings, updateSettings
 
   const save = useCallback(() => {
     updateSettings(draft);
+    // Hiện lại đúng thứ vừa lưu: ô rỗng biến mất, key trùng gộp lại.
+    syncFrom({ ...draft, apiKeys: normalizeApiKeys(draft.apiKeys) });
     setSavedAt(new Date().toLocaleTimeString("vi-VN"));
-  }, [draft, updateSettings]);
+  }, [draft, syncFrom, updateSettings]);
 
   const tryClose = useCallback(async () => {
     if (dirty) {
@@ -361,7 +365,7 @@ export default function SettingsDrawer({ open, onClose, settings, updateSettings
             Lưu {dirty && "•"}
           </button>
           <button
-            onClick={() => setDraft(settings)}
+            onClick={() => syncFrom(settings)}
             disabled={!dirty}
             className="btn btn-secondary h-[38px]"
           >
