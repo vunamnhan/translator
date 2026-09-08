@@ -17,6 +17,8 @@ interface Props {
   truncated: boolean;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  /** id section → key thứ mấy đã gọi, chỉ trong bộ nhớ trang. */
+  keyUsed: Record<string, number>;
   /** Ô tìm + chip lọc do JobView giữ state, để đổi tab là reset. */
   query: string;
   onQuery: (v: string) => void;
@@ -42,6 +44,7 @@ export default function SummaryView({
   truncated,
   selectedId,
   onSelect,
+  keyUsed,
   query,
   onQuery,
   filters,
@@ -122,6 +125,7 @@ export default function SummaryView({
             <div key={s.id} className="shrink-0">
               <SectionBar
                 section={s}
+                keyIndex={keyUsed[s.id]}
                 sourceText={sourceById.get(s.id) ?? ""}
                 expanded={selectedId === s.id}
                 disabled={!hasContext || running || otherLoopRunning}

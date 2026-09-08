@@ -1,6 +1,6 @@
 # Tranzlator — context cho Claude
 
-Tool nội bộ dịch + tóm tắt Markdown bằng LLM (bring-your-own-key). Spec gốc: `document/REQUIREMENTS.md`, delta v0.1 (chức năng Tóm tắt): `document/CR-v0.1-summary.md` — đọc trước khi sửa logic.
+Tool nội bộ dịch + tóm tắt Markdown bằng LLM (bring-your-own-key). Spec gốc: `document/REQUIREMENTS.md`, delta v0.1 (Tóm tắt): `document/CR-v0.1-summary.md`, delta v0.2 (tag/search/paging/archive/pin/favorite + nhiều key + cool down): `document/CR-v0.2-jobs-list.md` — đọc trước khi sửa logic. Giao diện hiện tại mô tả ở `document/UI-SPEC-current.md`, design gốc ở `document/UI Tranzlator/Tranzlator.dc.html`.
 
 ## Stack
 Next.js 15 App Router + TypeScript, Tailwind, Postgres + Drizzle (`postgres-js`), remark/mdast để parse MD. Deploy Vercel.
@@ -11,6 +11,8 @@ Next.js 15 App Router + TypeScript, Tailwind, Postgres + Drizzle (`postgres-js`)
 - API key: chỉ qua header `x-llm-key`, **không** lưu DB, không log.
 - Vòng lặp dịch **và** vòng lặp tóm tắt đều nằm ở front-end (`src/components/JobView.tsx`), dùng chung `runPool`. Server không loop/queue/cron; mỗi API call = 1 chunk / 1 section. Chỉ 1 vòng lặp active tại một thời điểm.
 - Ngữ cảnh chung (`jobs.context`) bơm vào system prompt **sau** prompt user, **trước** output contract — xem `documentContextBlock` trong `src/lib/defaults.ts`.
+- Xoay key + cool down nằm ở front-end. Server vẫn nhận đúng 1 key qua `x-llm-key` mỗi request, không biết gì về vòng xoay.
+- Chỉ light mode. Design không có palette tối nên đừng thêm lại `dark:`.
 
 ## Bản đồ file
 | File | Việc |
@@ -26,9 +28,17 @@ Next.js 15 App Router + TypeScript, Tailwind, Postgres + Drizzle (`postgres-js`)
 | `src/components/JobView.tsx` | Màn hình job: 2 tab Translate/Summary, pool concurrency, Start/Pause/Resume cho cả 2 luồng |
 | `src/components/SummaryView.tsx` | Tab Summary: khối ngữ cảnh chung + toolbar section + danh sách section |
 | `src/middleware.ts` | Auth cookie + redirect `/login`. **Phải nằm trong `src/`** vì project dùng src dir — để ở root là Next bỏ qua, không báo lỗi |
-| `src/lib/settingsStore.ts` | Store settings dùng chung (useSyncExternalStore). Không quay lại useState-per-component: key nhập ở header sẽ không tới được JobView |
+| `src/lib/settingsStore.ts` | Store settings dùng chung (useSyncExternalStore). Không quay lại useState-per-component: key nhập ở header sẽ không tới được JobView. Cũng là chỗ chuyển `apiKey` (v0.1) sang `apiKeys[]` (v0.2) |
+| `src/lib/runner.ts` | Xoay key round-robin, nhận diện 429, cool down cắt được giữa chừng |
+| `src/lib/tags.ts` | Chuẩn hoá tag (trim, gộp trùng không phân biệt hoa thường, 32 ký tự, 20 tag) |
+| `src/lib/readingSize.ts` | Cỡ chữ khung đọc, lưu localStorage, dùng chung 2 tab |
+| `src/components/JobList.tsx` | Trang Jobs: search + lọc tag + favorite + archive + phân trang, state nằm trên URL query |
+| `src/components/chrome.tsx` | Thanh tiến độ, banner, panel danh sách trái, khung đọc (`ReadingPane`) |
+| `src/app/globals.css` + `tailwind.config.ts` | Token của design. Đổi màu/bo/shadow ở globals, đừng rải hex trong component |
 
 ## Chạy
 Chạy `npm run build` rồi quay lại `npm run dev` sẽ vỡ `.next` (`Cannot find module './xxx.js'`) — dùng `npm run dev:clean`.
 
-`npm run dev` (cần `DATABASE_URL`), `npm test`. Schema init: chạy `drizzle/0000_init.sql` rồi `drizzle/0001_summary.sql` (0001 là delta CR v0.1: cột context/summary trên `jobs` + bảng `sections`; idempotent nên DB cũ chạy thẳng được).
+`npm run dev` (cần `DATABASE_URL`), `npm test`. Schema init: chạy lần lượt `drizzle/0000_init.sql`, `drizzle/0001_summary.sql` (delta CR v0.1: cột context/summary trên `jobs` + bảng `sections`), `drizzle/0002_jobs_list.sql` (delta CR v0.2: tags/archived_at/pinned_at/favorite + index). 0001 và 0002 idempotent nên DB cũ chạy thẳng được.
+
+Viết subquery trong route `GET /api/jobs` phải ghi thẳng `"jobs"."id"`: select một bảng thì drizzle render cột thành `"id"` không có tiền tố, vào trong subquery lại trỏ nhầm sang `"chunks"."id"` và đếm ra 0.

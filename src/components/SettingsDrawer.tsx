@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { DEFAULT_SETTINGS, type Settings } from "@/lib/defaults";
+import { DEFAULT_SETTINGS, MAX_API_KEYS, normalizeApiKeys, type Settings } from "@/lib/defaults";
+import { clampCooldown } from "@/lib/validate";
 import { useConfirm } from "./ConfirmDialog";
 
 interface Props {
@@ -40,6 +41,29 @@ export default function SettingsDrawer({ open, onClose, settings, updateSettings
   const generalDirty = changed.some((k) => !PROMPT_KEYS.includes(k));
 
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => setDraft((d) => ({ ...d, [k]: v }));
+
+  /**
+   * Ô key giữ nguyên văn người dùng gõ (kể cả rỗng / trùng) để không nuốt ô đang nhập dở;
+   * chuẩn hoá chỉ xảy ra khi ghi vào draft.
+   */
+  const [keyRows, setKeyRowsRaw] = useState<string[]>([]);
+  useEffect(() => {
+    if (open) setKeyRowsRaw(settings.apiKeys.length > 0 ? settings.apiKeys : [""]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const setKeyRows = useCallback((rows: string[]) => {
+    setKeyRowsRaw(rows);
+    setDraft((d) => ({ ...d, apiKeys: normalizeApiKeys(rows) }));
+  }, []);
+
+  const setKey = (i: number, v: string) =>
+    setKeyRows(keyRows.map((k, j) => (j === i ? v : k)));
+
+  const removeKey = (i: number) => {
+    const next = keyRows.filter((_, j) => j !== i);
+    setKeyRows(next.length > 0 ? next : [""]);
+  };
 
   const save = useCallback(() => {
     updateSettings(draft);
@@ -110,19 +134,46 @@ export default function SettingsDrawer({ open, onClose, settings, updateSettings
                 không bao giờ được lưu trên server.
               </Hint>
 
-              <Field label="API key">
-                <input
-                  type="password"
-                  value={draft.apiKey}
-                  onChange={(e) => set("apiKey", e.target.value)}
-                  placeholder="sk-..."
-                  autoComplete="off"
-                  className="input"
-                />
+              <Field label="API keys">
+                <div className="flex flex-col gap-2">
+                  {keyRows.map((key, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input
+                        type="password"
+                        value={key}
+                        onChange={(e) => setKey(i, e.target.value)}
+                        placeholder="sk-..."
+                        autoComplete="off"
+                        className="input flex-1"
+                      />
+                      {key.trim() && (
+                        <span className="w-14 shrink-0 font-mono text-[11px] text-sand-600">
+                          …{key.trim().slice(-4)}
+                        </span>
+                      )}
+                      {keyRows.length > 1 && (
+                        <button
+                          onClick={() => removeKey(i)}
+                          title="Xoá key này"
+                          className="h-7 w-7 shrink-0 rounded-pill text-sand-600 hover:bg-danger-bg hover:text-danger-fg"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {keyRows.length < MAX_API_KEYS && (
+                  <button
+                    onClick={() => setKeyRows([...keyRows, ""])}
+                    className="mt-2 text-xs text-accent hover:underline"
+                  >
+                    + Thêm key
+                  </button>
+                )}
                 <Note>
-                  {draft.apiKey
-                    ? `${draft.apiKey.length} ký tự — nhớ bấm Lưu ở dưới.`
-                    : "Chưa nhập key thì Start sẽ bị chặn."}
+                  Nhiều key → app xoay vòng từng cú gọi, dính 429 thì đổi key kế tiếp. Các key phải
+                  cùng endpoint.
                 </Note>
               </Field>
 
@@ -165,6 +216,23 @@ export default function SettingsDrawer({ open, onClose, settings, updateSettings
                   onChange={(e) => set("concurrency", Number(e.target.value))}
                   className="w-full accent-accent"
                 />
+              </Field>
+
+              <Field label="Cool down (giây)">
+                <input
+                  type="number"
+                  min={0}
+                  max={60}
+                  step={0.5}
+                  value={draft.cooldownMs / 1000}
+                  onChange={(e) => set("cooldownMs", clampCooldown(Number(e.target.value) * 1000))}
+                  className="input"
+                />
+                <Note>
+                  {draft.cooldownMs > 0
+                    ? `≈ ${draft.concurrency} call / ${draft.cooldownMs / 1000}s với concurrency ${draft.concurrency}. Mỗi worker nghỉ sau khi xong một call.`
+                    : "0 = tắt, worker chạy liên tục."}
+                </Note>
               </Field>
 
               <Field label="Chunk tokens (ước lượng chars/4)">

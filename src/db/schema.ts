@@ -21,6 +21,11 @@ export const jobs = pgTable("jobs", {
   contextEdited: boolean("context_edited").notNull().default(false),
   summaryTokens: integer("summary_tokens").notNull().default(6000),
   contextMaxTokens: integer("context_max_tokens").notNull().default(80000),
+  /** CR v0.2 — tổ chức danh sách job. */
+  tags: text("tags").array().notNull().default([]),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  pinnedAt: timestamp("pinned_at", { withTimezone: true }),
+  favorite: boolean("favorite").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

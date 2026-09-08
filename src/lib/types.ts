@@ -3,6 +3,10 @@ import type { ChunkStatus, SectionStatus } from "./defaults";
 export interface JobDTO {
   id: string;
   name: string;
+  tags: string[];
+  favorite: boolean;
+  archivedAt: string | null;
+  pinnedAt: string | null;
   source: string;
   systemPrompt: string;
   model: string;
@@ -50,8 +54,27 @@ export interface SectionDTO {
 export interface JobListItem {
   id: string;
   name: string;
+  tags: string[];
+  favorite: boolean;
+  archivedAt: string | null;
+  pinnedAt: string | null;
   createdAt: string;
+  updatedAt: string;
   total: number;
   done: number;
   errors: number;
+  sectionsTotal: number;
+  sectionsDone: number;
+}
+
+export interface JobListResponse {
+  items: JobListItem[];
+  page: number;
+  limit: number;
+  total: number;
+}
+
+export interface TagCount {
+  tag: string;
+  count: number;
 }

@@ -5,27 +5,98 @@ import { DEFAULT_SETTINGS, MAX_UPLOAD_BYTES } from "@/lib/defaults";
 import { bad, ok, readJson } from "@/lib/http";
 import { clampSummaryTokens, clampContextMaxTokens, clampTokens } from "@/lib/validate";
 import { regenerateSections } from "@/lib/sectionStore";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, isNotNull, isNull, sql, type SQL } from "drizzle-orm";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const rows = await db
+const DEFAULT_LIMIT = 20;
+
+/**
+ * Đếm chunk/section bằng subquery thay vì join: join cả 2 bảng cùng lúc sẽ nhân
+ * chéo số dòng và đếm sai.
+ */
+const countChunks = (status: SQL) =>
+  // Viết thẳng "jobs"."id": select một bảng thì drizzle render cột thành `"id"`,
+  // vào trong subquery lại trỏ nhầm sang "chunks"."id" nên đếm ra 0.
+  sql<number>`(select count(*) from "chunks" where "chunks"."job_id" = "jobs"."id" and ${status})::int`;
+
+const countSections = (status: SQL) =>
+  sql<number>`(select count(*) from "sections" where "sections"."job_id" = "jobs"."id" and ${status})::int`;
+
+/** Điều kiện lọc dựng từ query string — dùng chung cho trang dữ liệu và cho count tổng. */
+function buildWhere(url: URL): SQL | undefined {
+  const q = (url.searchParams.get("q") ?? "").trim().slice(0, 100);
+  const tags = (url.searchParams.get("tags") ?? "")
+    .split(",")
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean);
+  const fav = url.searchParams.get("fav") === "1";
+  const archived = url.searchParams.get("archived");
+
+  const parts: SQL[] = [];
+
+  if (q) parts.push(sql`${jobs.name} ilike ${"%" + q + "%"}`);
+
+  // Lọc tag không phân biệt hoa thường: `API` và `api` là một.
+  // Liệt kê từng param thay vì `= any($1::text[])`: postgres-js gửi mảng JS thành
+  // một tham số text nên Postgres báo "malformed array literal".
+  if (tags.length > 0) {
+    const list = sql.join(
+      tags.map((t) => sql`${t}`),
+      sql`, `
+    );
+    parts.push(sql`exists (select 1 from unnest("jobs"."tags") as t where lower(t) in (${list}))`);
+  }
+
+  if (fav) {
+    // Favorite kéo cả job archived ra, không cần bật gì thêm (mục 2.4).
+    parts.push(sql`${jobs.favorite} = true`);
+  } else if (archived === "only") {
+    parts.push(isNotNull(jobs.archivedAt));
+  } else if (archived !== "include") {
+    parts.push(isNull(jobs.archivedAt));
+  }
+
+  return parts.length > 0 ? and(...parts) : undefined;
+}
+
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const where = buildWhere(url);
+
+  const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit")) || DEFAULT_LIMIT));
+  const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
+
+  const [{ total }] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(jobs)
+    .where(where);
+
+  const items = await db
     .select({
       id: jobs.id,
       name: jobs.name,
+      tags: jobs.tags,
+      favorite: jobs.favorite,
+      archivedAt: jobs.archivedAt,
+      pinnedAt: jobs.pinnedAt,
       createdAt: jobs.createdAt,
-      total: sql<number>`count(${chunks.id})::int`,
-      done: sql<number>`count(*) filter (where ${chunks.status} in ('done','skipped'))::int`,
-      errors: sql<number>`count(*) filter (where ${chunks.status} = 'error')::int`,
+      updatedAt: jobs.updatedAt,
+      total: countChunks(sql`true`),
+      done: countChunks(sql`"chunks"."status" in ('done','skipped')`),
+      errors: countChunks(sql`"chunks"."status" = 'error'`),
+      sectionsTotal: countSections(sql`true`),
+      sectionsDone: countSections(sql`"sections"."status" = 'done'`),
     })
     .from(jobs)
-    .leftJoin(chunks, eq(chunks.jobId, jobs.id))
-    .groupBy(jobs.id)
-    .orderBy(desc(jobs.createdAt));
+    .where(where)
+    // Ghim lên đầu bất kể trang / search / filter (mục 2.6).
+    .orderBy(sql`${jobs.pinnedAt} desc nulls last`, desc(jobs.createdAt))
+    .limit(limit)
+    .offset((page - 1) * limit);
 
-  return ok(rows);
+  return ok({ items, page, limit, total });
 }
 
 interface CreateBody {

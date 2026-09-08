@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import ChunkBar from "./ChunkBar";
 import JobTitle from "./JobTitle";
 import Preview from "./Preview";
@@ -9,7 +10,12 @@ import ExportModal from "./ExportModal";
 import SummaryView from "./SummaryView";
 import { useConfirm } from "./ConfirmDialog";
 import { Banner, ListPanel, ProgressBar, type FilterDef } from "./chrome";
+import Menu from "./Menu";
+import TagEditor from "./TagEditor";
+import { useTags } from "@/lib/useTags";
 import { useSettings } from "@/lib/useSettings";
+import { apiKeyLabel } from "@/lib/defaults";
+import { coolDown, isRateLimited, nextKey, pickKey, type KeyPick } from "@/lib/runner";
 import { assembleMarkdown, assembleSummary } from "@/lib/assemble";
 import type { ChunkDTO, JobDTO, SectionDTO } from "@/lib/types";
 
@@ -17,8 +23,10 @@ type Tab = "translate" | "summary";
 type Loop = "translate" | "summary";
 
 export default function JobView({ jobId }: { jobId: string }) {
+  const router = useRouter();
   const { settings, loaded } = useSettings();
   const { ask, dialog } = useConfirm();
+  const { tags: allTags, reload: reloadTags } = useTags();
   const [job, setJob] = useState<JobDTO | null>(null);
   const [chunks, setChunks] = useState<ChunkDTO[]>([]);
   const [sections, setSections] = useState<SectionDTO[]>([]);
@@ -35,6 +43,9 @@ export default function JobView({ jobId }: { jobId: string }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [dismissed, setDismissed] = useState<Record<string, boolean>>({});
+  // Key nào đã gọi thẻ nào — chỉ giữ trong bộ nhớ trang, không lưu DB (§8.1).
+  const [keyUsed, setKeyUsed] = useState<Record<string, number>>({});
+  const [cooling, setCooling] = useState(false);
 
   // Chỉ 1 vòng lặp active tại một thời điểm (mục 5.3 CR).
   const runRef = useRef<Loop | null>(null);
@@ -46,6 +57,9 @@ export default function JobView({ jobId }: { jobId: string }) {
   settingsRef.current = settings;
   const jobRef = useRef<JobDTO | null>(null);
   jobRef.current = job;
+  /** Bộ đếm round-robin dùng chung cho cả 3 luồng, reset khi tải lại trang. */
+  const keyCursor = useRef(0);
+  const coolingWorkers = useRef(0);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/jobs/${jobId}`);
@@ -73,9 +87,17 @@ export default function JobView({ jobId }: { jobId: string }) {
   }, []);
 
   const needKey = useCallback(() => {
-    if (settingsRef.current.apiKey) return false;
+    if (settingsRef.current.apiKeys.length > 0) return false;
     setNotice("Chưa có API key — mở Settings trên thanh trên cùng để nhập.");
     return true;
+  }, []);
+
+  /** Lấy key kế tiếp trong vòng cho một cú gọi. */
+  const takeKey = useCallback((): KeyPick => {
+    const keys = settingsRef.current.apiKeys;
+    const pick = pickKey(keys, keyCursor.current);
+    keyCursor.current += 1;
+    return pick;
   }, []);
 
   /** Pool chạy chung cho cả 2 vòng lặp. */
@@ -91,14 +113,32 @@ export default function JobView({ jobId }: { jobId: string }) {
 
     let cursor = 0;
     const pool = Math.min(6, Math.max(1, settingsRef.current.concurrency));
+    const active = () => runRef.current === kind;
+    coolingWorkers.current = 0;
+    setCooling(false);
+
     await Promise.all(
       Array.from({ length: pool }, async () => {
-        while (runRef.current === kind && cursor < ids.length) {
+        let first = true;
+        while (active() && cursor < ids.length) {
+          // Nghỉ sau mỗi call, trước khi lấy việc tiếp. Call đầu của worker không nghỉ (§8.2).
+          const wait = settingsRef.current.cooldownMs;
+          if (!first && wait > 0) {
+            coolingWorkers.current += 1;
+            setCooling(coolingWorkers.current >= pool);
+            const carryOn = await coolDown(wait, active);
+            coolingWorkers.current -= 1;
+            setCooling(coolingWorkers.current >= pool);
+            if (!carryOn) break;
+          }
+          first = false;
           await one(ids[cursor++]);
         }
       })
     );
 
+    coolingWorkers.current = 0;
+    setCooling(false);
     runRef.current = null;
     setLoop(null);
   }, []);
@@ -106,6 +146,8 @@ export default function JobView({ jobId }: { jobId: string }) {
   const pause = useCallback(() => {
     runRef.current = null;
     setLoop(null);
+    coolingWorkers.current = 0;
+    setCooling(false);
   }, []);
 
   // ---------- Dịch ----------
@@ -115,14 +157,13 @@ export default function JobView({ jobId }: { jobId: string }) {
   }, []);
 
   /** 1 API call = 1 chunk, dùng đúng cấu hình trong Settings. Server không loop. */
-  const translateOne = useCallback(
-    async (id: string) => {
+  const callTranslate = useCallback(
+    async (id: string, pick: KeyPick): Promise<ChunkDTO | { error: string }> => {
       const s = settingsRef.current;
-      patchChunk(id, { status: "translating", error: null });
       try {
         const res = await fetch(`/api/chunks/${id}/translate`, {
           method: "POST",
-          headers: { "content-type": "application/json", "x-llm-key": s.apiKey },
+          headers: { "content-type": "application/json", "x-llm-key": pick.key },
           body: JSON.stringify({
             endpoint: s.endpoint,
             model: s.model,
@@ -132,16 +173,40 @@ export default function JobView({ jobId }: { jobId: string }) {
           }),
         });
         const data = await res.json();
-        if (!res.ok) {
-          patchChunk(id, { status: "error", error: data.error ?? `HTTP ${res.status}` });
-          return;
-        }
-        setChunks((prev) => prev.map((c) => (c.id === id ? (data as ChunkDTO) : c)));
+        if (!res.ok) return { error: data.error ?? `HTTP ${res.status}` };
+        return data as ChunkDTO;
       } catch (e) {
-        patchChunk(id, { status: "error", error: (e as Error).message });
+        return { error: (e as Error).message };
       }
     },
-    [patchChunk]
+    []
+  );
+
+  const translateOne = useCallback(
+    async (id: string) => {
+      const keys = settingsRef.current.apiKeys;
+      patchChunk(id, { status: "translating", error: null });
+
+      let pick = takeKey();
+      let row = await callTranslate(id, pick);
+      // Dính 429 và còn key khác → thử lại ngay 1 lần bằng key kế tiếp (§8.1).
+      if (keys.length >= 2 && isRateLimited(row.error)) {
+        pick = nextKey(keys, pick.index);
+        row = await callTranslate(id, pick);
+      }
+
+      setKeyUsed((prev) => ({ ...prev, [id]: pick.index }));
+      const label = keys.length >= 2 ? `${apiKeyLabel(pick.key, pick.index)}: ` : "";
+
+      if ("id" in row) {
+        const withKey =
+          row.error && label ? ({ ...row, error: `${label}${row.error}` } as ChunkDTO) : row;
+        setChunks((prev) => prev.map((c) => (c.id === id ? withKey : c)));
+        return;
+      }
+      patchChunk(id, { status: "error", error: `${label}${row.error}` });
+    },
+    [callTranslate, patchChunk, takeKey]
   );
 
   const start = useCallback(async () => {
@@ -225,7 +290,7 @@ export default function JobView({ jobId }: { jobId: string }) {
     try {
       const res = await fetch(`/api/jobs/${jobId}/context`, {
         method: "POST",
-        headers: { "content-type": "application/json", "x-llm-key": s.apiKey },
+        headers: { "content-type": "application/json", "x-llm-key": takeKey().key },
         body: JSON.stringify({
           endpoint: s.endpoint,
           model: s.model,
@@ -267,14 +332,13 @@ export default function JobView({ jobId }: { jobId: string }) {
     setSections((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   }, []);
 
-  const summarizeOne = useCallback(
-    async (id: string) => {
+  const callSummarize = useCallback(
+    async (id: string, pick: KeyPick): Promise<SectionDTO | { error: string }> => {
       const s = settingsRef.current;
-      patchSection(id, { status: "summarizing", error: null });
       try {
         const res = await fetch(`/api/sections/${id}/summarize`, {
           method: "POST",
-          headers: { "content-type": "application/json", "x-llm-key": s.apiKey },
+          headers: { "content-type": "application/json", "x-llm-key": pick.key },
           body: JSON.stringify({
             endpoint: s.endpoint,
             model: s.model,
@@ -283,16 +347,39 @@ export default function JobView({ jobId }: { jobId: string }) {
           }),
         });
         const data = await res.json();
-        if (!res.ok) {
-          patchSection(id, { status: "error", error: data.error ?? `HTTP ${res.status}` });
-          return;
-        }
-        setSections((prev) => prev.map((x) => (x.id === id ? (data as SectionDTO) : x)));
+        if (!res.ok) return { error: data.error ?? `HTTP ${res.status}` };
+        return data as SectionDTO;
       } catch (e) {
-        patchSection(id, { status: "error", error: (e as Error).message });
+        return { error: (e as Error).message };
       }
     },
-    [patchSection]
+    []
+  );
+
+  const summarizeOne = useCallback(
+    async (id: string) => {
+      const keys = settingsRef.current.apiKeys;
+      patchSection(id, { status: "summarizing", error: null });
+
+      let pick = takeKey();
+      let row = await callSummarize(id, pick);
+      if (keys.length >= 2 && isRateLimited(row.error)) {
+        pick = nextKey(keys, pick.index);
+        row = await callSummarize(id, pick);
+      }
+
+      setKeyUsed((prev) => ({ ...prev, [id]: pick.index }));
+      const label = keys.length >= 2 ? `${apiKeyLabel(pick.key, pick.index)}: ` : "";
+
+      if ("id" in row) {
+        const withKey =
+          row.error && label ? ({ ...row, error: `${label}${row.error}` } as SectionDTO) : row;
+        setSections((prev) => prev.map((x) => (x.id === id ? withKey : x)));
+        return;
+      }
+      patchSection(id, { status: "error", error: `${label}${row.error}` });
+    },
+    [callSummarize, patchSection, takeKey]
   );
 
   const startSummary = useCallback(async () => {
@@ -365,21 +452,48 @@ export default function JobView({ jobId }: { jobId: string }) {
 
   // ---------- Rechunk / resection ----------
 
-  const rename = useCallback(
-    async (name: string) => {
+  /** PATCH job rồi nhận lại bản mới — dùng chung cho rename, tag, pin, favorite, archive. */
+  const patchJob = useCallback(
+    async (body: Record<string, unknown>, failMsg: string) => {
       const res = await fetch(`/api/jobs/${jobId}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
-        setNotice("Đổi tên thất bại");
+        const payload = await res.json().catch(() => ({}));
+        setNotice(payload.error ?? failMsg);
         return;
       }
       setJob((await res.json()) as JobDTO);
     },
     [jobId]
   );
+
+  const rename = useCallback(
+    (name: string) => patchJob({ name }, "Đổi tên thất bại"),
+    [patchJob]
+  );
+
+  const saveTags = useCallback(
+    async (tags: string[]) => {
+      await patchJob({ tags }, "Lưu tag thất bại");
+      void reloadTags();
+    },
+    [patchJob, reloadTags]
+  );
+
+  const removeJob = useCallback(async () => {
+    if (!jobRef.current) return;
+    const okToDelete = await ask({
+      title: "Xoá job?",
+      body: `Xoá job "${jobRef.current.name}"? Toàn bộ chunk và section sẽ mất.`,
+      ok: "Xoá job",
+    });
+    if (!okToDelete) return;
+    await fetch(`/api/jobs/${jobId}`, { method: "DELETE" });
+    router.push("/");
+  }, [ask, jobId, router]);
 
   const rechunk = useCallback(
     async (chunkTokens: number, confirmFirst: boolean) => {
@@ -519,6 +633,7 @@ export default function JobView({ jobId }: { jobId: string }) {
 
   const untranslated = chunks.filter((c) => c.status !== "done" && c.status !== "skipped").length;
   const base = job.name.replace(/\.md$/i, "");
+  const archived = Boolean(job.archivedAt);
   const running = isTranslate ? loop === "translate" : loop === "summary";
   const doneCount = isTranslate ? stats.done : summaryStats.done;
 
@@ -531,6 +646,29 @@ export default function JobView({ jobId }: { jobId: string }) {
             ←
           </Link>
           <JobTitle name={job.name} onRename={rename} />
+
+          <button
+            onClick={() => patchJob({ favorite: !job.favorite }, "Lưu favorite thất bại")}
+            title={job.favorite ? "Bỏ favorite" : "Đánh dấu favorite"}
+            className={`h-8 w-8 rounded-pill text-base ${
+              job.favorite ? "text-warn-icon" : "text-sand-400 hover:text-warn-icon"
+            }`}
+          >
+            {job.favorite ? "★" : "☆"}
+          </button>
+          {!archived && (
+            <button
+              onClick={() => patchJob({ pinned: !job.pinnedAt }, "Lưu ghim thất bại")}
+              title={job.pinnedAt ? "Bỏ ghim" : "Ghim lên đầu danh sách"}
+              className={`h-8 w-8 rounded-pill text-base ${
+                job.pinnedAt ? "opacity-100" : "opacity-35 hover:opacity-100"
+              }`}
+            >
+              📌
+            </button>
+          )}
+
+          <TagEditor tags={job.tags} suggestions={allTags} onChange={saveTags} />
 
           <div className="flex rounded-pill bg-accent-100 p-[3px]">
             {(["translate", "summary"] as Tab[]).map((t) => (
@@ -554,6 +692,9 @@ export default function JobView({ jobId }: { jobId: string }) {
                 </span>
                 {stats.errors > 0 && <span className="text-danger-700">{stats.errors} lỗi</span>}
                 {stats.warnings > 0 && <span className="text-warn-fg">{stats.warnings} cảnh báo</span>}
+                {cooling && (
+                  <span className="text-run-fg">đang nghỉ {settings.cooldownMs / 1000}s…</span>
+                )}
               </>
             ) : (
               <>
@@ -562,6 +703,9 @@ export default function JobView({ jobId }: { jobId: string }) {
                 </span>
                 {summaryStats.errors > 0 && (
                   <span className="text-danger-700">{summaryStats.errors} lỗi</span>
+                )}
+                {cooling && (
+                  <span className="text-run-fg">đang nghỉ {settings.cooldownMs / 1000}s…</span>
                 )}
               </>
             )}
@@ -630,6 +774,17 @@ export default function JobView({ jobId }: { jobId: string }) {
             >
               {isTranslate ? "Export" : "Export summary"}
             </button>
+
+            <Menu
+              items={[
+                {
+                  label: archived ? "Unarchive" : "Archive",
+                  onClick: () =>
+                    patchJob({ archived: !archived }, "Lưu trạng thái archive thất bại"),
+                },
+                { label: "Xoá job", onClick: removeJob, danger: true },
+              ]}
+            />
           </div>
         </div>
       </div>
@@ -655,6 +810,21 @@ export default function JobView({ jobId }: { jobId: string }) {
       </div>
 
       <div className="flex flex-none flex-col gap-2 px-5 pt-2.5 empty:hidden">
+        {archived && (
+          <div className="flex shrink-0 flex-wrap items-center gap-2.5 rounded-[18px] bg-idle-bg px-3.5 py-2.5 text-[12.5px] text-idle-fg">
+            <span className="flex-1">
+              Job này đang ở archive — không hiện ở danh sách mặc định. Mọi thao tác vẫn chạy bình
+              thường.
+            </span>
+            <button
+              onClick={() => patchJob({ archived: false }, "Unarchive thất bại")}
+              className="btn btn-secondary btn-sm h-[30px] bg-white"
+            >
+              Unarchive
+            </button>
+          </div>
+        )}
+
         {tokensDiffer && hasTranslation && !dismissed.chunk && (
           <Banner
             tone="warn"
@@ -719,6 +889,7 @@ export default function JobView({ jobId }: { jobId: string }) {
               <div key={c.id} id={`chunk-${c.idx}`} className="shrink-0">
                 <ChunkBar
                   chunk={c}
+                  keyIndex={keyUsed[c.id]}
                   expanded={selectedId === c.id}
                   onToggle={(id) => setSelectedId((cur) => (cur === id ? null : id))}
                   onSaveSource={saveSource}
@@ -744,6 +915,7 @@ export default function JobView({ jobId }: { jobId: string }) {
           truncated={truncated}
           selectedId={selectedSectionId}
           onSelect={setSelectedSectionId}
+          keyUsed={keyUsed}
           query={query}
           onQuery={setQuery}
           filters={filters}

@@ -17,6 +17,8 @@ import {
 
 interface Props {
   section: SectionDTO;
+  /** Key thứ mấy đã gọi thẻ này trong lượt chạy hiện tại (0-based). Không lưu DB. */
+  keyIndex?: number;
   /** Source ghép từ chunkFrom..chunkTo — chỉ đọc, sửa nguồn nằm ở tab Translate. */
   sourceText: string;
   expanded: boolean;
@@ -29,6 +31,7 @@ interface Props {
 
 export default function SectionBar({
   section,
+  keyIndex,
   sourceText,
   expanded,
   disabled,
@@ -81,6 +84,14 @@ export default function SectionBar({
                 className="whitespace-nowrap font-mono text-[11px] text-sand-600"
               >
                 ×{section.attempts}
+              </span>
+            )}
+            {keyIndex !== undefined && (
+              <span
+                title="API key đã dùng cho lần gọi gần nhất"
+                className="whitespace-nowrap font-mono text-[11px] text-sand-600"
+              >
+                key #{keyIndex + 1}
               </span>
             )}
             <button

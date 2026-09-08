@@ -14,7 +14,8 @@ export default function AppHeader({ authEnabled }: { authEnabled: boolean }) {
 
   if (pathname === "/login") return null;
 
-  const hasKey = loaded && Boolean(settings.apiKey);
+  const keyCount = settings.apiKeys.length;
+  const hasKey = loaded && keyCount > 0;
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -39,12 +40,20 @@ export default function AppHeader({ authEnabled }: { authEnabled: boolean }) {
 
         <button
           onClick={() => setOpen(true)}
-          title={hasKey ? "API key đã lưu trong trình duyệt" : "Chưa có API key — bấm để nhập"}
+          title={
+            hasKey
+              ? `${keyCount} API key lưu trong trình duyệt`
+              : "Chưa có API key — bấm để nhập"
+          }
           className={`rounded-pill px-3 py-[5px] text-xs ${
             hasKey ? "bg-accent-200 text-accent-800" : "bg-danger-bg text-danger-fg"
           }`}
         >
-          {hasKey ? "● có key" : "○ chưa có key — nhập ngay"}
+          {hasKey
+            ? keyCount > 1
+              ? `● ${keyCount} key`
+              : "● có key"
+            : "○ chưa có key — nhập ngay"}
         </button>
         <span className="hidden font-mono text-[11.5px] text-sand-600 sm:inline">{settings.model}</span>
         <button onClick={() => setOpen(true)} className="btn btn-secondary h-[34px] py-0">

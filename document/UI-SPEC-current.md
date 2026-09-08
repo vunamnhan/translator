@@ -46,8 +46,8 @@ Từ trái sang phải:
 1. **Tranzlator** — tên app, đậm, bấm về trang danh sách job.
 2. **Jobs** — link về trang danh sách job (trùng chức năng với logo, có thể bỏ một).
 3. *(khoảng trống đẩy các mục sau sang phải)*
-4. **Chip trạng thái key** — 2 trạng thái, bấm vào đều mở Settings:
-   - Xanh lá: `● có key`
+4. **Chip trạng thái key** — bấm vào đều mở Settings:
+   - Xanh lá: `● có key` (1 key) hoặc `● 3 key` (nhiều key)
    - Đỏ: `○ chưa có key — nhập ngay`
 5. **Tên model đang dùng** — chữ nhỏ xám, ví dụ `gpt-4o-mini`. Ẩn trên màn hình hẹp.
 6. **Settings** — nút viền, mở ngăn Settings.
@@ -70,25 +70,37 @@ Một card nhỏ (khoảng 384px) căn giữa màn hình.
 
 ## 4. Màn hình Danh sách job
 
-Trang đơn giản, padding 24px, không sidebar.
+Trang đơn giản, không sidebar. Đã làm lại theo `CR-v0.2-jobs-list.md`. Không còn tiêu đề "Jobs" và dòng phụ đề — thanh công cụ là thứ đầu tiên trên trang.
 
-**Đầu trang**
-- Tiêu đề **Jobs**
-- Phụ đề: "Dịch Markdown bằng LLM · bring-your-own-key. Nhập API key ở Settings góc trên phải trước khi bấm Start."
+**Thanh công cụ** (một thẻ trắng bo tròn, bọc dòng khi hẹp), từ trái sang phải:
+- **Ô search** theo tên job, có icon ⌕ và nút × xoá nhanh. Gõ xong 300ms tự tìm, Enter tìm ngay. Tối đa 100 ký tự, không phân biệt hoa thường, có dấu ≠ không dấu.
+- **Tag ▾** — dropdown đa chọn, mỗi dòng có checkbox, tên tag và số job; trong dropdown có ô lọc nhanh. Chọn xong hiện chip tag ngay dưới thanh công cụ, mỗi chip có × để bỏ.
+- **☆ Favorite** — toggle, bật thì chỉ hiện job favorite (kể cả job đang archive).
+- **Gồm archive** — checkbox. Tắt (mặc định) = ẩn job archived. Bật = hiện cả archived. *(CR đề xuất bộ chọn 3 trạng thái; chốt lại còn 1 checkbox vì mặc định đã là "ẩn".)*
+- **Xoá bộ lọc** — chỉ hiện khi đang có lọc.
+- Bên phải: **＋ New job** — mở/đóng khối tạo job ngay dưới (không phải modal), gồm vùng **kéo-thả / bấm chọn file .md** (tối đa 2 MB) và ô **paste text** + nút **Tạo job từ text**. Lỗi hiện thành khối đỏ.
 
-**Nút New job** (xanh dương). Bấm thì **mở/đóng một khối tạo job** ngay dưới nút (không phải modal). Khối gồm:
-- **Upload file .md** — input chọn file mặc định của trình duyệt. Chọn xong tạo job ngay và chuyển sang màn hình job.
-- **Hoặc paste text** — textarea 6 dòng, font mono, placeholder `# Markdown here`. Dưới có nút **Tạo job từ text** (đen), vô hiệu khi trống.
-- Lỗi hiện dạng khối đỏ: ví dụ "File vượt quá 2 MB".
+Toàn bộ trạng thái lọc nằm trên URL (`?q=&tags=&fav=1&archived=include&page=2`) nên F5 và share link giữ nguyên. Đổi bộ lọc → về trang 1.
 
-**Bảng job** với 4 cột:
+**Dòng tóm tắt**: "42 job" hoặc "8 job khớp" khi có lọc, kèm "· trang 2/3" khi nhiều trang. Lúc đang gọi API hiện "Đang tải…".
 
-| Tên | Ngày | Tiến độ | (hành động) |
-|---|---|---|---|
-| tên file, đậm | ngày giờ tạo, xám | `12/40` chunk xong, kèm `3 lỗi` màu đỏ nếu có | **Mở** (link xanh) · **Xoá** (link đỏ) |
+**Danh sách job** — mỗi hàng:
 
-- Xoá hỏi xác nhận bằng hộp thoại mặc định của trình duyệt: `Xoá job "tên"? Toàn bộ chunk sẽ mất.`
-- Trạng thái trống: một dòng giữa bảng "Chưa có job nào."
+| Vùng | Nội dung |
+|---|---|
+| Trái | 📌 nếu đã ghim · ★/☆ favorite, bấm toggle ngay tại hàng |
+| Chính | Tên job (link mở) + badge xám **Archived** nếu archived. Dưới tên: chip tag (bấm = lọc theo tag đó) và ngày giờ tạo |
+| Tiến độ | Dịch `12/40` + thanh mỏng (xanh = xong, đỏ = lỗi) + `3 lỗi` đỏ nếu có · Tóm tắt `§4/9` |
+| Phải | Menu **⋯**: Ghim / Bỏ ghim (ẩn khi archived) · Favorite · Archive / Unarchive · **Xoá job** (đỏ, hỏi xác nhận) |
+
+- Job đã ghim nằm trên cùng dưới nhãn nhỏ **ĐÃ GHIM**, ngăn với phần còn lại bằng một đường kẻ.
+- Hàng archived mờ đi (opacity 60%) nhưng vẫn bấm được bình thường.
+
+**Phân trang** cuối danh sách khi có nhiều hơn 1 trang: `‹ 1 2 3 … 7 ›`, kèm chữ "20 / trang".
+
+**Trạng thái trống**
+- Chưa có job nào: "Chưa có job nào." + nút **＋ New job**.
+- Có lọc nhưng không khớp: "Không có job nào khớp." + nút **Xoá bộ lọc**. Nếu đang ẩn archive mà trong archive có job khớp, hiện thêm nút "Có N job trong archive khớp — Tìm trong archive".
 
 ---
 
@@ -101,12 +113,13 @@ Trang đơn giản, padding 24px, không sidebar.
 ```
 ┌─ Top bar ────────────────────────────────────────────────────────────┐
 ├─ Header job ─────────────────────────────────────────────────────────┤
-│ ←  Tên job ✎   [Translate | Summary]   12/40 xong  3 lỗi   model·host │
-│                                              [Start] [Dịch lại lỗi] [Export] │
-├─ (dải cảnh báo, nếu có) ─────────────────────────────────────────────┤
-├─ (dải thông báo, nếu có) ────────────────────────────────────────────┤
+│ ←  Tên job ✎  ★ 📌  [chip tag] [+tag]  [Translate|Summary]  12/40 xong │
+│                          [Start] [Dịch lại lỗi] [Export] [⋯]         │
+├─ Thanh tiến độ tổng + chú thích (xong / đang chạy / lỗi / %) ────────┤
+├─ (dải "job đang ở archive" + nút Unarchive, nếu có) ─────────────────┤
+├─ (dải cảnh báo / thông báo, có nút × để đóng) ───────────────────────┤
 ├──────────────┬───────────────────────────────────────────────────────┤
-│  SIDEBAR     │  KHUNG ĐỌC (Preview)                                  │
+│  SIDEBAR     │  KHUNG ĐỌC (Preview) — góc trên phải có A− 15px A+    │
 │  ~25% rộng   │  ~75% rộng                                            │
 │  cuộn riêng  │  cuộn riêng                                           │
 │              │                                                       │
@@ -260,6 +273,23 @@ Tab mặc định khi mở thẻ: **Nguồn**.
 
 ---
 
+### 5.9 Tổ chức job trên header (CR v0.2)
+
+Ngay sau tên job:
+- **★ / ☆** — toggle favorite.
+- **📌** — toggle ghim, **ẩn khi job đang archived** (muốn ghim phải Unarchive trước; API trả 400 nếu cố ghim job archived).
+- **Chip tag + ô thêm tag** — gõ để lọc gợi ý từ toàn bộ tag đã dùng, Enter thêm, Backspace ở ô trống xoá tag cuối, × trên chip để xoá. Lưu ngay mỗi lần thay đổi. Tối đa 20 tag / job, 32 ký tự / tag, `API` và `api` coi là một.
+
+Cuối hàng nút hành động có menu **⋯**: **Archive / Unarchive** và **Xoá job**.
+
+Job archived: dải xám ngay dưới header — "Job này đang ở archive — không hiện ở danh sách mặc định." + nút **Unarchive**. Không khoá bất kỳ chức năng nào.
+
+### 5.10 Khung đọc — chỉnh cỡ chữ
+
+Góc trên phải khung đọc có cụm **A− · 15px · A+** (dính khi cuộn). Bấm số ở giữa để về mặc định. Khoảng 12–24px, lưu trong localStorage, dùng chung cho cả tab Translate và Summary.
+
+---
+
 ## 6. Ngăn Settings (drawer)
 
 Trượt từ **phải**, rộng tối đa 448px, nền phủ đen 30%. Bấm ngoài, nút "Đóng (Esc)" hoặc phím Esc để đóng. Nếu còn thay đổi chưa lưu thì hỏi xác nhận bỏ.
@@ -270,16 +300,16 @@ Trượt từ **phải**, rộng tối đa 448px, nền phủ đen 30%. Bấm ng
 
 **Tab Chung**, từ trên xuống:
 1. Chú thích: "Áp cho **mọi job**, kể cả job đã tạo. Lưu trong trình duyệt — API key không bao giờ được lưu trên server."
-2. **API key** — ô password, placeholder `sk-...`. Dưới ô: "23 ký tự — nhớ bấm Lưu ở dưới." hoặc "Chưa nhập key thì Start sẽ bị chặn."
+2. **API keys** — danh sách 1..5 ô password, placeholder `sk-...`. Ô đã có giá trị hiện 4 ký tự cuối (`…a4f9`) để phân biệt, kèm nút × xoá dòng (ẩn khi chỉ còn 1 dòng). Dưới cùng link **+ Thêm key** (ẩn khi đã 5 key). Chú: "Nhiều key → app xoay vòng từng cú gọi, dính 429 thì đổi key kế tiếp. Các key phải cùng endpoint."
 3. **Endpoint (base URL)** — ô text, mặc định `https://api.openai.com/v1`. Chú "App tự nối /chat/completions."
 4. **Model** — ô text, mặc định `gpt-4o-mini`.
 5. **Temperature: 0.2** — ô số, bước 0.1, từ 0 đến 2.
 6. **Concurrency: 3** — thanh trượt 2 đến 6.
-7. **Chunk tokens (ước lượng chars/4)** — ô số, mặc định 1500. Chú: "Đổi số này thì trang job sẽ nhắc chunk lại (chunk lại là mất bản dịch cũ)."
-8. Đường kẻ, tiêu đề nhỏ **Tóm tắt**
-9. Checkbox **Dùng ngữ cảnh chung khi dịch** (mặc định bật) + mô tả 2 dòng.
-10. **Section tokens (gom chunk để tóm tắt)** — ô số, mặc định 6000.
-11. **Context max tokens (ngưỡng gửi nguyên văn)** — ô số, mặc định 80000. Chú: "Tài liệu vượt ngưỡng thì gửi skeleton (heading + phần đầu mỗi section)."
+7. **Cool down (giây)** — ô số, mặc định 5, từ 0 đến 60, bước 0.5. `0` = tắt. Dưới ô hiện ước lượng "≈ 3 call / 5s với concurrency 3. Mỗi worker nghỉ sau khi xong một call."
+8. **Chunk tokens (ước lượng chars/4)** — ô số, mặc định 1500. Chú: "Đổi số này thì trang job sẽ nhắc chunk lại (chunk lại là mất bản dịch cũ)."
+9. Đường kẻ, tiêu đề nhỏ **Tóm tắt**
+10. Checkbox **Dùng ngữ cảnh chung khi dịch** (mặc định bật) + mô tả 2 dòng.
+11. **Section tokens** và **Context max tokens** — 2 ô số cạnh nhau, mặc định 6000 và 80000. Chú: "Tài liệu vượt ngưỡng thì gửi skeleton (heading + phần đầu mỗi section)."
 
 **Tab Prompt**:
 1. Chú thích: "App tự nối output contract vào cuối mỗi prompt — đừng tự viết luật thẻ trong này."
@@ -320,13 +350,13 @@ Lỗi không có mã (mất mạng, AI quên định dạng sau 3 lần thử) c
 
 ---
 
-## 9. Hộp thoại xác nhận (hiện dùng `confirm()` mặc định của trình duyệt)
+## 9. Hộp thoại xác nhận
 
-Designer nên thiết kế dialog riêng cho các trường hợp sau, đều là hành động **xoá dữ liệu không hoàn tác**:
+Dialog riêng của app (không còn dùng `confirm()` của trình duyệt): thẻ trắng bo tròn giữa màn, tiêu đề + nội dung + dòng đỏ "Hành động này không hoàn tác được." + nút **Huỷ** và nút xác nhận màu đỏ. Bấm nền hoặc Huỷ = không làm gì.
 
 | Khi | Nội dung hiện tại |
 |---|---|
-| Xoá job | Xoá job "tên"? Toàn bộ chunk sẽ mất. |
+| Xoá job | Xoá job "tên"? Toàn bộ chunk và section sẽ mất. |
 | Chunk lại | Chunk lại sẽ XOÁ toàn bộ bản dịch và tóm tắt section của job này. Tiếp tục? |
 | Gom lại section | Gom lại section sẽ XOÁ toàn bộ tóm tắt section. Tiếp tục? |
 | Tạo lại ngữ cảnh chung | Tạo lại sẽ ghi đè ngữ cảnh chung hiện có. Tiếp tục? |
@@ -334,14 +364,15 @@ Designer nên thiết kế dialog riêng cho các trường hợp sau, đều l�
 
 ---
 
-## 10. Bảng màu và style đang dùng (để designer biết xuất phát điểm)
+## 10. Bảng màu và style đang dùng
 
-- Nền trang: xám rất nhạt (`neutral-50`), dark mode gần đen.
-- Màu chính: xanh dương (`blue-600`) cho nút chính, tab active, viền thẻ đang chọn.
-- Pause / hành động nguy hiểm nhẹ: hổ phách (`amber-600`).
-- Xoá, lỗi: đỏ. Cảnh báo: vàng. Xong: xanh lá.
-- Font: system sans. Nội dung kỹ thuật (số thứ tự, model, textarea, raw) dùng **mono 11px**, hơi nhỏ, khó đọc, designer cân nhắc.
-- Bo góc nhỏ (4px), viền 1px, ít đổ bóng. Nhìn chung là "tool kỹ thuật", chưa có bản sắc.
+Đã áp theo design "organic" (`document/UI Tranzlator/Tranzlator.dc.html`). Token nằm ở `src/app/globals.css`, map sang Tailwind ở `tailwind.config.ts`.
+
+- Nền trang: gradient xanh lá nhạt `#f1f8e6 → #e8f4d8`. Bề mặt: trắng. Chữ: `#1b2418`.
+- Màu chính (accent): xanh lá `#3a7a24` + ramp 100–900. Pause: cam đất `#b4741a`. Lỗi/xoá: `#a3271a`. Đang chạy: xanh mòng két `#3d9aa8`. Cảnh báo: vàng nhạt `#fdf3dc`.
+- Font: **Baloo 2** cho heading và nút, **Be Vietnam Pro** cho nội dung, **IBM Plex Mono** cho số/mã/textarea. Chọn 3 font này vì Caprasimo và Figtree trong design không có dải Latin Extended Additional nên tiếng Việt bị rơi font giữa chừng.
+- Bo góc lớn: thẻ 18–30px, nút và ô nhập bo tròn hẳn (pill). Đổ bóng xanh mềm 3 mức.
+- **Chỉ có light mode** — design không có palette tối nên `dark:` đã bị bỏ hết.
 
 ---
 
@@ -373,4 +404,4 @@ Designer nên thiết kế dialog riêng cho các trường hợp sau, đều l�
 
 ## 13. Thay đổi sắp tới
 
-Trang Jobs (mục 4) sẽ được làm lại theo `CR-v0.2-jobs-list.md`: search, lọc tag, favorite, archive, pin, phân trang. Designer đọc CR đó mục 5 khi thiết kế trang Jobs.
+Chưa có. `CR-v0.2-jobs-list.md` đã làm xong: trang Jobs (mục 4), tag / favorite / pin / archive trên màn hình job (mục 5), nhiều API key + cool down trong Settings (mục 6).

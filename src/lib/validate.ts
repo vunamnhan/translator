@@ -22,3 +22,9 @@ export function clampContextMaxTokens(v: unknown): number {
     typeof v === "number" && Number.isFinite(v) ? Math.round(v) : DEFAULT_SETTINGS.contextMaxTokens;
   return Math.min(1000000, Math.max(1000, n));
 }
+
+/** Cool down của vòng lặp front-end: 0..60s, làm tròn về bước 500ms. */
+export function clampCooldown(v: unknown): number {
+  const n = typeof v === "number" && Number.isFinite(v) ? v : DEFAULT_SETTINGS.cooldownMs;
+  return Math.min(60000, Math.max(0, Math.round(n / 500) * 500));
+}

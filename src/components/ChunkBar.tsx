@@ -27,6 +27,8 @@ function peek(text: string): string {
 
 interface Props {
   chunk: ChunkDTO;
+  /** Key thứ mấy đã gọi thẻ này trong lượt chạy hiện tại (0-based). Không lưu DB. */
+  keyIndex?: number;
   expanded: boolean;
   onToggle: (id: string) => void;
   onSaveSource: (id: string, value: string) => void;
@@ -36,6 +38,7 @@ interface Props {
 
 export default function ChunkBar({
   chunk,
+  keyIndex,
   expanded,
   onToggle,
   onSaveSource,
@@ -98,6 +101,14 @@ export default function ChunkBar({
                 className="whitespace-nowrap font-mono text-[11px] text-sand-600"
               >
                 ×{chunk.attempts}
+              </span>
+            )}
+            {keyIndex !== undefined && (
+              <span
+                title="API key đã dùng cho lần gọi gần nhất"
+                className="whitespace-nowrap font-mono text-[11px] text-sand-600"
+              >
+                key #{keyIndex + 1}
               </span>
             )}
             {chunk.status !== "skipped" && (

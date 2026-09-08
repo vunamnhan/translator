@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { chunks, jobs, sections } from "@/db/schema";
 import { bad, ok, readJson } from "@/lib/http";
+import { normalizeTags } from "@/lib/tags";
 import { asc, eq } from "drizzle-orm";
 
 export const runtime = "nodejs";
@@ -26,6 +27,11 @@ interface PatchBody {
   model?: string;
   endpoint?: string;
   name?: string;
+  /** CR v0.2 */
+  tags?: string[];
+  archived?: boolean;
+  pinned?: boolean;
+  favorite?: boolean;
 }
 
 export async function PATCH(req: Request, { params }: Ctx) {
@@ -38,6 +44,28 @@ export async function PATCH(req: Request, { params }: Ctx) {
   if (typeof body.model === "string") patch.model = body.model;
   if (typeof body.endpoint === "string") patch.endpoint = body.endpoint;
   if (typeof body.name === "string") patch.name = body.name.slice(0, 200);
+  if (body.tags !== undefined) patch.tags = normalizeTags(body.tags);
+  if (typeof body.favorite === "boolean") patch.favorite = body.favorite;
+
+  // Archive kéo theo bỏ pin (mục 2.2); favorite giữ nguyên.
+  if (typeof body.archived === "boolean") {
+    patch.archivedAt = body.archived ? new Date() : null;
+    if (body.archived) patch.pinnedAt = null;
+  }
+
+  if (typeof body.pinned === "boolean") {
+    if (body.pinned) {
+      const [current] = await db.select().from(jobs).where(eq(jobs.id, id));
+      if (!current) return bad("Không tìm thấy job", 404);
+      // Vẫn archived sau khi áp patch lần này → từ chối pin.
+      const stillArchived =
+        patch.archivedAt !== undefined ? patch.archivedAt !== null : current.archivedAt !== null;
+      if (stillArchived) return bad("Job đang ở archive — Unarchive trước rồi mới ghim được");
+      patch.pinnedAt = new Date();
+    } else {
+      patch.pinnedAt = null;
+    }
+  }
 
   const [job] = await db.update(jobs).set(patch).where(eq(jobs.id, id)).returning();
   if (!job) return bad("Không tìm thấy job", 404);

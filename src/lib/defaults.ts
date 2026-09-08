@@ -57,7 +57,8 @@ Dùng ngữ cảnh trên để hiểu tài liệu và giữ thuật ngữ nhất
 
 export interface Settings {
   endpoint: string;
-  apiKey: string;
+  /** 1..5 key, cùng endpoint + model. Xoay vòng từng cú gọi để né 429 (CR v0.2 §8.1). */
+  apiKeys: string[];
   model: string;
   temperature: number;
   systemPrompt: string;
@@ -67,11 +68,13 @@ export interface Settings {
   summaryTokens: number;
   contextMaxTokens: number;
   useContextForTranslation: boolean;
+  /** Worker nghỉ bao lâu sau mỗi call trước khi lấy việc tiếp. 0 = tắt (CR v0.2 §8.2). */
+  cooldownMs: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   endpoint: "https://api.openai.com/v1",
-  apiKey: "",
+  apiKeys: [],
   model: "gpt-4o-mini",
   temperature: 0.2,
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
@@ -81,7 +84,31 @@ export const DEFAULT_SETTINGS: Settings = {
   summaryTokens: 6000,
   contextMaxTokens: 80000,
   useContextForTranslation: true,
+  cooldownMs: 5000,
 };
+
+export const MAX_API_KEYS = 5;
+
+/** Bỏ key rỗng, gộp key trùng, cắt còn tối đa 5. */
+export function normalizeApiKeys(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== "string") continue;
+    const key = item.trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(key);
+    if (out.length >= MAX_API_KEYS) break;
+  }
+  return out;
+}
+
+/** Nhãn key trong thông báo lỗi: `key #2 (…a4f9)`. */
+export function apiKeyLabel(key: string, index: number): string {
+  return `key #${index + 1} (…${key.slice(-4)})`;
+}
 
 export const SETTINGS_KEY = "tranzlator.settings";
 export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;

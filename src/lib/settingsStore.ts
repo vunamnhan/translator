@@ -1,6 +1,6 @@
 "use client";
 
-import { DEFAULT_SETTINGS, SETTINGS_KEY, type Settings } from "./defaults";
+import { DEFAULT_SETTINGS, normalizeApiKeys, SETTINGS_KEY, type Settings } from "./defaults";
 
 export interface SettingsState {
   settings: Settings;
@@ -15,7 +15,14 @@ let started = false;
 function readStorage(): Settings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : DEFAULT_SETTINGS;
+    if (!raw) return DEFAULT_SETTINGS;
+    const parsed = JSON.parse(raw) as Partial<Settings> & { apiKey?: string };
+    const merged: Settings = { ...DEFAULT_SETTINGS, ...parsed };
+    // v0.1 lưu 1 key ở `apiKey`; v0.2 dùng mảng `apiKeys` — chuyển sang khi load lần đầu.
+    merged.apiKeys = normalizeApiKeys(
+      parsed.apiKeys ?? (parsed.apiKey ? [parsed.apiKey] : [])
+    );
+    return merged;
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -56,6 +63,7 @@ export function getServerSnapshot(): SettingsState {
 
 export function setSettings(patch: Partial<Settings>) {
   const settings = { ...state.settings, ...patch };
+  if (patch.apiKeys) settings.apiKeys = normalizeApiKeys(patch.apiKeys);
   state = { settings, loaded: true };
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
