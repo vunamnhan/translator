@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { presets } from "@/db/schema";
-import { bad, ok, readJson } from "@/lib/http";
+import { bad, isUniqueViolation, ok, readJson } from "@/lib/http";
 import {
   normalizeContextPrompt,
   normalizeName,
@@ -11,11 +11,6 @@ import { sql } from "drizzle-orm";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-/** Trùng tên: index unique lower(name) ném 23505. Bắt ở đây để trả 409 thay vì 500. */
-function isDuplicate(e: unknown): boolean {
-  return (e as { code?: string })?.code === "23505";
-}
 
 /** Danh sách preset, A→Z không phân biệt hoa thường. Trả đủ prompt — vài chục preset vẫn nhỏ. */
 export async function GET() {
@@ -42,7 +37,7 @@ export async function POST(req: Request) {
       .returning();
     return ok(preset, 201);
   } catch (e) {
-    if (isDuplicate(e)) return bad("Đã có preset trùng tên", 409);
+    if (isUniqueViolation(e)) return bad("Đã có preset trùng tên", 409);
     throw e;
   }
 }

@@ -48,4 +48,6 @@ Chạy `npm run build` rồi quay lại `npm run dev` sẽ vỡ `.next` (`Cannot
 
 `npm run dev` (cần `DATABASE_URL`), `npm test`. Schema init: chạy lần lượt `drizzle/0000_init.sql`, `drizzle/0001_summary.sql` (delta CR v0.1: cột context/summary trên `jobs` + bảng `sections`), `drizzle/0002_jobs_list.sql` (delta CR v0.2: tags/archived_at/pinned_at/favorite + index), `drizzle/0003_presets.sql` (delta CR v0.3: bảng `presets` + seed 3 preset mẫu). 0001–0003 idempotent nên DB cũ chạy thẳng được; seed dùng `WHERE NOT EXISTS` nên chạy lại không nhân đôi và không ghi đè preset user đã sửa.
 
+Drizzle 0.44 **bọc lỗi query** lại: mã Postgres (ví dụ `23505` trùng unique) nằm ở `error.cause`, kiểm `error.code` là hụt và route trả 500 thay vì 409 — dùng `isUniqueViolation` trong `src/lib/http.ts`.
+
 Viết subquery trong route `GET /api/jobs` phải ghi thẳng `"jobs"."id"`: select một bảng thì drizzle render cột thành `"id"` không có tiền tố, vào trong subquery lại trỏ nhầm sang `"chunks"."id"` và đếm ra 0.

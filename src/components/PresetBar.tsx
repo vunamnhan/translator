@@ -157,7 +157,7 @@ export default function PresetBar({ presetId, prompts, onDraft, onPersist }: Pro
           value={presetId ?? ""}
           disabled={loading || Boolean(error)}
           onChange={(e) => void select(e.target.value)}
-          className="input h-9 w-full min-w-0 lg:h-8 lg:w-auto lg:min-h-0 lg:flex-1"
+          className="input h-9 w-full min-w-0 lg:h-8 lg:w-auto lg:min-h-0 lg:min-w-[190px] lg:flex-1"
         >
           <option value="">— Tuỳ chỉnh —</option>
           {items.map((p) => (

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { isUniqueViolation } from "../src/lib/http";
 import {
   contractWarning,
   copyName,
@@ -134,5 +135,19 @@ describe("copyName", () => {
   it("gợi ý tên khi lưu thành preset mới", () => {
     expect(copyName("Truyện")).toBe("Truyện (copy)");
     expect(copyName(null)).toBe("Preset mới");
+  });
+});
+
+describe("isUniqueViolation", () => {
+  it("bắt lỗi 23505 nằm trong cause — drizzle 0.44 bọc lỗi query lại", () => {
+    const pg = Object.assign(new Error("duplicate key"), { code: "23505" });
+    expect(isUniqueViolation(pg)).toBe(true);
+    expect(isUniqueViolation(Object.assign(new Error("Failed query"), { cause: pg }))).toBe(true);
+  });
+
+  it("không nhận nhầm lỗi khác", () => {
+    expect(isUniqueViolation(new Error("bất kỳ"))).toBe(false);
+    expect(isUniqueViolation(Object.assign(new Error("x"), { code: "23503" }))).toBe(false);
+    expect(isUniqueViolation(null)).toBe(false);
   });
 });

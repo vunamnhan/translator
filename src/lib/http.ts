@@ -15,3 +15,15 @@ export async function readJson<T>(req: Request): Promise<T | null> {
     return null;
   }
 }
+
+/**
+ * Vi phạm unique (23505) → 409 chứ không phải 500. Drizzle 0.44 bọc lỗi query lại,
+ * mã của Postgres nằm ở `cause` (có thể lồng nhiều tầng) — kiểm mỗi `e.code` là hụt.
+ */
+export function isUniqueViolation(e: unknown): boolean {
+  for (let cur = e, depth = 0; cur && depth < 5; depth++) {
+    if ((cur as { code?: string }).code === "23505") return true;
+    cur = (cur as { cause?: unknown }).cause;
+  }
+  return false;
+}

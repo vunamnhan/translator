@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { presets } from "@/db/schema";
-import { bad, ok, readJson } from "@/lib/http";
+import { bad, isUniqueViolation, ok, readJson } from "@/lib/http";
 import {
   normalizeContextPrompt,
   normalizeName,
@@ -14,10 +14,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ id: string }> };
-
-function isDuplicate(e: unknown): boolean {
-  return (e as { code?: string })?.code === "23505";
-}
 
 /** Sửa tập con bất kỳ của 4 field. Last-write-wins, không lock (§3.2). */
 export async function PATCH(req: Request, { params }: Ctx) {
@@ -42,7 +38,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (!preset) return bad("Preset không còn tồn tại", 404);
     return ok(preset);
   } catch (e) {
-    if (isDuplicate(e)) return bad("Đã có preset trùng tên", 409);
+    if (isUniqueViolation(e)) return bad("Đã có preset trùng tên", 409);
     throw e;
   }
 }
