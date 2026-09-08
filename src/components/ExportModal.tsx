@@ -27,29 +27,39 @@ export default function ExportModal({ title, text, href, filename, note, onClose
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 grid place-items-center p-6"
+      style={{ background: "color-mix(in srgb, #16310d 40%, transparent)" }}
+      onClick={onClose}
+    >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[85vh] w-full max-w-6xl flex-col rounded bg-white p-4 shadow-xl dark:bg-neutral-900"
+        className="flex max-h-[85vh] w-[min(1152px,100%)] animate-tz-pop flex-col overflow-hidden rounded-[28px] bg-white shadow-lg"
       >
-        <div className="mb-3 flex items-center gap-3">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          {note && <span className="text-sm text-yellow-700">{note}</span>}
-          <div className="ml-auto flex gap-2 text-sm">
-            <button onClick={copy} className="rounded border border-neutral-400 px-3 py-1.5">
-              {copied ? "Đã copy" : "Copy"}
-            </button>
-            <a href={href} download={filename} className="rounded bg-blue-600 px-3 py-1.5 text-white">
-              Download .md
-            </a>
-            <button onClick={onClose} className="rounded px-3 py-1.5 text-neutral-500">
-              Đóng
-            </button>
-          </div>
+        <div className="flex flex-none flex-wrap items-center gap-3.5 px-[22px] py-[18px]">
+          <h4 className="m-0">{title}</h4>
+          {note && (
+            <span className="rounded-pill bg-warn-bg px-3 py-1 text-xs text-warn-fg">{note}</span>
+          )}
+          <span className="min-w-[8px] flex-1" />
+          <button onClick={copy} className="btn btn-secondary h-[34px] py-0">
+            {copied ? "Đã copy" : "Copy"}
+          </button>
+          <a href={href} download={filename} className="btn btn-primary h-[34px] py-0">
+            Download .md
+          </a>
+          <button onClick={onClose} className="px-2 text-[13px] text-sand-600 hover:underline">
+            Đóng
+          </button>
         </div>
-        <pre className="flex-1 overflow-auto rounded bg-neutral-100 p-3 font-mono text-xs whitespace-pre-wrap dark:bg-neutral-950">
+
+        <pre className="m-0 mx-[22px] mb-[22px] min-h-0 flex-1 overflow-auto whitespace-pre-wrap rounded-[20px] border border-divider bg-paper px-[18px] py-4 font-mono text-xs leading-[1.7] text-sand-800">
           {text}
         </pre>
+
+        <div className="flex-none px-[22px] pb-4 text-[11.5px] text-sand-600">
+          Tên file: {filename}
+        </div>
       </div>
     </div>
   );

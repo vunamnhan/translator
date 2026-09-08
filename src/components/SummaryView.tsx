@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import ContextBar from "./ContextBar";
 import SectionBar from "./SectionBar";
 import SummaryPreview, { CONTEXT_ID } from "./SummaryPreview";
+import { ListPanel, type FilterDef } from "./chrome";
 import type { ChunkDTO, JobDTO, SectionDTO } from "@/lib/types";
 
 interface Props {
@@ -16,6 +17,12 @@ interface Props {
   truncated: boolean;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  /** Ô tìm + chip lọc do JobView giữ state, để đổi tab là reset. */
+  query: string;
+  onQuery: (v: string) => void;
+  filters: FilterDef[];
+  filter: string;
+  onFilter: (key: string) => void;
   onGenerateContext: () => void;
   onSaveContext: (value: string) => void;
   onResection: () => void;
@@ -35,6 +42,11 @@ export default function SummaryView({
   truncated,
   selectedId,
   onSelect,
+  query,
+  onQuery,
+  filters,
+  filter,
+  onFilter,
   onGenerateContext,
   onSaveContext,
   onResection,
@@ -59,51 +71,71 @@ export default function SummaryView({
     return map;
   }, [sections, chunks]);
 
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return sections.filter((s) => {
+      if (filter === "error" && s.status !== "error") return false;
+      if (filter === "pending" && s.status !== "pending") return false;
+      if (filter === "done" && s.status !== "done") return false;
+      if (!q) return true;
+      return `${s.heading}\n${s.summary ?? ""}\n${sourceById.get(s.id) ?? ""}`
+        .toLowerCase()
+        .includes(q);
+    });
+  }, [sections, filter, query, sourceById]);
+
   const toggle = (id: string) => onSelect(selectedId === id ? null : id);
 
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 px-4 pb-4 lg:grid-cols-[minmax(260px,25%)_1fr]">
-      <div className="min-h-0 space-y-1.5 overflow-y-auto pr-1">
-        <ContextBar
-          job={job}
-          expanded={selectedId === CONTEXT_ID}
-          busy={contextBusy}
-          truncated={truncated}
-          onToggle={() => toggle(CONTEXT_ID)}
-          onGenerate={onGenerateContext}
-          onSave={onSaveContext}
-        />
+    <div className="flex min-h-0 flex-1 gap-3 px-5 pb-4 pt-3">
+      <ListPanel
+        query={query}
+        onQuery={onQuery}
+        filters={filters}
+        filter={filter}
+        onFilter={onFilter}
+        empty={sections.length > 0 && visible.length === 0 ? "Không có thẻ nào khớp bộ lọc." : null}
+      >
+        <div className="shrink-0">
+          <ContextBar
+            job={job}
+            expanded={selectedId === CONTEXT_ID}
+            busy={contextBusy}
+            truncated={truncated}
+            onToggle={() => toggle(CONTEXT_ID)}
+            onGenerate={onGenerateContext}
+            onSave={onSaveContext}
+          />
+        </div>
 
         {sections.length === 0 ? (
-          <div className="space-y-3 rounded border border-dashed border-neutral-300 p-4 text-center dark:border-neutral-700">
-            <p className="text-xs text-neutral-500">
+          <div className="shrink-0 space-y-3 rounded-[18px] border border-dashed border-sand-300 p-[18px] text-center">
+            <p className="m-0 text-[12.5px] text-sand-600">
               Chưa có section nào — job này tạo trước khi có chức năng tóm tắt.
             </p>
-            <button
-              onClick={onResection}
-              className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white"
-            >
+            <button onClick={onResection} className="btn btn-primary btn-sm h-8">
               Gom lại section
             </button>
           </div>
         ) : (
-          sections.map((s) => (
-            <SectionBar
-              key={s.id}
-              section={s}
-              sourceText={sourceById.get(s.id) ?? ""}
-              expanded={selectedId === s.id}
-              disabled={!hasContext || running || otherLoopRunning}
-              onToggle={toggle}
-              onSaveSummary={onSaveSummary}
-              onResummarize={onResummarize}
-              onJumpToChunk={onJumpToChunk}
-            />
+          visible.map((s) => (
+            <div key={s.id} className="shrink-0">
+              <SectionBar
+                section={s}
+                sourceText={sourceById.get(s.id) ?? ""}
+                expanded={selectedId === s.id}
+                disabled={!hasContext || running || otherLoopRunning}
+                onToggle={toggle}
+                onSaveSummary={onSaveSummary}
+                onResummarize={onResummarize}
+                onJumpToChunk={onJumpToChunk}
+              />
+            </div>
           ))
         )}
-      </div>
+      </ListPanel>
 
-      <div className="min-h-0">
+      <div className="min-w-0 flex-1">
         <SummaryPreview
           context={job.context}
           sections={sections}

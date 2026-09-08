@@ -2,51 +2,210 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ══════════════════════════════════════════════════════════════════════════
+   Token — bê từ design "organic" (document/UI Tranzlator/Tranzlator.dc.html).
+   Sửa màu/bo/shadow ở đây, đừng rải hex trong component.
+   ══════════════════════════════════════════════════════════════════════ */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
+
+  --color-bg: #f1f8e6;
+  --color-surface: #ffffff;
+  --color-text: #1b2418;
+  --color-divider: color-mix(in srgb, #1b2418 13%, transparent);
+
+  --color-accent: #3a7a24;
+  --color-accent-100: #f0fae1;
+  --color-accent-200: #dcf0c4;
+  --color-accent-300: #bde39a;
+  --color-accent-400: #94cf6c;
+  --color-accent-500: #66b03f;
+  --color-accent-600: #31691d;
+  --color-accent-700: #275716;
+  --color-accent-800: #1f4412;
+  --color-accent-900: #16310d;
+
+  /* Ramp phụ (moss) — dùng cho trạng thái skipped. */
+  --color-moss-100: #f0fae1;
+  --color-moss-200: #e1eecc;
+  --color-moss-300: #ccdbb2;
+  --color-moss-400: #aebf92;
+  --color-moss-500: #8fa073;
+  --color-moss-600: #728157;
+  --color-moss-700: #56633f;
+  --color-moss-800: #3d472b;
+  --color-moss-900: #272e1b;
+
+  /* Neutral ấm của hệ design — cố ý lệch tông khỏi accent để chữ phụ dịu đi. */
+  --color-sand-100: #f9f4ed;
+  --color-sand-200: #eee7db;
+  --color-sand-300: #dcd3c4;
+  --color-sand-400: #c0b6a5;
+  --color-sand-500: #a19786;
+  --color-sand-600: #82796a;
+  --color-sand-700: #645c50;
+  --color-sand-800: #474238;
+  --color-sand-900: #2e2b25;
+
+  /* Font phải có đủ Latin Extended Additional (ạ ả ấ ầ ẫ ậ …), nếu không tiếng Việt
+     sẽ rơi về font hệ thống giữa chừng và chữ nhảy tông. Caprasimo/Figtree của
+     design không có dải này nên thay bằng cặp tương đương có tiếng Việt. */
+  --font-heading: "Baloo 2", system-ui, sans-serif;
+  --font-heading-weight: 700;
+  --font-body: "Be Vietnam Pro", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+  /* Cỡ chữ khung đọc — nút A− / A+ ghi đè biến này. */
+  --reading-size: 15px;
+
+  --shadow-sm: 0 1px 2px color-mix(in srgb, #274119 12%, transparent);
+  --shadow-md: 0 4px 14px color-mix(in srgb, #274119 12%, transparent);
+  --shadow-lg: 0 18px 44px color-mix(in srgb, #274119 20%, transparent);
 }
 
-body {
-  @apply bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100;
+@layer base {
+  * { @apply box-border; }
+
+  body {
+    margin: 0;
+    background: linear-gradient(180deg, #f1f8e6 0%, #e8f4d8 100%);
+    background-attachment: fixed;
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    font-weight: var(--font-heading-weight);
+    line-height: 1.12;
+    letter-spacing: -0.015em;
+    margin: 0 0 8px;
+  }
+  h1 { font-size: 42px; }
+  h2 { font-size: 32px; }
+  h3 { font-size: 25px; }
+  h4 { font-size: 20px; }
+  h5 { font-size: 16px; }
+  h6 { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
+
+  a { color: var(--color-accent); text-decoration: none; text-underline-offset: 3px; }
+  a:hover { color: var(--color-accent-600); text-decoration: underline; }
+
+  :focus { outline: none; }
+  :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  ::selection { background: color-mix(in srgb, var(--color-accent) 30%, transparent); }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb {
+    background: #c9dfb4;
+    border-radius: 99px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-track { background: transparent; }
 }
 
-textarea,
-input,
-select {
-  @apply bg-white dark:bg-neutral-900;
+@keyframes tz-pulse { 0%, 100% { opacity: 1 } 50% { opacity: .42 } }
+@keyframes tz-spin { to { transform: rotate(360deg) } }
+@keyframes tz-slide { from { transform: translateX(26px); opacity: 0 } to { transform: none; opacity: 1 } }
+@keyframes tz-pop { from { transform: scale(.96); opacity: 0 } to { transform: none; opacity: 1 } }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Component class — mặt đối mặt với design system, dùng lại thay vì
+   chép chuỗi utility dài ở mọi nút.
+   ══════════════════════════════════════════════════════════════════════ */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 cursor-pointer rounded-pill
+           border border-transparent px-4 py-2 font-heading text-sm leading-tight
+           text-ink no-underline transition-colors;
+  }
+  .btn:disabled { @apply cursor-not-allowed opacity-45; }
+  .btn:hover { text-decoration: none; }
+  .btn-primary { @apply bg-accent text-white; }
+  .btn-primary:not(:disabled):hover { @apply bg-accent-600 text-white; }
+  .btn-primary:not(:disabled):active { @apply bg-accent-700; }
+  .btn-secondary { @apply border-divider bg-white/70; }
+  .btn-secondary:not(:disabled):hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
+  .btn-secondary:not(:disabled):active { background: color-mix(in srgb, var(--color-text) 14%, transparent); }
+  .btn-danger { @apply bg-danger-700 text-white; }
+  .btn-ghost { @apply border-transparent bg-transparent px-2 text-accent; }
+  .btn-ghost:not(:disabled):hover { background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
+  .btn-sm { @apply px-3 py-1 text-xs; }
+
+  .field > label,
+  .field-label {
+    @apply mb-1.5 block text-xs;
+    color: color-mix(in srgb, var(--color-text) 70%, transparent);
+  }
+
+  .input {
+    @apply w-full rounded-pill border border-divider bg-white px-3.5 py-1.5 text-sm text-ink;
+    caret-color: var(--color-accent);
+    min-height: 36px;
+  }
+  .input:hover { border-color: color-mix(in srgb, var(--color-text) 45%, transparent); }
+  .input:focus-visible { @apply border-accent; outline-offset: 0; }
+
+  /* Ô nhập nhiều dòng: bo mềm chứ không pill, nền hơi ngả xanh cho dịu mắt. */
+  .textarea {
+    @apply w-full rounded-2xl border border-divider bg-paper px-3 py-2.5
+           font-mono text-xs leading-relaxed text-ink;
+    resize: vertical;
+  }
+  .textarea:focus-visible { @apply border-accent; outline-offset: 0; }
+  .textarea-target { @apply border-accent-300 bg-accent-100; }
+
+  .panel { @apply rounded-3xl bg-white shadow-md; }
+
+  .tag { @apply inline-flex items-center rounded-pill px-2.5 py-0.5 text-[11px]; }
+
+  .table { @apply w-full border-collapse text-sm; }
+  .table th {
+    @apply px-2 py-2 text-left text-[11px] uppercase tracking-[0.08em];
+    color: color-mix(in srgb, var(--color-text) 60%, transparent);
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .table td {
+    @apply px-2 py-2;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+  }
+  .table tbody tr:hover { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
 }
 
-.input {
-  @apply w-full rounded border border-neutral-300 px-2 py-1.5 dark:border-neutral-700;
-}
-
-/* Preview bản dịch */
+/* ══════════════════════════════════════════════════════════════════════════
+   Preview bản dịch — markdown render, đọc dài nên cỡ chữ nhỉnh hơn UI.
+   ══════════════════════════════════════════════════════════════════════ */
 .md-preview {
-  @apply text-[15px] leading-relaxed;
+  font-size: var(--reading-size);
+  line-height: 1.75;
+  text-wrap: pretty;
 }
-.md-preview h1 { @apply mb-3 mt-6 text-2xl font-bold; }
-.md-preview h2 { @apply mb-2 mt-5 text-xl font-semibold; }
-.md-preview h3 { @apply mb-2 mt-4 text-lg font-semibold; }
-.md-preview h4 { @apply mb-1 mt-3 font-semibold; }
+/* Heading trong khung đọc dùng em để co giãn theo nút tăng/giảm cỡ chữ. */
+.md-preview h1 { @apply mb-3 mt-6; font-size: 1.85em; }
+.md-preview h2 { @apply mb-2.5 mt-5; font-size: 1.5em; }
+.md-preview h3 { @apply mb-2 mt-4; font-size: 1.25em; }
+.md-preview h4 { @apply mb-1.5 mt-3; font-size: 1.06em; }
 .md-preview p { @apply my-3; }
 .md-preview ul { @apply my-3 list-disc pl-6; }
 .md-preview ol { @apply my-3 list-decimal pl-6; }
 .md-preview li { @apply my-1; }
-.md-preview a { @apply text-blue-600 underline; }
+.md-preview a { @apply text-accent underline; }
 .md-preview blockquote {
-  @apply my-3 border-l-4 border-neutral-300 pl-4 italic text-neutral-600 dark:border-neutral-600 dark:text-neutral-400;
+  @apply my-3 rounded-r-xl border-l-4 border-accent-300 bg-accent-100/60 py-1 pl-4 italic text-sand-700;
 }
 .md-preview code {
-  @apply rounded bg-neutral-100 px-1 py-0.5 font-mono text-[13px] dark:bg-neutral-800;
+  @apply rounded-md bg-accent-100 px-1.5 py-0.5 font-mono text-accent-800;
+  font-size: 0.87em;
 }
 .md-preview pre {
-  @apply my-3 overflow-x-auto rounded bg-neutral-100 p-3 dark:bg-neutral-950;
+  @apply my-3 overflow-x-auto rounded-2xl bg-paper p-4;
+  border: 1px solid var(--color-divider);
 }
-.md-preview pre code { @apply bg-transparent p-0 text-[13px]; }
-.md-preview table { @apply my-3 w-full border-collapse text-sm; }
-.md-preview th, .md-preview td {
-  @apply border border-neutral-300 px-2 py-1 text-left dark:border-neutral-700;
-}
-.md-preview th { @apply bg-neutral-100 font-semibold dark:bg-neutral-800; }
-.md-preview hr { @apply my-6 border-neutral-300 dark:border-neutral-700; }
-.md-preview img { @apply my-3 rounded; }
+.md-preview pre code { @apply bg-transparent p-0 text-ink; font-size: 0.84em; }
+.md-preview table { @apply my-3 w-full border-collapse overflow-hidden rounded-xl; font-size: 0.92em; }
+.md-preview th, .md-preview td { @apply border border-divider px-2.5 py-1.5 text-left; }
+.md-preview th { @apply bg-accent-100 font-semibold; }
+.md-preview hr { @apply my-6 border-divider; }
+.md-preview img { @apply my-3 rounded-2xl; }

@@ -3,7 +3,18 @@
 import { useEffect, useState } from "react";
 import type { ChunkDTO } from "@/lib/types";
 import { errorCode, errorHint } from "@/lib/errors";
-import { Spinner, StatusPill, Tab } from "./bar";
+import {
+  BAR_BODY,
+  BAR_HEAD,
+  ErrorBox,
+  ErrorCode,
+  ReadOnlyBox,
+  Spinner,
+  StatusPill,
+  Tab,
+  WarnBox,
+  barShell,
+} from "./bar";
 
 /** Dòng đầu có chữ của chunk, để nhận diện nhanh khi thu gọn. */
 function peek(text: string): string {
@@ -11,7 +22,7 @@ function peek(text: string): string {
     .split("\n")
     .map((l) => l.trim())
     .find((l) => l.length > 0);
-  return (line ?? "(trống)").slice(0, 120);
+  return (line ?? "(trống)").replace(/^#+\s*/, "").slice(0, 120);
 }
 
 interface Props {
@@ -43,52 +54,32 @@ export default function ChunkBar({
   const hint = errorHint(code);
 
   return (
-    <div
-      className={`rounded border ${
-        expanded
-          ? "border-blue-500 bg-white shadow-sm dark:bg-neutral-900"
-          : "border-neutral-300 dark:border-neutral-700"
-      }`}
-    >
-      <button
-        onClick={() => onToggle(chunk.id)}
-        className="flex w-full items-center gap-2 px-2 py-1.5 text-left hover:bg-neutral-100 dark:hover:bg-neutral-800"
-      >
-        <span className="font-mono text-[11px] text-neutral-500">#{chunk.idx}</span>
+    <div className={barShell(expanded)}>
+      <button onClick={() => onToggle(chunk.id)} className={BAR_HEAD}>
+        <span className="min-w-[26px] font-mono text-xs text-sand-600">#{chunk.idx}</span>
         <StatusPill status={chunk.status} />
-        {code && (
-          <span
-            title={chunk.error ?? undefined}
-            className="rounded bg-red-600 px-1.5 py-0.5 text-[11px] font-bold text-white"
-          >
-            {code}
+        {code && <ErrorCode code={code} title={chunk.error ?? undefined} />}
+        {chunk.warning && (
+          <span title={chunk.warning} className="text-xs text-warn-icon">
+            ⚠
           </span>
         )}
-        {chunk.warning && <span title={chunk.warning}>⚠</span>}
-        {chunk.edited && <span title="Đã sửa tay">✎</span>}
-        <span className="min-w-0 flex-1 truncate text-xs text-neutral-600 dark:text-neutral-300">
+        {chunk.edited && (
+          <span title="Đã sửa tay" className="text-xs text-accent">
+            ✎
+          </span>
+        )}
+        <span className="min-w-0 flex-1 truncate text-[12.5px] text-sand-700">
           {peek(chunk.sourceOverride ?? chunk.source)}
         </span>
       </button>
 
       {expanded && (
-        <div className="space-y-2 border-t border-neutral-200 p-2 dark:border-neutral-800">
-          {chunk.warning && (
-            <p className="rounded bg-yellow-100 p-1.5 text-xs text-yellow-900 dark:bg-yellow-950 dark:text-yellow-200">
-              ⚠ {chunk.warning}
-            </p>
-          )}
-          {chunk.error && (
-            <div className="rounded bg-red-100 p-1.5 text-xs text-red-700 dark:bg-red-950 dark:text-red-300">
-              <p>{chunk.error}</p>
-              {hint && (
-                <p className="mt-0.5 font-medium">
-                  {code} — {hint}
-                </p>
-              )}
-            </div>
-          )}
-          <div className="flex items-center gap-1 border-b border-neutral-200 text-[11px] dark:border-neutral-800">
+        <div className={BAR_BODY}>
+          {chunk.error && <ErrorBox message={chunk.error} code={code} hint={hint} />}
+          {chunk.warning && <WarnBox>{chunk.warning}</WarnBox>}
+
+          <div className="flex flex-wrap items-center gap-1 border-b border-divider pb-1.5">
             <Tab active={tab === "source"} onClick={() => setTab("source")}>
               Nguồn {chunk.sourceOverride !== null && "✎"}
             </Tab>
@@ -99,61 +90,53 @@ export default function ChunkBar({
               Raw
             </Tab>
 
-            <div className="ml-auto flex items-center gap-2 pb-1">
-              {chunk.attempts > 0 && (
-                <span
-                  title={`Đã gọi LLM ${chunk.attempts} lần`}
-                  className="whitespace-nowrap text-neutral-500"
-                >
-                  ×{chunk.attempts}
-                </span>
-              )}
-              {chunk.status !== "skipped" && (
-                <button
-                  onClick={() => onRetranslate(chunk.id)}
-                  disabled={busy}
-                  title="Dịch lại chunk này"
-                  className="flex items-center gap-1.5 whitespace-nowrap rounded bg-blue-600 px-2 py-1 text-white disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {busy && <Spinner />}
-                  {busy ? "Đang dịch…" : "Dịch lại"}
-                </button>
-              )}
-            </div>
+            <span className="min-w-[4px] flex-1" />
+
+            {chunk.attempts > 0 && (
+              <span
+                title={`Đã gọi LLM ${chunk.attempts} lần`}
+                className="whitespace-nowrap font-mono text-[11px] text-sand-600"
+              >
+                ×{chunk.attempts}
+              </span>
+            )}
+            {chunk.status !== "skipped" && (
+              <button
+                onClick={() => onRetranslate(chunk.id)}
+                disabled={busy}
+                title="Dịch lại chunk này"
+                className="btn btn-primary btn-sm h-7"
+              >
+                {busy && <Spinner />}
+                {busy ? "Đang dịch…" : "Dịch lại"}
+              </button>
+            )}
           </div>
 
           {tab === "raw" ? (
-            chunk.rawResponse ? (
-              <pre className="h-[19rem] overflow-auto whitespace-pre-wrap break-words rounded border border-neutral-300 bg-neutral-50 p-1.5 font-mono text-[11px] dark:border-neutral-700 dark:bg-neutral-950">
-                {chunk.rawResponse}
-              </pre>
-            ) : (
-              <p className="rounded border border-dashed border-neutral-300 p-3 text-center text-[11px] text-neutral-500 dark:border-neutral-700">
-                Chưa có raw response — chunk này chưa gọi LLM lần nào.
-              </p>
-            )
+            <ReadOnlyBox>
+              {chunk.rawResponse ?? "Chưa có raw response — chunk này chưa gọi LLM lần nào."}
+            </ReadOnlyBox>
           ) : tab === "source" ? (
             <textarea
               key="source"
               value={src}
-              rows={14}
               onChange={(e) => setSrc(e.target.value)}
               onBlur={() => {
                 if (src !== (chunk.sourceOverride ?? chunk.source)) onSaveSource(chunk.id, src);
               }}
-              className="w-full rounded border border-neutral-300 p-1.5 font-mono text-[11px] dark:border-neutral-700"
+              className="textarea h-[270px] rounded-[14px]"
             />
           ) : (
             <textarea
               key="translated"
               value={dst}
-              rows={14}
               placeholder={chunk.status === "skipped" ? "(không dịch — front matter)" : "chưa dịch"}
               onChange={(e) => setDst(e.target.value)}
               onBlur={() => {
                 if (dst !== (chunk.translated ?? "")) onSaveTranslated(chunk.id, dst);
               }}
-              className="w-full rounded border border-neutral-300 p-1.5 font-mono text-[11px] dark:border-neutral-700"
+              className="textarea textarea-target h-[270px] rounded-[14px]"
             />
           )}
         </div>

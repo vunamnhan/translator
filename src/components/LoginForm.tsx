@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
 
 function Form() {
   const router = useRouter();
@@ -38,27 +37,35 @@ function Form() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
+    <main className="grid flex-1 place-items-center p-6">
       <form
         onSubmit={submit}
-        className="w-full max-w-sm rounded-lg border border-neutral-300 bg-white p-6 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+        className="w-[396px] max-w-full animate-tz-pop rounded-[30px] bg-white p-[30px] shadow-lg"
       >
-        <h1 className="text-xl font-semibold">Tranzlator</h1>
-        <p className="mt-1 text-sm text-neutral-500">Tool nội bộ — nhập mật khẩu admin để vào.</p>
+        <div className="mb-1 flex items-center gap-2.5">
+          <span className="grid h-[30px] w-[30px] place-items-center rounded-pill bg-accent font-heading text-[15px] text-white">
+            T
+          </span>
+          <h3 className="m-0">Tranzlator</h3>
+        </div>
+        <p className="mb-5 mt-0 text-[13px] text-sand-700">Tool nội bộ — nhập mật khẩu admin để vào.</p>
 
-        <label className="mt-5 block text-sm font-medium">Mật khẩu</label>
-        <input
-          type="password"
-          value={password}
-          autoFocus
-          autoComplete="current-password"
-          onChange={(e) => setPassword(e.target.value)}
-          className="input mt-1"
-          placeholder="••••••••"
-        />
+        <div className="field mb-3.5">
+          <label htmlFor="pw">Mật khẩu</label>
+          <input
+            id="pw"
+            type="password"
+            value={password}
+            autoFocus
+            autoComplete="current-password"
+            onChange={(e) => setPassword(e.target.value)}
+            className="input"
+            placeholder="••••••••"
+          />
+        </div>
 
         {error && (
-          <p className="mt-3 rounded bg-red-100 p-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+          <p className="mb-3.5 rounded-2xl bg-danger-soft px-3.5 py-2.5 text-[12.5px] text-danger-ink">
             {error}
           </p>
         )}
@@ -66,13 +73,14 @@ function Form() {
         <button
           type="submit"
           disabled={busy || password.length === 0}
-          className="mt-4 w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+          className="btn btn-primary h-[42px] w-full"
         >
           {busy ? "Đang vào…" : "Đăng nhập"}
         </button>
 
-        <p className="mt-4 text-xs text-neutral-500">
-          Phiên lưu bằng cookie httpOnly, hạn 30 ngày. API key của LLM không liên quan tới mật khẩu này.
+        <p className="mb-0 mt-[18px] text-[11.5px] leading-normal text-sand-600">
+          Phiên lưu bằng cookie httpOnly, hạn 30 ngày. API key của LLM không liên quan tới mật khẩu
+          này.
         </p>
       </form>
     </main>
@@ -81,7 +89,7 @@ function Form() {
 
 export default function LoginForm() {
   return (
-    <Suspense fallback={<main className="p-6 text-sm text-neutral-500">Đang tải…</main>}>
+    <Suspense fallback={<main className="flex-1 p-6 text-sm text-sand-600">Đang tải…</main>}>
       <Form />
     </Suspense>
   );

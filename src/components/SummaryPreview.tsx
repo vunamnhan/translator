@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
+import { ReadingPane } from "./chrome";
 import { renderMarkdown } from "@/lib/renderMarkdown";
 import type { SectionDTO } from "@/lib/types";
 
@@ -43,67 +44,63 @@ export default function SummaryPreview({ context, sections, selectedId, onSelect
   const anyDone = rendered.some((r) => r.html);
 
   return (
-    <div
-      ref={boxRef}
-      className="h-full overflow-y-auto rounded border border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900"
-    >
-      <div className="md-preview mx-auto max-w-3xl">
-        <section
-          data-section={CONTEXT_ID}
-          onClick={() => onSelect(CONTEXT_ID)}
-          className={`-mx-3 mb-4 scroll-mt-6 cursor-pointer rounded border-b border-neutral-200 px-3 pb-3 transition-colors dark:border-neutral-800 ${
-            selectedId === CONTEXT_ID
-              ? "bg-blue-50 ring-1 ring-blue-300 dark:bg-blue-950/40 dark:ring-blue-800"
-              : ""
-          }`}
-        >
-          {contextHtml ? (
-            <div dangerouslySetInnerHTML={{ __html: contextHtml }} />
-          ) : (
-            <p className="my-1 text-sm text-neutral-500">
-              Chưa có ngữ cảnh chung. Mở thẻ <strong>Ngữ cảnh chung</strong> bên trái rồi bấm{" "}
-              <em>Tạo tóm tắt chung</em>.
-            </p>
-          )}
-        </section>
-
-        {!anyDone && (
-          <p className="text-sm text-neutral-500">
-            Chưa có tóm tắt nào. Bấm Start để tóm tắt, nội dung sẽ hiện ở đây.
+    <ReadingPane boxRef={boxRef}>
+      <section
+        data-section={CONTEXT_ID}
+        onClick={() => onSelect(CONTEXT_ID)}
+        className={`mb-[26px] cursor-pointer scroll-mt-6 rounded-[20px] bg-accent-100 px-5 py-[18px] transition-shadow ${
+          selectedId === CONTEXT_ID ? "ring-2 ring-inset ring-accent-300" : ""
+        }`}
+      >
+        <div className="mb-1.5 text-[10.5px] uppercase tracking-[0.1em] text-accent-700">
+          Ngữ cảnh chung · §0
+        </div>
+        {contextHtml ? (
+          <div dangerouslySetInnerHTML={{ __html: contextHtml }} />
+        ) : (
+          <p className="my-1 text-sm text-sand-600">
+            Chưa có ngữ cảnh chung. Mở thẻ <strong>Ngữ cảnh chung</strong> bên trái rồi bấm{" "}
+            <em>Tạo tóm tắt chung</em>.
           </p>
         )}
+      </section>
 
-        {rendered.map((r) => {
-          const selected = r.id === selectedId;
-          return (
-            <section
-              key={r.id}
-              data-section={r.id}
-              onClick={() => onSelect(r.id)}
-              className={`-mx-3 scroll-mt-6 cursor-pointer rounded px-3 py-1 transition-colors ${
-                selected ? "bg-blue-50 ring-1 ring-blue-300 dark:bg-blue-950/40 dark:ring-blue-800" : ""
-              }`}
-            >
-              <h2>{r.heading}</h2>
-              {r.html ? (
-                <div
-                  className={r.stale ? "animate-pulse opacity-50" : undefined}
-                  dangerouslySetInnerHTML={{ __html: r.html }}
-                />
-              ) : (
-                <p className="my-1 text-xs italic text-neutral-400">
-                  §{r.idx + 1} ·{" "}
-                  {r.status === "summarizing"
-                    ? "đang tóm tắt…"
-                    : r.status === "error"
-                      ? "lỗi"
-                      : "chưa tóm tắt"}
-                </p>
-              )}
-            </section>
-          );
-        })}
-      </div>
-    </div>
+      {!anyDone && (
+        <p className="py-10 text-center text-[13.5px] text-sand-600">
+          Chưa có tóm tắt nào. Bấm Start để tóm tắt, nội dung sẽ hiện ở đây.
+        </p>
+      )}
+
+      {rendered.map((r) => {
+        const selected = r.id === selectedId;
+        return (
+          <section
+            key={r.id}
+            data-section={r.id}
+            onClick={() => onSelect(r.id)}
+            className={`-mx-3.5 mb-1.5 cursor-pointer scroll-mt-6 rounded-[18px] px-3.5 py-2.5 transition-colors ${
+              selected ? "bg-accent-100 ring-2 ring-inset ring-accent-300" : ""
+            }`}
+          >
+            <h3>{r.heading}</h3>
+            {r.html ? (
+              <div
+                className={r.stale ? "animate-tz-pulse opacity-50" : undefined}
+                dangerouslySetInnerHTML={{ __html: r.html }}
+              />
+            ) : (
+              <div className="text-[12.5px] italic text-sand-500">
+                §{r.idx + 1} ·{" "}
+                {r.status === "summarizing"
+                  ? "đang tóm tắt…"
+                  : r.status === "error"
+                    ? "lỗi"
+                    : "chưa tóm tắt"}
+              </div>
+            )}
+          </section>
+        );
+      })}
+    </ReadingPane>
   );
 }

@@ -7,6 +7,8 @@ import JobTitle from "./JobTitle";
 import Preview from "./Preview";
 import ExportModal from "./ExportModal";
 import SummaryView from "./SummaryView";
+import { useConfirm } from "./ConfirmDialog";
+import { Banner, ListPanel, ProgressBar, type FilterDef } from "./chrome";
 import { useSettings } from "@/lib/useSettings";
 import { assembleMarkdown, assembleSummary } from "@/lib/assemble";
 import type { ChunkDTO, JobDTO, SectionDTO } from "@/lib/types";
@@ -16,6 +18,7 @@ type Loop = "translate" | "summary";
 
 export default function JobView({ jobId }: { jobId: string }) {
   const { settings, loaded } = useSettings();
+  const { ask, dialog } = useConfirm();
   const [job, setJob] = useState<JobDTO | null>(null);
   const [chunks, setChunks] = useState<ChunkDTO[]>([]);
   const [sections, setSections] = useState<SectionDTO[]>([]);
@@ -28,6 +31,10 @@ export default function JobView({ jobId }: { jobId: string }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
+  // Lọc + tìm ở cột trái. Đổi tab thì reset để không lọc nhầm sang danh sách kia.
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [dismissed, setDismissed] = useState<Record<string, boolean>>({});
 
   // Chỉ 1 vòng lặp active tại một thời điểm (mục 5.3 CR).
   const runRef = useRef<Loop | null>(null);
@@ -58,6 +65,12 @@ export default function JobView({ jobId }: { jobId: string }) {
       runRef.current = null;
     };
   }, [load]);
+
+  const switchTab = useCallback((next: Tab) => {
+    setTab(next);
+    setQuery("");
+    setFilter("all");
+  }, []);
 
   const needKey = useCallback(() => {
     if (settingsRef.current.apiKey) return false;
@@ -199,8 +212,13 @@ export default function JobView({ jobId }: { jobId: string }) {
   const generateContext = useCallback(async () => {
     if (needKey()) return;
     const s = settingsRef.current;
-    if (jobRef.current?.context && !confirm("Tạo lại sẽ ghi đè ngữ cảnh chung hiện có. Tiếp tục?")) {
-      return;
+    if (jobRef.current?.context) {
+      const ok = await ask({
+        title: "Tạo lại ngữ cảnh chung?",
+        body: "Tạo lại sẽ ghi đè ngữ cảnh chung hiện có.",
+        ok: "Tạo lại",
+      });
+      if (!ok) return;
     }
     setContextBusy(true);
     setNotice(null);
@@ -227,7 +245,7 @@ export default function JobView({ jobId }: { jobId: string }) {
     } finally {
       setContextBusy(false);
     }
-  }, [jobId, needKey]);
+  }, [ask, jobId, needKey]);
 
   const saveContext = useCallback(
     async (value: string) => {
@@ -336,13 +354,13 @@ export default function JobView({ jobId }: { jobId: string }) {
     (idx: number) => {
       const target = chunksRef.current.find((c) => c.idx === idx);
       if (!target) return;
-      setTab("translate");
+      switchTab("translate");
       setSelectedId(target.id);
       requestAnimationFrame(() => {
         document.getElementById(`chunk-${idx}`)?.scrollIntoView({ block: "center" });
       });
     },
-    []
+    [switchTab]
   );
 
   // ---------- Rechunk / resection ----------
@@ -364,9 +382,15 @@ export default function JobView({ jobId }: { jobId: string }) {
   );
 
   const rechunk = useCallback(
-    async (chunkTokens: number, ask: boolean) => {
-      if (ask && !confirm("Chunk lại sẽ XOÁ toàn bộ bản dịch và tóm tắt section của job này. Tiếp tục?"))
-        return;
+    async (chunkTokens: number, confirmFirst: boolean) => {
+      if (confirmFirst) {
+        const ok = await ask({
+          title: "Chunk lại tài liệu?",
+          body: "Chunk lại sẽ xoá toàn bộ bản dịch và tóm tắt section của job này.",
+          ok: "Chunk lại",
+        });
+        if (!ok) return;
+      }
       pause();
       const res = await fetch(`/api/jobs/${jobId}/rechunk`, {
         method: "POST",
@@ -383,12 +407,19 @@ export default function JobView({ jobId }: { jobId: string }) {
       setSections(data.sections ?? []);
       setNotice(`Đã chunk lại theo ${data.job.chunkTokens} token: ${data.chunks.length} chunk`);
     },
-    [jobId, pause]
+    [ask, jobId, pause]
   );
 
   const resection = useCallback(
-    async (summaryTokens: number, ask: boolean) => {
-      if (ask && !confirm("Gom lại section sẽ XOÁ toàn bộ tóm tắt section. Tiếp tục?")) return;
+    async (summaryTokens: number, confirmFirst: boolean) => {
+      if (confirmFirst) {
+        const ok = await ask({
+          title: "Gom lại section?",
+          body: "Gom lại section sẽ xoá toàn bộ tóm tắt section.",
+          ok: "Gom lại",
+        });
+        if (!ok) return;
+      }
       pause();
       const res = await fetch(`/api/jobs/${jobId}/resection`, {
         method: "POST",
@@ -404,7 +435,7 @@ export default function JobView({ jobId }: { jobId: string }) {
       setSections(data.sections ?? []);
       setNotice(`Đã gom lại theo ${data.job.summaryTokens} token: ${data.sections.length} section`);
     },
-    [jobId, pause]
+    [ask, jobId, pause]
   );
 
   // Đổi chunkTokens trong Settings: chưa dịch gì thì chunk lại luôn, có rồi thì hỏi.
@@ -427,28 +458,54 @@ export default function JobView({ jobId }: { jobId: string }) {
 
   const stats = useMemo(() => {
     const total = chunks.length;
-    const done = chunks.filter((c) => c.status === "done" || c.status === "skipped").length;
+    const done = chunks.filter((c) => c.status === "done").length;
+    const skipped = chunks.filter((c) => c.status === "skipped").length;
+    const running = chunks.filter((c) => c.status === "translating").length;
     const errors = chunks.filter((c) => c.status === "error").length;
     const warnings = chunks.filter((c) => c.warning).length;
-    return { total, done, errors, warnings };
+    const pending = chunks.filter((c) => c.status === "pending").length;
+    return { total, done, skipped, running, errors, warnings, pending };
   }, [chunks]);
 
   const summaryStats = useMemo(() => {
     const total = sections.length;
     const done = sections.filter((s) => s.status === "done").length;
+    const running = sections.filter((s) => s.status === "summarizing").length;
     const errors = sections.filter((s) => s.status === "error").length;
-    return { total, done, errors };
+    const pending = sections.filter((s) => s.status === "pending").length;
+    return { total, done, running, errors, pending };
   }, [sections]);
 
-  const hasContext = Boolean(job?.context && job.context.trim());
+  const isTranslate = tab === "translate";
 
-  const host = useMemo(() => {
-    try {
-      return new URL(settings.endpoint).host;
-    } catch {
-      return settings.endpoint;
-    }
-  }, [settings.endpoint]);
+  const filters: FilterDef[] = isTranslate
+    ? [
+        { key: "all", label: "All", count: stats.total },
+        { key: "error", label: "Error", count: stats.errors },
+        { key: "warn", label: "Warning", count: stats.warnings },
+        { key: "pending", label: "Pending", count: stats.pending },
+        { key: "done", label: "Done", count: stats.done },
+      ]
+    : [
+        { key: "all", label: "All", count: summaryStats.total },
+        { key: "error", label: "Error", count: summaryStats.errors },
+        { key: "pending", label: "Pending", count: summaryStats.pending },
+        { key: "done", label: "Done", count: summaryStats.done },
+      ];
+
+  const visibleChunks = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return chunks.filter((c) => {
+      if (filter === "error" && c.status !== "error") return false;
+      if (filter === "warn" && !c.warning) return false;
+      if (filter === "pending" && c.status !== "pending") return false;
+      if (filter === "done" && c.status !== "done") return false;
+      if (!q) return true;
+      return `${c.sourceOverride ?? c.source}\n${c.translated ?? ""}`.toLowerCase().includes(q);
+    });
+  }, [chunks, filter, query]);
+
+  const hasContext = Boolean(job?.context && job.context.trim());
 
   const exportMd = useMemo(() => (showExport ? assembleMarkdown(chunks) : ""), [showExport, chunks]);
   const summaryMd = useMemo(
@@ -457,189 +514,209 @@ export default function JobView({ jobId }: { jobId: string }) {
   );
 
   if (!job) {
-    return <main className="p-6 text-sm text-neutral-500">Đang tải…</main>;
+    return <main className="flex-1 p-6 text-sm text-sand-600">Đang tải…</main>;
   }
 
   const untranslated = chunks.filter((c) => c.status !== "done" && c.status !== "skipped").length;
   const base = job.name.replace(/\.md$/i, "");
+  const running = isTranslate ? loop === "translate" : loop === "summary";
+  const doneCount = isTranslate ? stats.done : summaryStats.done;
 
   return (
-    <main className="flex h-[calc(100vh-2.75rem)] w-full flex-col">
-      <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-neutral-300 px-4 py-2.5 dark:border-neutral-700">
-        <Link href="/" className="text-sm text-blue-600 hover:underline">
-          ←
-        </Link>
-        <JobTitle name={job.name} onRename={rename} />
+    <main className="flex min-h-0 flex-1 flex-col">
+      {/* Toolbar — một thẻ nổi, gom tên job, tab, số liệu và mọi nút hành động. */}
+      <div className="flex-none px-5 pt-3">
+        <div className="flex flex-wrap items-center gap-3.5 rounded-3xl bg-white px-4 py-3 shadow-sm">
+          <Link href="/" title="Về danh sách job" className="text-base text-sand-600">
+            ←
+          </Link>
+          <JobTitle name={job.name} onRename={rename} />
 
-        <div className="flex items-center gap-1 rounded border border-neutral-300 p-0.5 text-sm dark:border-neutral-700">
-          <button
-            onClick={() => setTab("translate")}
-            className={`rounded px-3 py-1 ${
-              tab === "translate" ? "bg-blue-600 text-white" : "text-neutral-600 dark:text-neutral-300"
-            }`}
-          >
-            Translate
-          </button>
-          <button
-            onClick={() => setTab("summary")}
-            className={`rounded px-3 py-1 ${
-              tab === "summary" ? "bg-blue-600 text-white" : "text-neutral-600 dark:text-neutral-300"
-            }`}
-          >
-            Summary
-          </button>
-        </div>
+          <div className="flex rounded-pill bg-accent-100 p-[3px]">
+            {(["translate", "summary"] as Tab[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => switchTab(t)}
+                className={`rounded-pill px-4 py-1.5 text-[13px] ${
+                  tab === t ? "bg-accent text-white" : "text-accent-800"
+                }`}
+              >
+                {t === "translate" ? "Translate" : "Summary"}
+              </button>
+            ))}
+          </div>
 
-        <span className="text-sm text-neutral-500">
-          {tab === "translate" ? (
-            <>
-              {stats.done}/{stats.total} xong
-              {stats.errors > 0 && <span className="ml-2 text-red-600">{stats.errors} lỗi</span>}
-              {stats.warnings > 0 && (
-                <span className="ml-2 text-yellow-600">{stats.warnings} cảnh báo</span>
-              )}
-            </>
-          ) : (
-            <>
-              {summaryStats.done}/{summaryStats.total} section
-              {summaryStats.errors > 0 && (
-                <span className="ml-2 text-red-600">{summaryStats.errors} lỗi</span>
-              )}
-            </>
-          )}
-        </span>
-        <span
-          title={`Sẽ gọi: ${settings.endpoint}/chat/completions`}
-          className="rounded bg-neutral-200 px-2 py-0.5 font-mono text-xs text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
-        >
-          {settings.model} · {host}
-        </span>
+          <div className="flex items-center gap-3 text-[12.5px] text-sand-700">
+            {isTranslate ? (
+              <>
+                <span>
+                  {stats.done + stats.skipped}/{stats.total} chunk xong
+                </span>
+                {stats.errors > 0 && <span className="text-danger-700">{stats.errors} lỗi</span>}
+                {stats.warnings > 0 && <span className="text-warn-fg">{stats.warnings} cảnh báo</span>}
+              </>
+            ) : (
+              <>
+                <span>
+                  {summaryStats.done}/{summaryStats.total} section
+                </span>
+                {summaryStats.errors > 0 && (
+                  <span className="text-danger-700">{summaryStats.errors} lỗi</span>
+                )}
+              </>
+            )}
+          </div>
 
-        <div className="ml-auto flex flex-wrap gap-2 text-sm">
-          {tab === "translate" ? (
-            <>
-              {loop === "translate" ? (
-                <button onClick={pause} className="rounded bg-amber-600 px-3 py-1.5 text-white">
-                  Pause
-                </button>
-              ) : (
-                <button
-                  onClick={start}
-                  disabled={!loaded || loop !== null}
-                  className="rounded bg-blue-600 px-3 py-1.5 text-white disabled:opacity-40"
-                >
-                  {stats.done > 0 ? "Resume" : "Start"}
-                </button>
-              )}
+          <span className="min-w-[8px] flex-1" />
+
+          <div className="flex flex-wrap items-center gap-2">
+            {running ? (
               <button
-                onClick={retryErrors}
-                disabled={stats.errors === 0 || loop !== null}
-                className="rounded border border-neutral-400 px-3 py-1.5 disabled:opacity-40"
+                onClick={pause}
+                className="btn btn-primary h-9 py-0"
+                style={{ background: "#b4741a" }}
               >
-                Dịch lại lỗi ({stats.errors})
+                Pause
               </button>
+            ) : (
               <button
-                onClick={() => setShowExport(true)}
-                className="rounded border border-neutral-400 px-3 py-1.5"
+                onClick={isTranslate ? start : startSummary}
+                disabled={
+                  !loaded ||
+                  loop !== null ||
+                  (!isTranslate && (!hasContext || summaryStats.total === 0))
+                }
+                title={
+                  loop !== null
+                    ? "Vòng lặp khác đang chạy — Pause trước"
+                    : !isTranslate && !hasContext
+                      ? "Cần có ngữ cảnh chung trước"
+                      : undefined
+                }
+                className="btn btn-primary h-9 py-0"
               >
-                Export
+                {doneCount > 0 ? "Resume" : "Start"}
               </button>
-            </>
-          ) : (
-            <>
-              {loop === "summary" ? (
-                <button onClick={pause} className="rounded bg-amber-600 px-3 py-1.5 text-white">
-                  Pause
-                </button>
-              ) : (
-                <button
-                  onClick={startSummary}
-                  disabled={!loaded || loop !== null || !hasContext || summaryStats.total === 0}
-                  title={hasContext ? undefined : "Cần có ngữ cảnh chung trước"}
-                  className="rounded bg-blue-600 px-3 py-1.5 text-white disabled:opacity-40"
-                >
-                  {summaryStats.done > 0 ? "Resume" : "Start"}
-                </button>
-              )}
-              <button
-                onClick={retrySummaryErrors}
-                disabled={summaryStats.errors === 0 || loop !== null || !hasContext}
-                className="rounded border border-neutral-400 px-3 py-1.5 disabled:opacity-40"
-              >
-                Tóm tắt lại lỗi ({summaryStats.errors})
-              </button>
+            )}
+
+            <button
+              onClick={isTranslate ? retryErrors : retrySummaryErrors}
+              disabled={
+                (isTranslate ? stats.errors : summaryStats.errors) === 0 ||
+                loop !== null ||
+                (!isTranslate && !hasContext)
+              }
+              className="btn btn-secondary h-9 py-0"
+            >
+              {isTranslate
+                ? `Dịch lại lỗi (${stats.errors})`
+                : `Tóm tắt lại lỗi (${summaryStats.errors})`}
+            </button>
+
+            {!isTranslate && (
               <button
                 onClick={() => resection(settings.summaryTokens, hasSummary)}
                 disabled={loop !== null || contextBusy}
                 title="Xoá sections hiện tại và gom lại theo Section tokens trong Settings"
-                className="rounded border border-neutral-400 px-3 py-1.5 disabled:opacity-40"
+                className="btn btn-secondary h-9 py-0"
               >
                 Gom lại section
               </button>
-              <button
-                onClick={() => setShowSummaryExport(true)}
-                className="rounded border border-neutral-400 px-3 py-1.5"
-              >
-                Export summary
-              </button>
-            </>
-          )}
-        </div>
-      </header>
+            )}
 
-      {tokensDiffer && hasTranslation && (
-        <div className="mx-4 mb-2 flex shrink-0 flex-wrap items-center gap-3 rounded bg-yellow-100 p-2 text-sm text-yellow-900 dark:bg-yellow-950 dark:text-yellow-200">
-          <span>
-            Settings để chunk {settings.chunkTokens} token, job này đang chunk theo {job.chunkTokens}.
-          </span>
-          <button
-            onClick={() => rechunk(settings.chunkTokens, true)}
-            className="rounded bg-yellow-700 px-3 py-1 text-white"
+            <button
+              onClick={() => (isTranslate ? setShowExport(true) : setShowSummaryExport(true))}
+              className="btn btn-secondary h-9 py-0"
+            >
+              {isTranslate ? "Export" : "Export summary"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-none px-5 pt-2.5">
+        {isTranslate ? (
+          <ProgressBar
+            done={stats.done}
+            running={stats.running}
+            errors={stats.errors}
+            skipped={stats.skipped}
+            total={stats.total}
+          />
+        ) : (
+          <ProgressBar
+            done={summaryStats.done}
+            running={summaryStats.running}
+            errors={summaryStats.errors}
+            skipped={0}
+            total={summaryStats.total}
+          />
+        )}
+      </div>
+
+      <div className="flex flex-none flex-col gap-2 px-5 pt-2.5 empty:hidden">
+        {tokensDiffer && hasTranslation && !dismissed.chunk && (
+          <Banner
+            tone="warn"
+            action={`Chunk lại theo ${settings.chunkTokens}`}
+            onAction={() => rechunk(settings.chunkTokens, true)}
+            note="(mất toàn bộ bản dịch hiện có)"
+            onClose={() => setDismissed((d) => ({ ...d, chunk: true }))}
           >
-            Chunk lại theo {settings.chunkTokens}
-          </button>
-          <span className="text-xs">(mất toàn bộ bản dịch hiện có)</span>
-        </div>
-      )}
+            Settings để chunk {settings.chunkTokens} token, job này đang chunk theo {job.chunkTokens}.
+          </Banner>
+        )}
 
-      {summaryTokensDiffer && hasSummary && (
-        <div className="mx-4 mb-2 flex shrink-0 flex-wrap items-center gap-3 rounded bg-yellow-100 p-2 text-sm text-yellow-900 dark:bg-yellow-950 dark:text-yellow-200">
-          <span>
+        {summaryTokensDiffer && hasSummary && !dismissed.section && (
+          <Banner
+            tone="warn"
+            action={`Gom lại theo ${settings.summaryTokens}`}
+            onAction={() => resection(settings.summaryTokens, true)}
+            note="(mất toàn bộ tóm tắt section)"
+            onClose={() => setDismissed((d) => ({ ...d, section: true }))}
+          >
             Settings để section {settings.summaryTokens} token, job này đang gom theo{" "}
             {job.summaryTokens}.
-          </span>
-          <button
-            onClick={() => resection(settings.summaryTokens, true)}
-            className="rounded bg-yellow-700 px-3 py-1 text-white"
+          </Banner>
+        )}
+
+        {isTranslate && settings.useContextForTranslation && !hasContext && !dismissed.ctx && (
+          <Banner
+            tone="idle"
+            action="Sang tab Summary"
+            onAction={() => switchTab("summary")}
+            onClose={() => setDismissed((d) => ({ ...d, ctx: true }))}
           >
-            Gom lại theo {settings.summaryTokens}
-          </button>
-          <span className="text-xs">(mất toàn bộ tóm tắt section)</span>
-        </div>
-      )}
+            Toggle “Dùng ngữ cảnh chung” đang bật nhưng job này <strong>chưa có ngữ cảnh chung</strong>{" "}
+            — dịch vẫn chạy bình thường. Tạo ở tab Summary.
+          </Banner>
+        )}
 
-      {tab === "translate" && settings.useContextForTranslation && !job.context?.trim() && (
-        <p className="mx-4 mb-2 shrink-0 rounded bg-neutral-100 p-2 text-xs text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
-          Toggle “Dùng ngữ cảnh chung” đang bật nhưng job này <strong>chưa có ngữ cảnh chung</strong> —
-          dịch vẫn chạy bình thường. Tạo ở tab{" "}
-          <button onClick={() => setTab("summary")} className="text-blue-600 hover:underline">
-            Summary
-          </button>
-          .
-        </p>
-      )}
+        {notice && (
+          <Banner tone="info" onClose={() => setNotice(null)}>
+            {notice}
+          </Banner>
+        )}
+      </div>
 
-      {notice && (
-        <p className="mx-4 mb-2 shrink-0 rounded bg-blue-100 p-2 text-sm text-blue-800 dark:bg-blue-950 dark:text-blue-200">
-          {notice}
-        </p>
-      )}
-
-      {tab === "translate" ? (
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 px-4 pb-4 lg:grid-cols-[minmax(260px,25%)_1fr]">
-          <div className="min-h-0 space-y-1.5 overflow-y-auto pr-1">
-            {chunks.map((c) => (
-              <div key={c.id} id={`chunk-${c.idx}`}>
+      {isTranslate ? (
+        <div className="flex min-h-0 flex-1 gap-3 px-5 pb-4 pt-3">
+          <ListPanel
+            query={query}
+            onQuery={setQuery}
+            filters={filters}
+            filter={filter}
+            onFilter={setFilter}
+            empty={
+              chunks.length === 0
+                ? "Job này chưa có chunk nào."
+                : visibleChunks.length === 0
+                  ? "Không có thẻ nào khớp bộ lọc."
+                  : null
+            }
+          >
+            {visibleChunks.map((c) => (
+              <div key={c.id} id={`chunk-${c.idx}`} className="shrink-0">
                 <ChunkBar
                   chunk={c}
                   expanded={selectedId === c.id}
@@ -650,9 +727,9 @@ export default function JobView({ jobId }: { jobId: string }) {
                 />
               </div>
             ))}
-          </div>
+          </ListPanel>
 
-          <div className="min-h-0">
+          <div className="min-w-0 flex-1">
             <Preview chunks={chunks} selectedId={selectedId} onSelect={setSelectedId} />
           </div>
         </div>
@@ -667,6 +744,11 @@ export default function JobView({ jobId }: { jobId: string }) {
           truncated={truncated}
           selectedId={selectedSectionId}
           onSelect={setSelectedSectionId}
+          query={query}
+          onQuery={setQuery}
+          filters={filters}
+          filter={filter}
+          onFilter={setFilter}
           onGenerateContext={generateContext}
           onSaveContext={saveContext}
           onResection={() => resection(settings.summaryTokens, hasSummary)}
@@ -701,6 +783,8 @@ export default function JobView({ jobId }: { jobId: string }) {
           onClose={() => setShowSummaryExport(false)}
         />
       )}
+
+      {dialog}
     </main>
   );
 }

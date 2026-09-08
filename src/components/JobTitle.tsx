@@ -36,11 +36,11 @@ export default function JobTitle({ name, onRename }: Props) {
     return (
       <button
         onClick={() => setEditing(true)}
-        title="Bấm để đổi tên"
-        className="group flex items-center gap-1.5 rounded px-1 font-semibold hover:bg-neutral-200 dark:hover:bg-neutral-800"
+        title="Đổi tên job"
+        className="group flex items-center gap-1.5 rounded-xl px-2 py-0.5 font-heading text-[19px] hover:bg-accent-100"
       >
         {name}
-        <span className="text-xs text-neutral-400 opacity-0 transition-opacity group-hover:opacity-100">
+        <span className="text-xs text-sand-400 opacity-0 transition-opacity group-hover:opacity-100">
           ✎
         </span>
       </button>
@@ -69,9 +69,11 @@ export default function JobTitle({ name, onRename }: Props) {
             setEditing(false);
           }
         }}
-        className="w-64 rounded border border-blue-500 px-1.5 py-0.5 font-semibold outline-none"
+        className="input h-9 w-[230px] border-accent"
       />
-      <span className="text-xs text-neutral-500">{saving ? "đang lưu…" : "Enter lưu · Esc huỷ"}</span>
+      <span className="text-[11.5px] text-sand-600">
+        {saving ? "đang lưu…" : "Enter lưu · Esc huỷ"}
+      </span>
     </form>
   );
 }

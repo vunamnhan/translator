@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/organic-fcb376b2-83a5-4af3-aa08-7bb766491206/styles.css">
+<script src="_ds/organic-fcb376b2-83a5-4af3-aa08-7bb766491206/_ds_bundle.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --color-bg:#f1f8e6;
+  --color-surface:#ffffff;
+  --color-text:#1b2418;
+  --color-accent:#3a7a24;
+  --color-accent-100:#f0fae1;
+  --color-accent-200:#dcf0c4;
+  --color-accent-300:#bde39a;
+  --color-accent-400:#94cf6c;
+  --color-accent-500:#66b03f;
+  --color-accent-600:#31691d;
+  --color-accent-700:#275716;
+  --color-accent-800:#1f4412;
+  --color-accent-900:#16310d;
+  --color-divider:color-mix(in srgb,#1b2418 13%,transparent);
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,monospace;
+  --shadow-sm:0 1px 2px color-mix(in srgb,#274119 12%,transparent);
+  --shadow-md:0 4px 14px color-mix(in srgb,#274119 12%,transparent);
+  --shadow-lg:0 18px 44px color-mix(in srgb,#274119 20%,transparent);
+}
+body{margin:0;background:var(--color-bg)}
+a{color:var(--color-accent);text-decoration:none}
+a:hover{color:var(--color-accent-600);text-decoration:underline}
+@keyframes tz-pulse{0%,100%{opacity:1}50%{opacity:.42}}
+@keyframes tz-spin{to{transform:rotate(360deg)}}
+@keyframes tz-slide{from{transform:translateX(26px);opacity:0}to{transform:none;opacity:1}}
+@keyframes tz-pop{from{transform:scale(.96);opacity:0}to{transform:none;opacity:1}}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#c9dfb4;border-radius:99px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-track{background:transparent}
+</style>
+</helmet>
+<div style="height:100vh;display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(180deg,#f1f8e6 0%,#e8f4d8 100%);color:var(--color-text);font-family:var(--font-body);font-size:14px">
+
+  <sc-if value="{{ isLogin }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:1;display:grid;place-items:center;padding:24px">
+      <div style="width:396px;max-width:100%;background:#fff;border-radius:30px;padding:30px;box-shadow:var(--shadow-lg);animation:tz-pop .25s ease-out">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+          <span style="width:30px;height:30px;border-radius:999px;background:var(--color-accent);display:grid;place-items:center;color:#fff;font-family:var(--font-heading);font-size:15px">T</span>
+          <h3 style="margin:0">Tranzlator</h3>
+        </div>
+        <p style="font-size:13px;color:var(--color-neutral-700);margin:0 0 20px">Tool nội bộ — nhập mật khẩu admin để vào.</p>
+        <div class="field" style="margin-bottom:14px">
+          <label>Mật khẩu</label>
+          <input class="input" type="password" autofocus="true" placeholder="••••••••" value="{{ pw }}" onChange="{{ onPw }}">
+        </div>
+        <sc-if value="{{ loginError }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#fdeae5;color:#8a2418;border-radius:14px;padding:9px 13px;font-size:12.5px;margin-bottom:14px">Mật khẩu không đúng. Thử lại.</div>
+        </sc-if>
+        <button class="btn btn-primary btn-block" style="color:#fff;height:42px" onClick="{{ onLogin }}">Đăng nhập</button>
+        <p style="font-size:11.5px;color:var(--color-neutral-600);margin:18px 0 0;line-height:1.5">Phiên lưu bằng cookie httpOnly, hạn 30 ngày. API key của LLM không liên quan tới mật khẩu này.</p>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showChrome }}" hint-placeholder-val="{{ true }}">
+    <div style="height:52px;flex:none;display:flex;align-items:center;gap:16px;padding:0 20px;background:color-mix(in srgb,#fff 78%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--color-divider);position:relative;z-index:5">
+      <a href="#" onClick="{{ goJobs }}" style="display:flex;align-items:center;gap:9px;text-decoration:none;color:inherit">
+        <span style="width:26px;height:26px;border-radius:999px;background:var(--color-accent);display:grid;place-items:center;color:#fff;font-family:var(--font-heading);font-size:13px">T</span>
+        <span style="font-family:var(--font-heading);font-size:16.5px">Tranzlator</span>
+      </a>
+      <a href="#" onClick="{{ goJobs }}" style="font-size:13.5px;color:var(--color-neutral-700)">Jobs</a>
+      <span style="flex:1"></span>
+      <button onClick="{{ openSettings }}" style="border:0;cursor:pointer;display:flex;align-items:center;gap:6px;font:inherit;font-size:12px;padding:5px 12px;border-radius:999px;background:{{ keyChip.bg }};color:{{ keyChip.fg }}">{{ keyChip.label }}</button>
+      <span style="font-family:var(--font-mono);font-size:11.5px;color:var(--color-neutral-600)">{{ modelName }}</span>
+      <button class="btn btn-secondary" style="height:34px" onClick="{{ openSettings }}">Settings</button>
+      <a href="#" onClick="{{ goLogin }}" style="font-size:13px;color:var(--color-neutral-600)">Đăng xuất</a>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isJobs }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:1;overflow:auto;padding:30px 24px 60px">
+      <div style="max-width:940px;margin:0 auto">
+        <h2 style="margin:0 0 6px">Jobs</h2>
+        <p style="font-size:13.5px;color:var(--color-neutral-700);max-width:620px">Dịch Markdown bằng LLM · bring-your-own-key. Nhập API key ở Settings góc trên phải trước khi bấm Start.</p>
+        <div style="display:flex;gap:10px;align-items:center;margin:20px 0 0">
+          <button class="btn btn-primary" style="color:#fff;height:40px" onClick="{{ toggleNew }}">＋ New job</button>
+          <span style="font-size:12.5px;color:var(--color-neutral-600)">4 job · 1 đang chạy</span>
+        </div>
+        <sc-if value="{{ newOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:16px;background:#fff;border-radius:26px;padding:22px;box-shadow:var(--shadow-md);display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));animation:tz-pop .2s ease-out">
+            <div>
+              <div style="font-family:var(--font-heading);font-size:16px;margin-bottom:8px">Upload file .md</div>
+              <label style="display:grid;place-items:center;gap:6px;height:118px;border:1.5px dashed var(--color-accent-300);border-radius:20px;background:var(--color-accent-100);cursor:pointer;font-size:13px;color:var(--color-accent-700)">
+                <span>Kéo file vào đây hoặc bấm để chọn</span>
+                <span style="font-size:11.5px;color:var(--color-neutral-600)">.md · tối đa 2 MB</span>
+                <input type="file" style="display:none">
+              </label>
+            </div>
+            <div>
+              <div style="font-family:var(--font-heading);font-size:16px;margin-bottom:8px">Hoặc paste text</div>
+              <textarea placeholder="# Markdown here" value="{{ pasted }}" onChange="{{ onPaste }}" style="width:100%;height:118px;border:1px solid var(--color-divider);border-radius:20px;padding:12px 14px;font-family:var(--font-mono);font-size:12.5px;background:#fbfdf7;color:inherit;resize:none" style-focus="border-color:var(--color-accent);outline:none"></textarea>
+              <div style="display:flex;justify-content:flex-end;margin-top:10px">
+                <button class="btn btn-secondary" style="height:34px" onClick="{{ goJob }}">Tạo job từ text</button>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+        <div style="margin-top:22px;background:#fff;border-radius:26px;padding:8px 18px 14px;box-shadow:var(--shadow-sm)">
+          <table class="table">
+            <thead><tr><th>Tên</th><th>Ngày</th><th style="width:34%">Tiến độ</th><th style="text-align:right">Hành động</th></tr></thead>
+            <tbody>
+              <sc-for list="{{ jobs }}" as="j" hint-placeholder-count="4">
+                <tr>
+                  <td style="font-weight:600">{{ j.name }}</td>
+                  <td style="color:var(--color-neutral-600);font-size:13px">{{ j.date }}</td>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:10px">
+                      <div style="flex:1;max-width:170px;height:7px;border-radius:99px;background:var(--color-accent-100);overflow:hidden;display:flex">
+                        <div style="width:{{ j.pct }};background:var(--color-accent-500)"></div>
+                        <div style="width:{{ j.errPct }};background:#c4402c"></div>
+                      </div>
+                      <span style="font-family:var(--font-mono);font-size:12px">{{ j.count }}</span>
+                      <sc-if value="{{ j.errText }}" hint-placeholder-val="{{ false }}">
+                        <span style="font-size:11.5px;color:#a3271a">{{ j.errText }}</span>
+                      </sc-if>
+                    </div>
+                  </td>
+                  <td style="text-align:right;white-space:nowrap">
+                    <a href="#" onClick="{{ goJob }}">Mở</a>
+                    <span style="color:var(--color-neutral-400);margin:0 8px">·</span>
+                    <a href="#" onClick="{{ j.onDelete }}" style="color:#a3271a">Xoá</a>
+                  </td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isJob }}" hint-placeholder-val="{{ true }}">
+    <div style="flex:1;min-height:0;display:flex;flex-direction:column">
+
+      <div style="flex:none;padding:12px 20px 0">
+        <div style="background:#fff;border-radius:24px;box-shadow:var(--shadow-sm);padding:12px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <a href="#" onClick="{{ goJobs }}" title="Về danh sách job" style="font-size:16px;color:var(--color-neutral-600)">←</a>
+          <div style="display:flex;align-items:center;gap:6px">
+            <sc-if value="{{ renaming }}" hint-placeholder-val="{{ false }}">
+              <input class="input" style="width:230px;border-color:var(--color-accent)" value="{{ jobName }}" onChange="{{ onName }}" onBlur="{{ stopRename }}">
+            </sc-if>
+            <sc-if value="{{ notRenaming }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ startRename }}" title="Đổi tên job" style="border:0;background:transparent;cursor:pointer;font:inherit;font-family:var(--font-heading);font-size:19px;padding:2px 8px;border-radius:12px;color:inherit" style-hover="background:var(--color-accent-100)">{{ jobName }} ✎</button>
+            </sc-if>
+          </div>
+          <div style="display:flex;padding:3px;background:var(--color-accent-100);border-radius:999px">
+            <button onClick="{{ toTranslate }}" style="border:0;cursor:pointer;font:inherit;font-size:13px;padding:6px 16px;border-radius:999px;background:{{ tabT.bg }};color:{{ tabT.fg }}">Translate</button>
+            <button onClick="{{ toSummary }}" style="border:0;cursor:pointer;font:inherit;font-size:13px;padding:6px 16px;border-radius:999px;background:{{ tabS.bg }};color:{{ tabS.fg }}">Summary</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;font-size:12.5px;color:var(--color-neutral-700)">
+            <span>{{ statMain }}</span>
+            <sc-if value="{{ statErr }}" hint-placeholder-val="{{ false }}">
+              <span style="color:#a3271a">{{ statErr }}</span>
+            </sc-if>
+            <sc-if value="{{ statWarn }}" hint-placeholder-val="{{ false }}">
+              <span style="color:#8a5a12">{{ statWarn }}</span>
+            </sc-if>
+          </div>
+          <span title="{{ hostFull }}" style="font-family:var(--font-mono);font-size:11.5px;background:var(--color-neutral-100);color:var(--color-neutral-800);padding:4px 10px;border-radius:999px">{{ hostChip }}</span>
+          <span style="flex:1;min-width:8px"></span>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" style="color:#fff;height:36px;background:{{ runBtn.bg }}" title="{{ runBtn.title }}" onClick="{{ onRun }}">{{ runBtn.label }}</button>
+            <button class="btn btn-secondary" style="height:36px" disabled="{{ retryDisabled }}" onClick="{{ onRetryAll }}">{{ retryLabel }}</button>
+            <sc-if value="{{ isSummaryTab }}" hint-placeholder-val="{{ false }}">
+              <button class="btn btn-secondary" style="height:36px" title="Xoá sections hiện tại và gom lại theo Section tokens trong Settings" onClick="{{ onRegroup }}">Gom lại section</button>
+            </sc-if>
+            <button class="btn btn-secondary" style="height:36px" onClick="{{ openExport }}">{{ exportLabel }}</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex:none;padding:10px 20px 0">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="flex:1;height:10px;border-radius:99px;background:#fff;box-shadow:var(--shadow-sm);overflow:hidden;display:flex">
+            <div style="width:{{ prog.done }};background:var(--color-accent-500);transition:width .4s"></div>
+            <div style="width:{{ prog.run }};background:#3d9aa8;animation:tz-pulse 1.2s infinite;transition:width .4s"></div>
+            <div style="width:{{ prog.err }};background:#c4402c;transition:width .4s"></div>
+            <div style="width:{{ prog.skip }};background:var(--color-accent-2-300)"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--color-neutral-700)">
+            <span>● xong</span><span style="color:#2b6f79">● đang chạy</span><span style="color:#a3271a">● lỗi</span><span>{{ progPct }}</span>
+          </div>
+        </div>
+      </div>
+
+      <sc-for list="{{ banners }}" as="b" hint-placeholder-count="0">
+        <div style="flex:none;margin:10px 20px 0;border-radius:18px;padding:9px 14px;display:flex;align-items:center;gap:10px;font-size:12.5px;background:{{ b.bg }};color:{{ b.fg }}">
+          <span style="flex:1">{{ b.text }}</span>
+          <sc-if value="{{ b.action }}" hint-placeholder-val="{{ false }}">
+            <button class="btn btn-secondary" style="height:30px;font-size:12.5px;background:#fff" onClick="{{ b.onAction }}">{{ b.action }}</button>
+          </sc-if>
+          <sc-if value="{{ b.note }}" hint-placeholder-val="{{ false }}">
+            <span style="opacity:.75">{{ b.note }}</span>
+          </sc-if>
+          <button onClick="{{ b.onClose }}" title="Đóng" style="border:0;background:transparent;cursor:pointer;font:inherit;font-size:14px;color:inherit;opacity:.6;padding:0 2px">×</button>
+        </div>
+      </sc-for>
+
+      <div style="flex:1;min-height:0;display:flex;gap:12px;padding:12px 20px 16px">
+
+        <div style="width:392px;flex:none;display:flex;flex-direction:column;min-height:0;background:#fff;border-radius:24px;box-shadow:var(--shadow-md);padding:12px 8px 12px 14px">
+          <div style="flex:none;display:flex;flex-direction:column;gap:8px;padding-right:6px">
+            <div style="display:flex;gap:6px;align-items:center">
+              <input placeholder="Tìm trong nội dung…" value="{{ query }}" onChange="{{ onQuery }}" style="flex:1;min-width:0;height:32px;border:1px solid var(--color-divider);border-radius:999px;padding:0 12px;font:inherit;font-size:12.5px;background:#fbfdf7;color:inherit" style-focus="border-color:var(--color-accent);outline:none">
+            </div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap">
+              <sc-for list="{{ filters }}" as="f" hint-placeholder-count="4">
+                <button onClick="{{ f.onClick }}" style="border:1px solid {{ f.bd }};cursor:pointer;font:inherit;font-size:11.5px;padding:3px 11px;border-radius:999px;background:{{ f.bg }};color:{{ f.fg }}">{{ f.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+          <div ref="{{ listRef }}" style="flex:1;min-height:0;overflow:auto;position:relative;margin-top:10px;padding-right:6px;display:flex;flex-direction:column;gap:6px">
+            <sc-for list="{{ bars }}" as="bar" hint-placeholder-count="10">
+              <div data-sel="{{ bar.id }}" style="border-radius:18px;background:{{ bar.wrapBg }};border:1px solid {{ bar.bd }};box-shadow:{{ bar.shadow }};overflow:hidden;flex:none">
+                <div onClick="{{ bar.onClick }}" style="display:flex;align-items:center;gap:7px;padding:6px 10px;cursor:pointer;min-height:34px" style-hover="background:color-mix(in srgb,var(--color-accent) 5%,transparent)">
+                  <span style="font-family:var(--font-mono);font-size:12px;color:var(--color-neutral-600);min-width:26px">{{ bar.num }}</span>
+                  <span style="font-size:11px;padding:2px 8px;border-radius:999px;white-space:nowrap;background:{{ bar.pillBg }};color:{{ bar.pillFg }};animation:{{ bar.pillAnim }}">{{ bar.pillLabel }}</span>
+                  <sc-if value="{{ bar.code }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-family:var(--font-mono);font-size:10.5px;padding:2px 6px;border-radius:6px;background:#a3271a;color:#fff">{{ bar.code }}</span>
+                  </sc-if>
+                  <sc-if value="{{ bar.hasWarn }}" hint-placeholder-val="{{ false }}">
+                    <span title="{{ bar.warnText }}" style="color:#b4741a;font-size:12px">⚠</span>
+                  </sc-if>
+                  <sc-if value="{{ bar.edited }}" hint-placeholder-val="{{ false }}">
+                    <span title="đã sửa tay" style="color:var(--color-accent);font-size:12px">✎</span>
+                  </sc-if>
+                  <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;color:var(--color-neutral-700)">{{ bar.preview }}</span>
+                  <sc-if value="{{ bar.range }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--color-neutral-500)">{{ bar.range }}</span>
+                  </sc-if>
+                </div>
+
+                <sc-if value="{{ bar.isOpen }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:0 10px 12px;display:flex;flex-direction:column;gap:9px">
+                    <sc-if value="{{ bar.errMsg }}" hint-placeholder-val="{{ false }}">
+                      <div style="background:#fdeae5;border-radius:14px;padding:9px 12px;font-size:12px;color:#7d2114">
+                        <div style="font-family:var(--font-mono);font-size:11.5px">{{ bar.errMsg }}</div>
+                        <div style="margin-top:4px;opacity:.85">{{ bar.errHint }}</div>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ bar.warnText }}" hint-placeholder-val="{{ false }}">
+                      <div style="background:#fdf3dc;border-radius:14px;padding:9px 12px;font-size:12px;color:#7a5312">⚠ {{ bar.warnText }}</div>
+                    </sc-if>
+
+                    <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--color-divider);padding-bottom:6px">
+                      <sc-for list="{{ bar.tabs }}" as="t" hint-placeholder-count="3">
+                        <button onClick="{{ t.onClick }}" style="border:0;background:transparent;cursor:pointer;font:inherit;font-size:12px;padding:4px 9px;border-radius:10px;color:{{ t.fg }};box-shadow:{{ t.underline }}">{{ t.label }}</button>
+                      </sc-for>
+                      <span style="flex:1;min-width:4px"></span>
+                      <sc-if value="{{ bar.calls }}" hint-placeholder-val="{{ false }}">
+                        <span title="Số lần đã gọi LLM cho thẻ này" style="font-family:var(--font-mono);font-size:11px;color:var(--color-neutral-600)">{{ bar.calls }}</span>
+                      </sc-if>
+                      <sc-if value="{{ bar.saveBtn }}" hint-placeholder-val="{{ false }}">
+                        <button class="btn btn-secondary" style="height:28px;font-size:12px" disabled="{{ bar.saveDisabled }}" onClick="{{ bar.onSave }}">{{ bar.saveBtn }}</button>
+                      </sc-if>
+                      <sc-if value="{{ bar.jumpLink }}" hint-placeholder-val="{{ false }}">
+                        <button onClick="{{ bar.onJumpChunk }}" style="border:0;background:transparent;cursor:pointer;font:inherit;font-size:12px;color:var(--color-accent);padding:4px 6px">{{ bar.jumpLink }}</button>
+                      </sc-if>
+                      <sc-if value="{{ bar.actionBtn }}" hint-placeholder-val="{{ false }}">
+                        <button class="btn btn-primary" style="height:28px;font-size:12px;color:#fff" disabled="{{ bar.actionDisabled }}" title="{{ bar.actionTitle }}" onClick="{{ bar.onAction }}">{{ bar.actionBtn }}</button>
+                      </sc-if>
+                    </div>
+
+                    <sc-if value="{{ bar.showSource }}" hint-placeholder-val="{{ false }}">
+                      <textarea readOnly="{{ bar.sourceReadOnly }}" value="{{ bar.source }}" onChange="{{ bar.onSource }}" style="width:100%;height:270px;border:1px solid var(--color-divider);border-radius:14px;padding:10px 12px;font-family:var(--font-mono);font-size:12px;line-height:1.6;background:#fbfdf7;color:inherit;resize:vertical" style-focus="border-color:var(--color-accent);outline:none"></textarea>
+                    </sc-if>
+
+                    <sc-if value="{{ bar.showTarget }}" hint-placeholder-val="{{ false }}">
+                      <textarea placeholder="{{ bar.transPlaceholder }}" value="{{ bar.translation }}" onChange="{{ bar.onTranslation }}" style="width:100%;height:270px;border:1px solid var(--color-accent-300);border-radius:14px;padding:10px 12px;font-family:var(--font-mono);font-size:12px;line-height:1.6;background:var(--color-accent-100);color:inherit;resize:vertical" style-focus="border-color:var(--color-accent);outline:none"></textarea>
+                    </sc-if>
+
+                    <sc-if value="{{ bar.showRaw }}" hint-placeholder-val="{{ false }}">
+                      <div style="height:270px;overflow:auto;border:1px dashed var(--color-neutral-300);border-radius:14px;padding:10px 12px;font-family:var(--font-mono);font-size:11.5px;line-height:1.6;color:var(--color-neutral-700);white-space:pre-wrap">{{ bar.raw }}</div>
+                    </sc-if>
+
+                    <sc-if value="{{ bar.contextNote }}" hint-placeholder-val="{{ false }}">
+                      <div style="font-size:11px;color:var(--color-neutral-600)">{{ bar.contextNote }}</div>
+                    </sc-if>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+
+            <sc-if value="{{ emptyList }}" hint-placeholder-val="{{ false }}">
+              <div style="border:1px dashed var(--color-neutral-300);border-radius:18px;padding:18px;text-align:center;font-size:12.5px;color:var(--color-neutral-600)">{{ emptyList }}</div>
+            </sc-if>
+          </div>
+        </div>
+
+        <div ref="{{ previewRef }}" style="flex:1;min-width:0;overflow:auto;position:relative;background:#fff;border-radius:24px;box-shadow:var(--shadow-md);padding:34px 30px 80px">
+          <div style="max-width:764px;margin:0 auto">
+            <sc-if value="{{ contextBlock }}" hint-placeholder-val="{{ false }}">
+              <div data-sel="ctx" onClick="{{ onCtxClick }}" style="cursor:pointer;border-radius:20px;padding:18px 20px;background:var(--color-accent-100);margin-bottom:26px">
+                <div style="font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px">Ngữ cảnh chung · §0</div>
+                <div style="font-size:14.5px;line-height:1.7;white-space:pre-wrap;text-wrap:pretty">{{ contextBlock }}</div>
+              </div>
+            </sc-if>
+            <sc-for list="{{ blocks }}" as="bl" hint-placeholder-count="6">
+              <div data-sel="{{ bl.id }}" onClick="{{ bl.onClick }}" style="cursor:pointer;border-radius:18px;padding:10px 14px;margin:0 -14px 6px;background:{{ bl.bg }};box-shadow:{{ bl.ring }};opacity:{{ bl.opacity }};animation:{{ bl.anim }}">
+                <sc-if value="{{ bl.heading }}" hint-placeholder-val="{{ false }}">
+                  <h3 style="margin:14px 0 10px">{{ bl.heading }}</h3>
+                </sc-if>
+                <sc-if value="{{ bl.text }}" hint-placeholder-val="{{ false }}">
+                  <p style="margin:0;font-size:15px;line-height:1.75;text-wrap:pretty">{{ bl.text }}</p>
+                </sc-if>
+                <sc-if value="{{ bl.note }}" hint-placeholder-val="{{ false }}">
+                  <div style="font-size:12.5px;font-style:italic;color:var(--color-neutral-500)">{{ bl.note }}</div>
+                </sc-if>
+              </div>
+            </sc-for>
+            <sc-if value="{{ emptyPreview }}" hint-placeholder-val="{{ false }}">
+              <div style="text-align:center;color:var(--color-neutral-600);padding:60px 0;font-size:13.5px">{{ emptyPreview }}</div>
+            </sc-if>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ settingsOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:40;display:flex;justify-content:flex-end;background:color-mix(in srgb,#16310d 34%,transparent)">
+      <div onClick="{{ closeSettings }}" style="flex:1"></div>
+      <div style="width:452px;max-width:100%;background:var(--color-bg);display:flex;flex-direction:column;box-shadow:var(--shadow-lg);animation:tz-slide .22s ease-out">
+        <div style="flex:none;padding:18px 22px 0">
+          <div style="display:flex;align-items:center;gap:12px">
+            <h4 style="margin:0;flex:1">Settings</h4>
+            <button onClick="{{ closeSettings }}" style="border:0;background:transparent;cursor:pointer;font:inherit;font-size:12.5px;color:var(--color-neutral-600)">Đóng (Esc)</button>
+          </div>
+          <div style="display:flex;gap:4px;margin-top:12px;border-bottom:1px solid var(--color-divider)">
+            <button onClick="{{ setTabChung }}" style="border:0;background:transparent;cursor:pointer;font:inherit;font-size:13px;padding:7px 12px;color:{{ stChung.fg }};box-shadow:{{ stChung.underline }}">Chung {{ dirtyDot }}</button>
+            <button onClick="{{ setTabPrompt }}" style="border:0;background:transparent;cursor:pointer;font:inherit;font-size:13px;padding:7px 12px;color:{{ stPrompt.fg }};box-shadow:{{ stPrompt.underline }}">Prompt</button>
+          </div>
+        </div>
+        <div style="flex:1;min-height:0;overflow:auto;padding:18px 22px 26px;display:flex;flex-direction:column;gap:14px">
+          <sc-if value="{{ stGeneral }}" hint-placeholder-val="{{ true }}">
+            <div style="font-size:12px;color:var(--color-neutral-700);background:var(--color-accent-100);border-radius:16px;padding:10px 13px">Áp cho mọi job, kể cả job đã tạo. Lưu trong trình duyệt — API key không bao giờ được lưu trên server.</div>
+            <div class="field">
+              <label>API key</label>
+              <input class="input" type="password" placeholder="sk-..." value="{{ s.apiKey }}" onChange="{{ onApiKey }}">
+              <div style="font-size:11.5px;color:var(--color-neutral-600);margin-top:5px">{{ keyNote }}</div>
+            </div>
+            <div class="field">
+              <label>Endpoint (base URL)</label>
+              <input class="input" value="{{ s.endpoint }}" onChange="{{ onEndpoint }}">
+              <div style="font-size:11.5px;color:var(--color-neutral-600);margin-top:5px">App tự nối /chat/completions.</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:12px">
+              <div class="field"><label>Model</label><input class="input" value="{{ s.model }}" onChange="{{ onModel }}"></div>
+              <div class="field"><label>Temperature</label><input class="input" type="number" step="0.1" min="0" max="2" value="{{ s.temp }}" onChange="{{ onTemp }}"></div>
+            </div>
+            <div class="field">
+              <label>Concurrency: {{ s.concurrency }}</label>
+              <input type="range" min="2" max="6" step="1" value="{{ s.concurrency }}" onChange="{{ onConc }}" style="width:100%;accent-color:var(--color-accent)">
+            </div>
+            <div class="field">
+              <label>Chunk tokens (ước lượng chars/4)</label>
+              <input class="input" type="number" value="{{ s.chunkTokens }}" onChange="{{ onChunkTokens }}">
+              <div style="font-size:11.5px;color:var(--color-neutral-600);margin-top:5px">Đổi số này thì trang job sẽ nhắc chunk lại (chunk lại là mất bản dịch cũ).</div>
+            </div>
+            <div style="height:1px;background:var(--color-divider);margin:4px 0"></div>
+            <h6 style="margin:0;color:var(--color-neutral-700)">Tóm tắt</h6>
+            <label style="display:flex;gap:10px;align-items:flex-start;font-size:13px;cursor:pointer">
+              <input type="checkbox" checked="{{ s.useContext }}" onChange="{{ onUseContext }}" style="margin-top:3px;accent-color:var(--color-accent);width:16px;height:16px">
+              <span>Dùng ngữ cảnh chung khi dịch<br><span style="font-size:11.5px;color:var(--color-neutral-600)">Bơm ngữ cảnh chung của job vào prompt dịch để giữ thuật ngữ nhất quán.</span></span>
+            </label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div class="field"><label>Section tokens</label><input class="input" type="number" value="{{ s.sectionTokens }}" onChange="{{ onSectionTokens }}"></div>
+              <div class="field"><label>Context max tokens</label><input class="input" type="number" value="{{ s.contextMax }}" onChange="{{ onContextMax }}"></div>
+            </div>
+            <div style="font-size:11.5px;color:var(--color-neutral-600)">Tài liệu vượt ngưỡng thì gửi skeleton (heading + phần đầu mỗi section).</div>
+          </sc-if>
+          <sc-if value="{{ stPromptTab }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:12px;color:var(--color-neutral-700);background:var(--color-accent-100);border-radius:16px;padding:10px 13px">App tự nối output contract vào cuối mỗi prompt — đừng tự viết luật thẻ trong này.</div>
+            <div class="field">
+              <div style="display:flex;align-items:baseline;gap:10px"><label style="flex:1">System prompt (dịch)</label><button onClick="{{ resetTransPrompt }}" style="border:0;background:transparent;cursor:pointer;font:inherit;font-size:12px;color:var(--color-accent)">Về mặc định</button></div>
+              <textarea value="{{ s.transPrompt }}" onChange="{{ onTransPrompt }}" style="width:100%;height:230px;border:1px solid var(--color-divider);border-radius:18px;padding:11px 13px;font-family:var(--font-mono);font-size:12px;line-height:1.6;background:#fff;color:inherit;resize:vertical" style-focus="border-color:var(--color-accent);outline:none"></textarea>
+              <div style="font-size:11.5px;color:var(--color-neutral-600);margin-top:5px">Nối thêm: bắt buộc thẻ &lt;translation&gt;.</div>
+            </div>
+            <div class="field">
+              <div style="display:flex;align-items:baseline;gap:10px"><label style="flex:1">Summary prompt (tóm tắt section)</label><button onClick="{{ resetSumPrompt }}" style="border:0;background:transparent;cursor:pointer;font:inherit;font-size:12px;color:var(--color-accent)">Về mặc định</button></div>
+              <textarea value="{{ s.sumPrompt }}" onChange="{{ onSumPrompt }}" style="width:100%;height:170px;border:1px solid var(--color-divider);border-radius:18px;padding:11px 13px;font-family:var(--font-mono);font-size:12px;line-height:1.6;background:#fff;color:inherit;resize:vertical" style-focus="border-color:var(--color-accent);outline:none"></textarea>
+            </div>
+            <div style="font-size:11.5px;color:var(--color-neutral-600)">Prompt tạo ngữ cảnh chung là cố định trong app — sửa kết quả trực tiếp ở tab Summary của từng job.</div>
+          </sc-if>
+        </div>
+        <div style="flex:none;display:flex;align-items:center;gap:10px;padding:14px 22px;border-top:1px solid var(--color-divider);background:#fff">
+          <button class="btn btn-primary" style="color:#fff;height:38px" disabled="{{ saveDisabled }}" onClick="{{ onSaveSettings }}">Lưu {{ dirtyDot }}</button>
+          <button class="btn btn-secondary" style="height:38px" disabled="{{ saveDisabled }}" onClick="{{ onRevert }}">Huỷ thay đổi</button>
+          <span style="flex:1"></span>
+          <span style="font-size:12px;color:{{ saveState.fg }}">{{ saveState.label }}</span>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ exportOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:45;display:grid;place-items:center;padding:26px;background:color-mix(in srgb,#16310d 40%,transparent)">
+      <div style="width:min(1152px,100%);max-height:85vh;display:flex;flex-direction:column;background:#fff;border-radius:28px;box-shadow:var(--shadow-lg);animation:tz-pop .2s ease-out;overflow:hidden">
+        <div style="flex:none;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:18px 22px">
+          <h4 style="margin:0">{{ exportTitle }}</h4>
+          <sc-if value="{{ exportWarn }}" hint-placeholder-val="{{ false }}">
+            <span style="font-size:12px;background:#fdf3dc;color:#7a5312;padding:4px 12px;border-radius:999px">{{ exportWarn }}</span>
+          </sc-if>
+          <span style="flex:1;min-width:8px"></span>
+          <button class="btn btn-secondary" style="height:34px" onClick="{{ onCopy }}">{{ copyLabel }}</button>
+          <button class="btn btn-primary" style="height:34px;color:#fff" onClick="{{ onDownload }}">Download .md</button>
+          <button onClick="{{ closeExport }}" style="border:0;background:transparent;cursor:pointer;font:inherit;font-size:13px;color:var(--color-neutral-600)">Đóng</button>
+        </div>
+        <div style="flex:1;min-height:0;overflow:auto;margin:0 22px 22px;background:#fbfdf7;border:1px solid var(--color-divider);border-radius:20px;padding:16px 18px;font-family:var(--font-mono);font-size:12px;line-height:1.7;white-space:pre-wrap;color:var(--color-neutral-800)">{{ exportBody }}</div>
+        <div style="flex:none;padding:0 22px 16px;font-size:11.5px;color:var(--color-neutral-600)">Tên file: {{ exportFile }}</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ confirmOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop" style="z-index:50">
+      <div class="dialog" style="animation:tz-pop .18s ease-out;background:#fff">
+        <div class="dialog-title">{{ confirmTitle }}</div>
+        <div class="dialog-body">{{ confirmBody }}</div>
+        <div style="font-size:12px;color:#a3271a">Hành động này không hoàn tác được.</div>
+        <div class="dialog-actions">
+          <button class="btn btn-secondary" onClick="{{ onConfirmNo }}">Huỷ</button>
+          <button class="btn btn-primary" style="color:#fff;background:#a3271a" onClick="{{ onConfirmYes }}">{{ confirmOk }}</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;accentColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#3a7a24&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#3a7a24&quot;,&quot;#2f7d4a&quot;,&quot;#4e8f1f&quot;,&quot;#2c6e5d&quot;],&quot;section&quot;:&quot;Thương hiệu&quot;}}">
+class Component extends DCLogic {
+  state = this.seed();
+
+  // ── data ──────────────────────────────────────────────────────────────
+  seed() {
+    const heads = ["Bối cảnh dự án", "Kiến trúc hệ thống", "Luồng dữ liệu", "Mô hình chunk",
+      "Giao thức đồng bộ", "Xử lý lỗi và thử lại", "Hiệu năng và giới hạn", "Bảo mật khoá API", "Kế hoạch triển khai"];
+    const src = [
+      "The pipeline splits a Markdown document into token-bounded chunks, preserving heading boundaries wherever possible so that each request carries enough context to be translated independently.",
+      "Each chunk is dispatched to the provider with a system prompt, the shared document context, and an output contract that requires the model to wrap its answer in a single translation tag.",
+      "Failures are retried up to three times with exponential backoff. A chunk that still fails is marked as an error and keeps its original source text in the exported document.",
+      "Sections group consecutive chunks up to a token ceiling. The summary of a section is written against the document-wide context so terminology stays consistent across the whole file.",
+      "Progress is persisted after every completed chunk, so reloading the page or closing the browser never loses finished work; resuming picks up exactly where the loop stopped."
+    ];
+    const tr = [
+      "Pipeline cắt tài liệu Markdown thành các chunk giới hạn theo token, cố gắng giữ nguyên ranh giới heading để mỗi request mang đủ ngữ cảnh và dịch được độc lập.",
+      "Mỗi chunk được gửi tới nhà cung cấp kèm system prompt, ngữ cảnh chung của tài liệu, và một output contract buộc model bọc câu trả lời trong đúng một thẻ translation.",
+      "Lỗi được thử lại tối đa ba lần với backoff tăng dần. Chunk vẫn thất bại sẽ bị đánh dấu lỗi và giữ nguyên văn bản gốc trong file xuất ra.",
+      "Section gom các chunk liên tiếp cho tới ngưỡng token. Tóm tắt của section được viết dựa trên ngữ cảnh chung của tài liệu để thuật ngữ nhất quán trong cả file.",
+      "Tiến độ được lưu sau mỗi chunk xong, nên tải lại trang hay đóng trình duyệt không bao giờ mất phần đã làm; bấm Resume là chạy tiếp đúng chỗ vòng lặp dừng."
+    ];
+    const errs = { 7: 429, 18: 401, 21: 500 };
+    const chunks = [];
+    for (let i = 0; i < 40; i++) {
+      const heading = i % 5 === 0 ? heads[i / 5 | 0] || heads[8] : "";
+      const s = (heading ? "## " + heading + "\n\n" : "") + src[i % 5];
+      const c = {
+        id: "c" + i, n: i, heading, source: i === 0 ? "---\ntitle: Tranzlator spec\nlang: en\n---" : s,
+        translation: "", status: "pending", code: 0, warn: "", edited: false, calls: 0, raw: ""
+      };
+      if (i === 0) { c.status = "skipped"; }
+      else if (errs[i]) { c.status = "error"; c.code = errs[i]; c.calls = 3; c.raw = "HTTP " + errs[i] + " — request failed after 3 attempts"; }
+      else if (i <= 13) {
+        c.status = "done"; c.calls = 1;
+        c.translation = (heading ? "## " + heading + "\n\n" : "") + tr[i % 5];
+        c.raw = "<translation>\n" + tr[i % 5] + "\n</translation>";
+        if (i === 4 || i === 9) c.warn = "Bản dịch dài gấp 3 lần bản gốc — kiểm tra xem model có tự thêm nội dung.";
+        if (i === 5) { c.edited = true; c.calls = 2; }
+      }
+      chunks.push(c);
+    }
+    const ranges = [[0, 3], [4, 8], [9, 13], [14, 18], [19, 23], [24, 27], [28, 31], [32, 35], [36, 39]];
+    const sections = ranges.map((r, i) => {
+      const st = i < 4 ? "done" : i === 4 ? "error" : "pending";
+      return {
+        id: "s" + (i + 1), n: i + 1, from: r[0], to: r[1], heading: heads[i],
+        summary: st === "done" ? "Phần này trình bày " + heads[i].toLowerCase() + ": mục tiêu, các ràng buộc chính và cách hệ thống xử lý trường hợp biên. Điểm cần nhớ là mọi bước đều lưu tiến độ và có thể chạy lại độc lập." : "",
+        status: st, code: st === "error" ? 429 : 0, calls: st === "done" ? 1 : st === "error" ? 3 : 0,
+        raw: st === "done" ? "<summary>…</summary>" : st === "error" ? "HTTP 429 — rate limited" : "", edited: false, warn: ""
+      };
+    });
+    const settings = {
+      apiKey: "sk-proj-3f9a1c7d2b4e8", endpoint: "https://api.openai.com/v1", model: "gpt-4o-mini",
+      temp: 0.2, concurrency: 3, chunkTokens: 2000, useContext: true, sectionTokens: 8000, contextMax: 80000,
+      transPrompt: "Bạn là dịch giả kỹ thuật. Dịch văn bản Markdown sang tiếng Việt.\nGiữ nguyên cấu trúc Markdown, code block, link và tên riêng.\nKhông thêm giải thích, không tóm lược.\nDùng ngữ cảnh chung được cung cấp để giữ thuật ngữ nhất quán.",
+      sumPrompt: "Tóm tắt phần tài liệu dưới đây thành 4–6 câu tiếng Việt.\nNêu mục tiêu, quyết định kỹ thuật và ràng buộc.\nKhông bịa thông tin không có trong văn bản."
+    };
+    return {
+      screen: "job", tab: "translate", pw: "", loginError: false, newOpen: false,
+      jobName: "tranzlator-spec.md", renaming: false,
+      chunks, sections,
+      context: "Tài liệu mô tả Tranzlator — công cụ nội bộ dịch và tóm tắt file Markdown bằng LLM với khoá API của người dùng. Các khái niệm xuyên suốt: chunk (đơn vị dịch), section (nhóm chunk để tóm tắt) và ngữ cảnh chung (bản tóm tắt toàn tài liệu, người dùng sửa được).",
+      ctxDraft: null, ctxStatus: "done", ctxEdited: false, ctxWarn: "Tài liệu dài quá 80000 token — đã gửi skeleton (heading + phần đầu mỗi section).",
+      sel: "c5", barTab: "source",
+      filter: "all", query: "", jump: "",
+      running: null,
+      settingsOpen: false, sTab: "chung", settings, draft: null, savedAt: "",
+      exportOpen: false, copied: false, confirm: null,
+      dismissed: {}, notice: ""
+    };
+  }
+
+  componentWillUnmount() { clearInterval(this.timer); }
+
+  componentDidUpdate(_p, prev) { if (prev.sel !== this.state.sel) this.syncScroll(); }
+
+  syncScroll() {
+    const sel = this.state.sel;
+    [this.listEl, this.previewEl].forEach(el => {
+      if (!el) return;
+      const t = el.querySelector('[data-sel="' + sel + '"]');
+      if (t) el.scrollTop = Math.max(0, t.offsetTop - 26);
+    });
+  }
+
+  set(patch) { this.setState(patch); }
+  note(t) { this.setState({ notice: t, dismissed: Object.assign({}, this.state.dismissed, { notice: false }) }); }
+
+  // ── loop simulation ───────────────────────────────────────────────────
+  items(tab) { return (tab || this.state.tab) === "translate" ? this.state.chunks : this.state.sections; }
+  liveKey() { return this.state.tab === "translate" ? "chunks" : "sections"; }
+
+  tick() {
+    const key = this.state.running === "translate" ? "chunks" : "sections";
+    const list = this.state[key].slice();
+    const now = Date.now();
+    let active = 0;
+    list.forEach((it, i) => {
+      if (it.status === "translating" || it.status === "summarizing") {
+        if (now - it.startedAt > 1500) {
+          const done = Object.assign({}, it, { status: "done", calls: it.calls + 1 });
+          if (key === "chunks") {
+            done.translation = (it.heading ? "## " + it.heading + "\n\n" : "") + "Bản dịch vừa hoàn tất cho chunk #" + it.n + ". " + it.source.replace(/^##.*\n\n/, "").slice(0, 120) + "…";
+            done.raw = "<translation>…</translation>";
+          } else {
+            done.summary = "Tóm tắt vừa hoàn tất cho " + it.heading + ": mục tiêu, quyết định kỹ thuật và ràng buộc chính của phần này.";
+            done.raw = "<summary>…</summary>";
+          }
+          list[i] = done;
+        } else active++;
+      }
+    });
+    const cap = Number(this.state.settings.concurrency) || 3;
+    for (let i = 0; i < list.length && active < cap; i++) {
+      if (list[i].status === "pending") {
+        list[i] = Object.assign({}, list[i], { status: key === "chunks" ? "translating" : "summarizing", startedAt: now });
+        active++;
+      }
+    }
+    const left = list.some(x => x.status === "pending" || x.status === "translating" || x.status === "summarizing");
+    const patch = {}; patch[key] = list;
+    if (!left) { clearInterval(this.timer); this.timer = null; patch.running = null; patch.notice = "Xong toàn bộ hàng đợi."; }
+    this.setState(patch);
+  }
+
+  toggleRun() {
+    if (this.state.running && this.state.running !== this.state.tab) return this.note("Đang có một vòng lặp chạy — Pause trước đã.");
+    if (!this.state.settings.apiKey) return this.note("Chưa có API key — mở Settings trên thanh trên cùng để nhập.");
+    if (this.state.running === this.state.tab) {
+      clearInterval(this.timer); this.timer = null;
+      this.setState({ running: null, notice: "Đã Pause — các thẻ đang chạy sẽ chạy nốt." });
+      return;
+    }
+    if (this.state.tab === "summary" && this.state.ctxStatus !== "done") return this.note("Cần có ngữ cảnh chung trước.");
+    this.setState({ running: this.state.tab });
+    clearInterval(this.timer);
+    this.timer = setInterval(() => this.tick(), 600);
+  }
+
+  retryOne(kind, id) {
+    const key = kind === "chunk" ? "chunks" : "sections";
+    const list = this.state[key].map(x => x.id === id ? Object.assign({}, x, { status: kind === "chunk" ? "translating" : "summarizing", code: 0, startedAt: Date.now() }) : x);
+    const patch = {}; patch[key] = list; this.setState(patch);
+    setTimeout(() => this.tick(), 1600);
+  }
+
+  retryAllErrors() {
+    const key = this.liveKey(); const kind = key === "chunks" ? "chunk" : "section";
+    const list = this.state[key].map(x => x.status === "error" ? Object.assign({}, x, { status: "pending", code: 0 }) : x);
+    const patch = {}; patch[key] = list;
+    this.setState(patch, () => { if (!this.timer) { this.setState({ running: this.state.tab }); this.timer = setInterval(() => this.tick(), 600); } });
+    void kind;
+  }
+
+  editItem(key, id, field, val) {
+    const list = this.state[key].map(x => x.id === id ? Object.assign({}, x, { [field]: val, edited: true }) : x);
+    const patch = {}; patch[key] = list; this.setState(patch);
+  }
+
+  ask(title, body, ok, fn) { this.setState({ confirm: { title, body, ok, fn } }); }
+
+  // ── derived helpers ───────────────────────────────────────────────────
+  pill(status) {
+    const m = {
+      pending: ["pending", "#eef1ea", "#4a5346", "none"],
+      translating: ["translating", "#d7eef2", "#1d5a66", "tz-pulse 1.1s infinite"],
+      summarizing: ["summarizing", "#d7eef2", "#1d5a66", "tz-pulse 1.1s infinite"],
+      generating: ["generating", "#d7eef2", "#1d5a66", "tz-pulse 1.1s infinite"],
+      done: ["done", "var(--color-accent-200)", "var(--color-accent-800)", "none"],
+      error: ["error", "#fbdcd6", "#8a2418", "none"],
+      skipped: ["skipped", "#fbeccd", "#7a5312", "none"]
+    };
+    return m[status] || m.pending;
+  }
+  hint(code) {
+    const m = {
+      429: "429 — bị giới hạn tốc độ, giảm concurrency hoặc chờ rồi dịch lại lỗi",
+      401: "401 — API key sai hoặc hết hạn",
+      403: "403 — key không có quyền với model này",
+      402: "402 — hết credit / cần thanh toán",
+      404: "404 — endpoint hoặc model không tồn tại",
+      500: "500 — lỗi phía nhà cung cấp, thử lại sau",
+      502: "502 — lỗi phía nhà cung cấp, thử lại sau",
+      503: "503 — nhà cung cấp quá tải, thử lại sau"
+    };
+    return m[code] || "Lỗi không có mã — kiểm tra mạng hoặc định dạng phản hồi của model.";
+  }
+  tabRow(list, active, pick) {
+    return list.map(t => ({
+      label: t[1], onClick: () => this.setState({ barTab: t[0] }),
+      fg: active === t[0] ? "var(--color-accent-700)" : "var(--color-neutral-600)",
+      underline: active === t[0] ? "inset 0 -2px 0 var(--color-accent)" : "none"
+    })).map(x => (void pick, x));
+  }
+
+  exportText() {
+    if (this.state.tab === "translate") {
+      return this.state.chunks.map(c => c.status === "skipped" ? c.source
+        : c.translation || "<!-- CHƯA DỊCH #" + c.n + " -->\n" + c.source).join("\n\n");
+    }
+    return "# Ngữ cảnh chung\n\n" + this.state.context + "\n\n" +
+      this.state.sections.map(s => "## " + s.heading + "\n\n" + (s.summary || "<!-- CHƯA TÓM TẮT §" + s.n + " -->")).join("\n\n");
+  }
+
+  renderVals() {
+    const st = this.state, S = st.settings, isT = st.tab === "translate";
+    const accent = this.props.accentColor;
+    if (accent && this.lastAccent !== accent) {
+      this.lastAccent = accent;
+      document.documentElement.style.setProperty("--color-accent", accent);
+    }
+    const list = isT ? st.chunks : st.sections;
+    const doneN = list.filter(x => x.status === "done").length;
+    const errN = list.filter(x => x.status === "error").length;
+    const runN = list.filter(x => /^(translating|summarizing|generating)$/.test(x.status)).length;
+    const skipN = list.filter(x => x.status === "skipped").length;
+    const total = list.length;
+    const pctOf = n => (n / total * 100).toFixed(1) + "%";
+    const warnN = isT ? st.chunks.filter(c => c.warn).length : 0;
+
+    // banners
+    const banners = [];
+    const dis = st.dismissed;
+    if (!dis.chunk && S.chunkTokens !== 1500) banners.push({
+      bg: "#fdf3dc", fg: "#7a5312",
+      text: "Settings để chunk " + S.chunkTokens + " token, job này đang chunk theo 1500.",
+      action: "Chunk lại theo " + S.chunkTokens, note: "(mất toàn bộ bản dịch hiện có)",
+      onAction: () => this.ask("Chunk lại tài liệu?", "Chunk lại sẽ xoá toàn bộ bản dịch và tóm tắt section của job này.", "Chunk lại", () => this.note("Đã chunk lại theo " + S.chunkTokens + " token: 30 chunk")),
+      onClose: () => this.setState({ dismissed: Object.assign({}, dis, { chunk: true }) })
+    });
+    if (!dis.section && S.sectionTokens !== 6000) banners.push({
+      bg: "#fdf3dc", fg: "#7a5312",
+      text: "Settings để section " + S.sectionTokens + " token, job này đang gom theo 6000.",
+      action: "Gom lại theo " + S.sectionTokens, note: "(mất toàn bộ tóm tắt section)",
+      onAction: () => this.ask("Gom lại section?", "Gom lại section sẽ xoá toàn bộ tóm tắt section.", "Gom lại", () => this.note("Đã gom lại: 7 section")),
+      onClose: () => this.setState({ dismissed: Object.assign({}, dis, { section: true }) })
+    });
+    if (isT && !dis.ctx && S.useContext && st.ctxStatus !== "done") banners.push({
+      bg: "#eef1ea", fg: "#4a5346", text: "Toggle 'Dùng ngữ cảnh chung' đang bật nhưng job này chưa có ngữ cảnh chung — dịch vẫn chạy bình thường. Tạo ở tab Summary.",
+      action: "Sang tab Summary", onAction: () => this.setState({ tab: "summary", sel: "ctx" }),
+      onClose: () => this.setState({ dismissed: Object.assign({}, dis, { ctx: true }) })
+    });
+    if (st.notice && !dis.notice) banners.push({
+      bg: "#e2f0f4", fg: "#1d5a66", text: st.notice, action: "", note: "",
+      onClose: () => this.setState({ notice: "" })
+    });
+
+    // filters
+    const fdef = isT
+      ? [["all", "Tất cả " + total], ["error", "Lỗi " + errN], ["warn", "Cảnh báo " + warnN], ["pending", "Chưa dịch " + (total - doneN - errN - skipN - runN)], ["done", "Đã xong " + doneN]]
+      : [["all", "Tất cả " + total], ["error", "Lỗi " + errN], ["pending", "Chưa tóm tắt " + (total - doneN - errN - runN)], ["done", "Đã xong " + doneN]];
+    const filters = fdef.map(f => ({
+      label: f[1], onClick: () => this.setState({ filter: f[0] }),
+      bg: st.filter === f[0] ? "var(--color-accent)" : "transparent",
+      fg: st.filter === f[0] ? "#fff" : "var(--color-neutral-700)",
+      bd: st.filter === f[0] ? "var(--color-accent)" : "var(--color-divider)"
+    }));
+
+    const matches = it => {
+      if (st.filter === "error" && it.status !== "error") return false;
+      if (st.filter === "warn" && !it.warn) return false;
+      if (st.filter === "pending" && it.status !== "pending") return false;
+      if (st.filter === "done" && it.status !== "done") return false;
+      if (st.query) {
+        const hay = ((it.source || "") + (it.translation || "") + (it.summary || "") + (it.heading || "")).toLowerCase();
+        if (hay.indexOf(st.query.toLowerCase()) < 0) return false;
+      }
+      return true;
+    };
+
+    const mkBar = (it, kind) => {
+      const p = this.pill(it.status);
+      const open = st.sel === it.id;
+      const isChunk = kind === "chunk";
+      const key = isChunk ? "chunks" : "sections";
+      const body = isChunk ? (it.translation || it.source) : (it.summary || it.heading);
+      const bar = {
+        id: it.id, kind,
+        num: isChunk ? "#" + it.n : "§" + it.n,
+        pillLabel: p[0], pillBg: p[1], pillFg: p[2], pillAnim: p[3],
+        code: it.code ? String(it.code) : "",
+        hasWarn: !!it.warn, warnText: it.warn || "",
+        edited: it.edited,
+        preview: isChunk ? String(body).replace(/^##\s*/, "").replace(/\n+/g, " ").slice(0, 72) : it.heading,
+        range: isChunk ? "" : it.from + "–" + it.to,
+        isOpen: open,
+        wrapBg: open ? "#fff" : "#fcfdfa",
+        bd: open ? "var(--color-accent)" : "var(--color-divider)",
+        shadow: open ? "var(--shadow-md)" : "none",
+        onClick: () => this.setState({ sel: open ? "" : it.id, barTab: isChunk ? "compare" : "summary" }),
+        errMsg: it.status === "error" ? "HTTP " + it.code + " — request failed after 3 attempts" : "",
+        errHint: it.status === "error" ? this.hint(it.code) : "",
+        calls: it.calls ? "×" + it.calls : "",
+        raw: it.raw || (isChunk ? "Chưa có raw response — chunk này chưa gọi LLM lần nào." : "Chưa có raw response — section này chưa gọi LLM lần nào."),
+        source: isChunk ? it.source : st.chunks.slice(it.from, it.to + 1).map(c => c.source).join("\n\n"),
+        translation: isChunk ? it.translation : it.summary,
+        transPlaceholder: isChunk ? (it.status === "skipped" ? "(không dịch — front matter)" : "chưa dịch") : "chưa tóm tắt",
+        sourceReadOnly: !isChunk,
+        onSource: e => isChunk && this.editItem("chunks", it.id, "source", e.target.value),
+        onTranslation: e => this.editItem(key, it.id, isChunk ? "translation" : "summary", e.target.value)
+      };
+      const tabs = isChunk
+        ? [["source", "Nguồn"], ["target", "Bản dịch"], ["raw", "Raw"]]
+        : [["summary", "Tóm tắt"], ["source", "Nguồn"], ["raw", "Raw"]];
+      bar.tabs = tabs.map(t => ({
+        label: t[1], onClick: () => this.setState({ barTab: t[0] }),
+        fg: st.barTab === t[0] ? "var(--color-accent-700)" : "var(--color-neutral-600)",
+        underline: st.barTab === t[0] ? "inset 0 -2px 0 var(--color-accent)" : "none"
+      }));
+      bar.showSource = open && st.barTab === "source";
+      bar.showTarget = open && ((isChunk && st.barTab === "target") || (!isChunk && st.barTab === "summary"));
+      bar.showRaw = open && st.barTab === "raw";
+      const busy = /^(translating|summarizing|generating)$/.test(it.status);
+      bar.actionBtn = it.status === "skipped" ? "" : busy ? (isChunk ? "Đang dịch…" : "Đang tóm tắt…") : (isChunk ? "Dịch lại" : "Tóm tắt lại");
+      bar.actionDisabled = busy || (!isChunk && st.ctxStatus !== "done") || !!st.running;
+      bar.actionTitle = !isChunk && st.ctxStatus !== "done" ? "Cần có ngữ cảnh chung trước" : "";
+      bar.onAction = () => this.retryOne(kind, it.id);
+      if (!isChunk) {
+        bar.jumpLink = "→ chunk " + it.from + "–" + it.to;
+        bar.onJumpChunk = e => { e.stopPropagation(); this.setState({ tab: "translate", sel: "c" + it.from, barTab: "source", filter: "all" }); };
+      }
+      return bar;
+    };
+
+    let bars;
+    if (isT) bars = st.chunks.filter(matches).map(c => mkBar(c, "chunk"));
+    else {
+      const cp = this.pill(st.ctxStatus === "done" ? "done" : st.ctxStatus === "generating" ? "generating" : "pending");
+      const open = st.sel === "ctx";
+      const draft = st.ctxDraft === null ? st.context : st.ctxDraft;
+      const ctxBar = {
+        id: "ctx", num: "§0", pillLabel: cp[0], pillBg: cp[1], pillFg: cp[2], pillAnim: cp[3],
+        code: "", hasWarn: !!st.ctxWarn, warnText: st.ctxWarn, edited: st.ctxEdited,
+        preview: "Ngữ cảnh chung", range: "", isOpen: open,
+        wrapBg: open ? "#fff" : "var(--color-accent-100)",
+        bd: open ? "var(--color-accent)" : "var(--color-accent-200)",
+        shadow: open ? "var(--shadow-md)" : "none",
+        onClick: () => this.setState({ sel: open ? "" : "ctx", barTab: "target" }),
+        errMsg: "", errHint: "", calls: "×1",
+        tabs: [{ label: st.ctxEdited ? "đã sửa tay" : st.ctxStatus === "done" ? "do LLM tạo" : "chưa có", onClick: () => { }, fg: "var(--color-neutral-600)", underline: "none" }],
+        showSource: false, showTarget: open, showRaw: false,
+        translation: draft, transPlaceholder: "Chưa có ngữ cảnh chung — bấm 'Tạo tóm tắt chung', rồi sửa lại nếu cần.",
+        onTranslation: e => this.setState({ ctxDraft: e.target.value }),
+        saveBtn: st.ctxDraft !== null && st.ctxDraft !== st.context ? "Save •" : "Save",
+        saveDisabled: st.ctxDraft === null || st.ctxDraft === st.context,
+        onSave: () => this.setState({ context: draft, ctxDraft: null, ctxEdited: true, notice: "Đã lưu ngữ cảnh chung." }),
+        actionBtn: st.ctxStatus === "generating" ? "Đang tạo…" : st.ctxStatus === "done" ? "Tạo lại" : "Tạo tóm tắt chung",
+        actionDisabled: st.ctxStatus === "generating",
+        actionTitle: "",
+        onAction: () => this.ask("Tạo lại ngữ cảnh chung?", "Tạo lại sẽ ghi đè ngữ cảnh chung hiện có.", "Tạo lại", () => {
+          this.setState({ ctxStatus: "generating" });
+          setTimeout(() => this.setState({ ctxStatus: "done", ctxEdited: false, notice: "Đã tạo ngữ cảnh chung mới." }), 1800);
+        }),
+        contextNote: "Bơm vào prompt tóm tắt section, và vào prompt dịch nếu bật toggle trong Settings."
+      };
+      bars = [ctxBar].concat(st.sections.filter(matches).map(s => mkBar(s, "section")));
+    }
+
+    // preview blocks
+    let blocks;
+    if (isT) blocks = st.chunks.map(c => {
+      const busy = c.status === "translating";
+      const sel = st.sel === c.id;
+      return {
+        id: c.id, heading: c.translation ? "" : "", 
+        text: c.translation ? c.translation.replace(/^##\s*(.*)\n\n/, "") : "",
+        headingText: "",
+        note: c.translation ? "" : c.status === "skipped" ? "#" + c.n + " · front matter, không dịch" : busy ? "#" + c.n + " · đang dịch…" : c.status === "error" ? "#" + c.n + " · lỗi " + c.code : "#" + c.n + " · chưa dịch",
+        bg: sel ? "var(--color-accent-100)" : "transparent",
+        ring: sel ? "inset 0 0 0 2px var(--color-accent-300)" : "none",
+        opacity: busy && c.translation ? "0.5" : "1",
+        anim: busy ? "tz-pulse 1.2s infinite" : "none",
+        onClick: () => this.setState({ sel: c.id, barTab: "source", filter: "all" })
+      };
+    }).map((b, i) => (b.heading = st.chunks[i].translation ? st.chunks[i].heading : "", b));
+    else blocks = st.sections.map(s => {
+      const sel = st.sel === s.id;
+      return {
+        id: s.id, heading: s.heading, text: s.summary,
+        note: s.summary ? "" : s.status === "summarizing" ? "§" + s.n + " · đang tóm tắt…" : s.status === "error" ? "§" + s.n + " · lỗi " + s.code : "§" + s.n + " · chưa tóm tắt",
+        bg: sel ? "var(--color-accent-100)" : "transparent",
+        ring: sel ? "inset 0 0 0 2px var(--color-accent-300)" : "none",
+        opacity: "1", anim: s.status === "summarizing" ? "tz-pulse 1.2s infinite" : "none",
+        onClick: () => this.setState({ sel: s.id, barTab: "summary", filter: "all" })
+      };
+    });
+
+    const minimap = list.map(it => {
+      const c = it.status === "done" ? "var(--color-accent-500)" : it.status === "error" ? "#c4402c"
+        : /^(translating|summarizing|generating)$/.test(it.status) ? "#3d9aa8" : it.status === "skipped" ? "var(--color-accent-2-300)" : "#e3e8dd";
+      return {
+        bg: st.sel === it.id ? "var(--color-text)" : c,
+        anim: /^(translating|summarizing|generating)$/.test(it.status) ? "tz-pulse 1.1s infinite" : "none",
+        title: (isT ? "#" + it.n : "§" + it.n) + " · " + it.status,
+        onClick: () => this.setState({ sel: it.id, filter: "all", barTab: isT ? "compare" : "summary" })
+      };
+    });
+
+    const runLabel = st.running === st.tab ? "Pause" : doneN > 0 ? "Resume" : "Start";
+    const d = st.draft;
+    const dirty = !!d;
+    const saveState = dirty ? { label: "● chưa lưu", fg: "#a3271a" } : st.savedAt ? { label: "✓ đã lưu " + st.savedAt, fg: "var(--color-accent-700)" } : { label: "✓ đã lưu", fg: "var(--color-neutral-600)" };
+    const view = d || S;
+    const patchS = (k, v) => this.setState({ draft: Object.assign({}, view, { [k]: v }) });
+
+    return {
+      isLogin: st.screen === "login", isJobs: st.screen === "jobs", isJob: st.screen === "job",
+      showChrome: st.screen !== "login",
+      pw: st.pw, onPw: e => this.setState({ pw: e.target.value }), loginError: st.loginError,
+      onLogin: () => this.setState({ screen: "jobs", loginError: false, pw: "" }),
+      goLogin: e => { e.preventDefault(); this.setState({ screen: "login" }); },
+      goJobs: e => { e.preventDefault(); this.setState({ screen: "jobs" }); },
+      goJob: e => { e.preventDefault(); this.setState({ screen: "job", newOpen: false }); },
+      keyChip: S.apiKey ? { bg: "var(--color-accent-200)", fg: "var(--color-accent-800)", label: "● có key" } : { bg: "#fbdcd6", fg: "#8a2418", label: "○ chưa có key — nhập ngay" },
+      modelName: S.model,
+      openSettings: () => this.setState({ settingsOpen: true }),
+      closeSettings: () => { if (dirty) return this.ask("Đóng Settings?", "Còn thay đổi chưa lưu. Đóng và bỏ luôn?", "Bỏ thay đổi", () => this.setState({ settingsOpen: false, draft: null })); this.setState({ settingsOpen: false }); },
+      newOpen: st.newOpen, toggleNew: () => this.setState({ newOpen: !st.newOpen }),
+      pasted: st.pasted || "", onPaste: e => this.setState({ pasted: e.target.value }),
+      jobs: [
+        { name: "tranzlator-spec.md", date: "08/09/2026 09:14", pct: pctOf(doneN), errPct: pctOf(errN), count: doneN + "/" + 40, errText: errN ? errN + " lỗi" : "", onDelete: e => { e.preventDefault(); this.ask("Xoá job?", 'Xoá job "tranzlator-spec.md"? Toàn bộ chunk sẽ mất.', "Xoá job", () => this.note("Đã xoá job.")); } },
+        { name: "onboarding-guide.md", date: "05/09/2026 16:02", pct: "100%", errPct: "0%", count: "26/26", errText: "", onDelete: e => { e.preventDefault(); this.ask("Xoá job?", 'Xoá job "onboarding-guide.md"? Toàn bộ chunk sẽ mất.', "Xoá job", () => this.note("Đã xoá job.")); } },
+        { name: "api-reference.md", date: "02/09/2026 11:40", pct: "34%", errPct: "6%", count: "31/92", errText: "5 lỗi", onDelete: e => { e.preventDefault(); this.ask("Xoá job?", 'Xoá job "api-reference.md"? Toàn bộ chunk sẽ mất.', "Xoá job", () => this.note("Đã xoá job.")); } },
+        { name: "release-notes-q3.md", date: "28/08/2026 08:20", pct: "0%", errPct: "0%", count: "0/12", errText: "", onDelete: e => { e.preventDefault(); this.ask("Xoá job?", 'Xoá job "release-notes-q3.md"? Toàn bộ chunk sẽ mất.', "Xoá job", () => this.note("Đã xoá job.")); } }
+      ],
+      jobName: st.jobName, renaming: st.renaming, notRenaming: !st.renaming,
+      startRename: () => this.setState({ renaming: true }),
+      stopRename: () => this.setState({ renaming: false, notice: "Đã lưu tên job." }),
+      onName: e => this.setState({ jobName: e.target.value }),
+      isSummaryTab: !isT,
+      tabT: isT ? { bg: "var(--color-accent)", fg: "#fff" } : { bg: "transparent", fg: "var(--color-accent-800)" },
+      tabS: !isT ? { bg: "var(--color-accent)", fg: "#fff" } : { bg: "transparent", fg: "var(--color-accent-800)" },
+      toTranslate: () => this.setState({ tab: "translate", sel: "c5", barTab: "source", filter: "all" }),
+      toSummary: () => this.setState({ tab: "summary", sel: "ctx", barTab: "target", filter: "all" }),
+      statMain: isT ? doneN + "/" + total + " chunk xong" : doneN + "/" + total + " section",
+      statErr: errN ? errN + " lỗi" : "", statWarn: warnN && isT ? warnN + " cảnh báo" : "",
+      hostChip: S.model + " · " + S.endpoint.replace(/^https?:\/\//, "").split("/")[0],
+      hostFull: S.endpoint + "/chat/completions",
+      runBtn: { label: runLabel, bg: runLabel === "Pause" ? "#b4741a" : "var(--color-accent)", title: st.running && st.running !== st.tab ? "Vòng lặp khác đang chạy — Pause trước" : "" },
+      onRun: () => this.toggleRun(),
+      retryLabel: (isT ? "Dịch lại lỗi (" : "Tóm tắt lại lỗi (") + errN + ")",
+      retryDisabled: !errN || !!st.running,
+      onRetryAll: () => this.retryAllErrors(),
+      onRegroup: () => this.ask("Gom lại section?", "Gom lại section sẽ xoá toàn bộ tóm tắt section.", "Gom lại", () => this.note("Đã gom lại section theo " + S.sectionTokens + " token.")),
+      exportLabel: isT ? "Export" : "Export summary",
+      prog: { done: pctOf(doneN), run: pctOf(runN), err: pctOf(errN), skip: pctOf(skipN) },
+      progPct: Math.round(doneN / total * 100) + "%",
+      banners, filters, bars, blocks, minimap,
+      emptyList: bars.length === 0 ? "Không có thẻ nào khớp bộ lọc." : (!isT && st.sections.length === 0 ? "Chưa có section nào — job này tạo trước khi có chức năng tóm tắt." : ""),
+      emptyPreview: blocks.some(b => b.text) ? "" : (isT ? "Chưa có bản dịch nào. Bấm Start để dịch, nội dung sẽ hiện ở đây." : "Chưa có tóm tắt nào. Tạo ngữ cảnh chung rồi bấm Start."),
+      contextBlock: isT ? "" : (st.context || ""),
+      onCtxClick: () => this.setState({ sel: "ctx", barTab: "target" }),
+      query: st.query, onQuery: e => this.setState({ query: e.target.value }),
+      jump: st.jump, jumpHint: isT ? "#12" : "§3",
+      onJump: e => this.setState({ jump: e.target.value }),
+      onJumpKey: e => {
+        if (e.key !== "Enter") return;
+        const n = parseInt(String(st.jump).replace(/\D/g, ""), 10);
+        if (isNaN(n)) return;
+        this.setState({ sel: (isT ? "c" : "s") + n, filter: "all", jump: "" });
+      },
+      listRef: el => { this.listEl = el; }, previewRef: el => { this.previewEl = el; },
+      settingsOpen: st.settingsOpen, sTab: st.sTab,
+      stGeneral: st.sTab === "chung", stPromptTab: st.sTab === "prompt",
+      stChung: { fg: st.sTab === "chung" ? "var(--color-accent-700)" : "var(--color-neutral-600)", underline: st.sTab === "chung" ? "inset 0 -2px 0 var(--color-accent)" : "none" },
+      stPrompt: { fg: st.sTab === "prompt" ? "var(--color-accent-700)" : "var(--color-neutral-600)", underline: st.sTab === "prompt" ? "inset 0 -2px 0 var(--color-accent)" : "none" },
+      setTabChung: () => this.setState({ sTab: "chung" }), setTabPrompt: () => this.setState({ sTab: "prompt" }),
+      s: view, dirtyDot: dirty ? "•" : "",
+      keyNote: view.apiKey ? view.apiKey.length + " ký tự — nhớ bấm Lưu ở dưới." : "Chưa nhập key thì Start sẽ bị chặn.",
+      onApiKey: e => patchS("apiKey", e.target.value),
+      onEndpoint: e => patchS("endpoint", e.target.value),
+      onModel: e => patchS("model", e.target.value),
+      onTemp: e => patchS("temp", e.target.value),
+      onConc: e => patchS("concurrency", e.target.value),
+      onChunkTokens: e => patchS("chunkTokens", Number(e.target.value)),
+      onUseContext: e => patchS("useContext", e.target.checked),
+      onSectionTokens: e => patchS("sectionTokens", Number(e.target.value)),
+      onContextMax: e => patchS("contextMax", Number(e.target.value)),
+      onTransPrompt: e => patchS("transPrompt", e.target.value),
+      onSumPrompt: e => patchS("sumPrompt", e.target.value),
+      resetTransPrompt: () => patchS("transPrompt", this.seed().settings.transPrompt),
+      resetSumPrompt: () => patchS("sumPrompt", this.seed().settings.sumPrompt),
+      saveDisabled: !dirty, saveState,
+      onSaveSettings: () => this.setState({ settings: view, draft: null, savedAt: new Date().toLocaleTimeString("vi-VN") }),
+      onRevert: () => this.setState({ draft: null }),
+      exportOpen: st.exportOpen, openExport: () => this.setState({ exportOpen: true, copied: false }),
+      closeExport: () => this.setState({ exportOpen: false }),
+      exportTitle: isT ? "Export" : "Export summary",
+      exportWarn: isT ? (total - doneN - skipN > 0 ? (total - doneN - skipN) + " chunk chưa dịch → giữ source gốc + marker" : "") : (total - doneN > 0 ? (total - doneN) + " section chưa tóm tắt" : ""),
+      exportBody: this.exportText(),
+      exportFile: isT ? "tranzlator-spec.vi.md" : "tranzlator-spec.summary.md",
+      copyLabel: st.copied ? "Đã copy" : "Copy",
+      onCopy: () => { this.setState({ copied: true }); setTimeout(() => this.setState({ copied: false }), 1500); },
+      onDownload: () => this.note("Đã tải " + (isT ? "tranzlator-spec.vi.md" : "tranzlator-spec.summary.md")),
+      confirmOpen: !!st.confirm,
+      confirmTitle: st.confirm ? st.confirm.title : "",
+      confirmBody: st.confirm ? st.confirm.body : "",
+      confirmOk: st.confirm ? st.confirm.ok : "",
+      onConfirmNo: () => this.setState({ confirm: null }),
+      onConfirmYes: () => { const c = st.confirm; this.setState({ confirm: null }); if (c && c.fn) c.fn(); }
+    };
+  }
+}
+
+</script>
+</body>
+</html>

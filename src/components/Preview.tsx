@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
+import { ReadingPane } from "./chrome";
 import { renderMarkdown } from "@/lib/renderMarkdown";
 import type { ChunkDTO } from "@/lib/types";
 
@@ -36,47 +37,44 @@ export default function Preview({ chunks, selectedId, onSelect }: Props) {
   const anyDone = rendered.some((r) => r.html);
 
   return (
-    <div
-      ref={boxRef}
-      className="h-full overflow-y-auto rounded border border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900"
-    >
+    <ReadingPane boxRef={boxRef}>
       {!anyDone && (
-        <p className="text-sm text-neutral-500">
+        <p className="py-16 text-center text-[13.5px] text-sand-600">
           Chưa có bản dịch nào. Bấm Start để dịch, nội dung sẽ hiện ở đây.
         </p>
       )}
 
-      <div className="md-preview mx-auto max-w-3xl">
-        {rendered.map((r) => {
-          const selected = r.id === selectedId;
-          return (
-            <section
-              key={r.id}
-              data-chunk={r.id}
-              onClick={() => onSelect(r.id)}
-              className={`-mx-3 scroll-mt-6 cursor-pointer rounded px-3 py-1 transition-colors ${
-                selected ? "bg-blue-50 ring-1 ring-blue-300 dark:bg-blue-950/40 dark:ring-blue-800" : ""
-              }`}
-            >
-              {r.html ? (
-                <div
-                  className={r.stale ? "animate-pulse opacity-50" : undefined}
-                  dangerouslySetInnerHTML={{ __html: r.html }}
-                />
-              ) : (
-                <p className="my-1 text-xs italic text-neutral-400">
-                  #{r.idx} ·{" "}
-                  {r.status === "skipped"
-                    ? "front matter, không dịch"
-                    : r.status === "translating"
-                      ? "đang dịch…"
+      {rendered.map((r) => {
+        const selected = r.id === selectedId;
+        return (
+          <section
+            key={r.id}
+            data-chunk={r.id}
+            onClick={() => onSelect(r.id)}
+            className={`-mx-3.5 mb-1.5 cursor-pointer scroll-mt-6 rounded-[18px] px-3.5 py-2.5 transition-colors ${
+              selected ? "bg-accent-100 ring-2 ring-inset ring-accent-300" : ""
+            }`}
+          >
+            {r.html ? (
+              <div
+                className={r.stale ? "animate-tz-pulse opacity-50" : undefined}
+                dangerouslySetInnerHTML={{ __html: r.html }}
+              />
+            ) : (
+              <div className="text-[12.5px] italic text-sand-500">
+                #{r.idx} ·{" "}
+                {r.status === "skipped"
+                  ? "front matter, không dịch"
+                  : r.status === "translating"
+                    ? "đang dịch…"
+                    : r.status === "error"
+                      ? "lỗi"
                       : "chưa dịch"}
-                </p>
-              )}
-            </section>
-          );
-        })}
-      </div>
-    </div>
+              </div>
+            )}
+          </section>
+        );
+      })}
+    </ReadingPane>
   );
 }

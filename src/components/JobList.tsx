@@ -1,20 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MAX_UPLOAD_BYTES } from "@/lib/defaults";
 import { useSettings } from "@/lib/useSettings";
+import { useConfirm } from "./ConfirmDialog";
 import type { JobListItem } from "@/lib/types";
 
 export default function JobList() {
   const router = useRouter();
   const { settings, loaded } = useSettings();
+  const { ask, dialog } = useConfirm();
   const [jobs, setJobs] = useState<JobListItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paste, setPaste] = useState("");
   const [showNew, setShowNew] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/jobs");
@@ -51,106 +53,152 @@ export default function JobList() {
     }
   }
 
-  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+  async function takeFile(file: File | undefined) {
     if (!file) return;
     if (file.size > MAX_UPLOAD_BYTES) {
       setError("File vượt quá 2 MB");
       return;
     }
-    const text = await file.text();
-    await createJob(file.name, text);
+    await createJob(file.name, await file.text());
   }
 
   async function remove(id: string, name: string) {
-    if (!confirm(`Xoá job "${name}"? Toàn bộ chunk sẽ mất.`)) return;
+    const ok = await ask({
+      title: "Xoá job?",
+      body: `Xoá job "${name}"? Toàn bộ chunk sẽ mất.`,
+      ok: "Xoá job",
+    });
+    if (!ok) return;
     await fetch(`/api/jobs/${id}`, { method: "DELETE" });
     void load();
   }
 
+  const withErrors = jobs.filter((j) => j.errors > 0).length;
+
   return (
-    <div className="space-y-4">
-      <div className="flex gap-2">
-        <button
-          onClick={() => setShowNew((v) => !v)}
-          className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          New job
+    <>
+      <div className="mt-5 flex items-center gap-2.5">
+        <button onClick={() => setShowNew((v) => !v)} className="btn btn-primary h-10">
+          ＋ New job
         </button>
+        <span className="text-[12.5px] text-sand-600">
+          {jobs.length} job{withErrors > 0 && ` · ${withErrors} job có lỗi`}
+        </span>
       </div>
 
       {showNew && (
-        <div className="space-y-3 rounded border border-neutral-300 p-4 dark:border-neutral-700">
+        <div className="mt-4 grid animate-tz-pop grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-[18px] rounded-[26px] bg-white p-[22px] shadow-md">
           <div>
-            <label className="mb-1 block text-sm font-medium">Upload file .md</label>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".md,.markdown,text/markdown"
-              onChange={onFile}
-              disabled={busy}
-              className="text-sm"
-            />
+            <div className="mb-2 font-heading text-base">Upload file .md</div>
+            <label
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragging(false);
+                void takeFile(e.dataTransfer.files?.[0]);
+              }}
+              className={`grid h-[118px] cursor-pointer place-items-center gap-1.5 rounded-[20px] border-[1.5px] border-dashed text-[13px] text-accent-700 transition-colors ${
+                dragging ? "border-accent bg-accent-200" : "border-accent-300 bg-accent-100"
+              }`}
+            >
+              <span>Kéo file vào đây hoặc bấm để chọn</span>
+              <span className="text-[11.5px] text-sand-600">.md · tối đa 2 MB</span>
+              <input
+                type="file"
+                accept=".md,.markdown,text/markdown"
+                disabled={busy}
+                onChange={(e) => void takeFile(e.target.files?.[0])}
+                className="hidden"
+              />
+            </label>
           </div>
+
           <div>
-            <label className="mb-1 block text-sm font-medium">Hoặc paste text</label>
+            <div className="mb-2 font-heading text-base">Hoặc paste text</div>
             <textarea
               value={paste}
               onChange={(e) => setPaste(e.target.value)}
-              rows={6}
               placeholder="# Markdown here"
-              className="w-full rounded border border-neutral-300 p-2 font-mono text-xs dark:border-neutral-700"
+              className="textarea h-[118px] resize-none rounded-[20px]"
             />
-            <button
-              onClick={() => createJob("pasted.md", paste)}
-              disabled={busy || paste.trim().length === 0}
-              className="mt-2 rounded bg-neutral-800 px-3 py-1.5 text-sm text-white disabled:opacity-40 dark:bg-neutral-200 dark:text-neutral-900"
-            >
-              Tạo job từ text
-            </button>
+            <div className="mt-2.5 flex justify-end">
+              <button
+                onClick={() => createJob("pasted.md", paste)}
+                disabled={busy || paste.trim().length === 0}
+                className="btn btn-secondary h-[34px] py-0"
+              >
+                Tạo job từ text
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {error && <p className="rounded bg-red-100 p-2 text-sm text-red-700">{error}</p>}
+      {error && (
+        <p className="mt-4 rounded-2xl bg-danger-soft px-3.5 py-2.5 text-[12.5px] text-danger-ink">
+          {error}
+        </p>
+      )}
 
-      <table className="w-full text-sm">
-        <thead className="text-left text-neutral-500">
-          <tr className="border-b border-neutral-300 dark:border-neutral-700">
-            <th className="py-2">Tên</th>
-            <th>Ngày</th>
-            <th>Tiến độ</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {jobs.map((j) => (
-            <tr key={j.id} className="border-b border-neutral-200 dark:border-neutral-800">
-              <td className="py-2 font-medium">{j.name}</td>
-              <td className="text-neutral-500">{new Date(j.createdAt).toLocaleString("vi-VN")}</td>
-              <td>
-                {j.done}/{j.total}
-                {j.errors > 0 && <span className="ml-2 text-red-600">{j.errors} lỗi</span>}
-              </td>
-              <td className="py-2 text-right">
-                <a href={`/job/${j.id}`} className="mr-3 text-blue-600 hover:underline">
-                  Mở
-                </a>
-                <button onClick={() => remove(j.id, j.name)} className="text-red-600 hover:underline">
-                  Xoá
-                </button>
-              </td>
-            </tr>
-          ))}
-          {jobs.length === 0 && (
+      <div className="mt-[22px] rounded-[26px] bg-white px-[18px] pb-3.5 pt-2 shadow-sm">
+        <table className="table">
+          <thead>
             <tr>
-              <td colSpan={4} className="py-6 text-center text-neutral-500">
-                Chưa có job nào.
-              </td>
+              <th>Tên</th>
+              <th>Ngày</th>
+              <th className="w-[34%]">Tiến độ</th>
+              <th className="text-right">Hành động</th>
             </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {jobs.map((j) => {
+              const pct = (n: number) => (j.total > 0 ? `${(n / j.total) * 100}%` : "0%");
+              return (
+                <tr key={j.id}>
+                  <td className="font-semibold">{j.name}</td>
+                  <td className="text-[13px] text-sand-600">
+                    {new Date(j.createdAt).toLocaleString("vi-VN")}
+                  </td>
+                  <td>
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-[7px] max-w-[170px] flex-1 overflow-hidden rounded-pill bg-accent-100">
+                        <div style={{ width: pct(j.done) }} className="bg-accent-500" />
+                        <div style={{ width: pct(j.errors) }} className="bg-danger-bar" />
+                      </div>
+                      <span className="font-mono text-xs">
+                        {j.done}/{j.total}
+                      </span>
+                      {j.errors > 0 && (
+                        <span className="text-[11.5px] text-danger-700">{j.errors} lỗi</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap text-right">
+                    <a href={`/job/${j.id}`}>Mở</a>
+                    <span className="mx-2 text-sand-400">·</span>
+                    <button onClick={() => remove(j.id, j.name)} className="text-danger-700 hover:underline">
+                      Xoá
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+            {jobs.length === 0 && (
+              <tr>
+                <td colSpan={4} className="py-8 text-center text-sand-600">
+                  Chưa có job nào.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {dialog}
+    </>
   );
 }

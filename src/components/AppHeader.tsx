@@ -24,39 +24,37 @@ export default function AppHeader({ authEnabled }: { authEnabled: boolean }) {
 
   return (
     <>
-      <nav className="sticky top-0 z-40 flex h-11 items-center gap-4 border-b border-neutral-300 bg-white/95 px-4 backdrop-blur dark:border-neutral-700 dark:bg-neutral-900/95">
-        <Link href="/" className="font-semibold tracking-tight">
-          Tranzlator
+      <nav className="relative z-30 flex h-[52px] shrink-0 items-center gap-4 border-b border-divider bg-white/[0.78] px-5 backdrop-blur-md">
+        <Link href="/" className="flex items-center gap-2.5 text-ink hover:no-underline">
+          <span className="grid h-[26px] w-[26px] place-items-center rounded-pill bg-accent font-heading text-[13px] text-white">
+            T
+          </span>
+          <span className="font-heading text-[16.5px]">Tranzlator</span>
         </Link>
-        <Link href="/" className="text-sm text-neutral-600 hover:underline dark:text-neutral-300">
+        <Link href="/" className="text-[13.5px] text-sand-700">
           Jobs
         </Link>
 
-        <div className="ml-auto flex items-center gap-3 text-sm">
-          <button
-            onClick={() => setOpen(true)}
-            title={hasKey ? "API key đã lưu trong trình duyệt" : "Chưa có API key — bấm để nhập"}
-            className={`rounded px-2 py-0.5 text-xs font-medium ${
-              hasKey
-                ? "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300"
-                : "bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-950 dark:text-red-300"
-            }`}
-          >
-            {hasKey ? "● có key" : "○ chưa có key — nhập ngay"}
+        <span className="flex-1" />
+
+        <button
+          onClick={() => setOpen(true)}
+          title={hasKey ? "API key đã lưu trong trình duyệt" : "Chưa có API key — bấm để nhập"}
+          className={`rounded-pill px-3 py-[5px] text-xs ${
+            hasKey ? "bg-accent-200 text-accent-800" : "bg-danger-bg text-danger-fg"
+          }`}
+        >
+          {hasKey ? "● có key" : "○ chưa có key — nhập ngay"}
+        </button>
+        <span className="hidden font-mono text-[11.5px] text-sand-600 sm:inline">{settings.model}</span>
+        <button onClick={() => setOpen(true)} className="btn btn-secondary h-[34px] py-0">
+          Settings
+        </button>
+        {authEnabled && (
+          <button onClick={logout} className="text-[13px] text-sand-600 hover:underline">
+            Đăng xuất
           </button>
-          <span className="hidden text-xs text-neutral-500 sm:inline">{settings.model}</span>
-          <button
-            onClick={() => setOpen(true)}
-            className="rounded border border-neutral-400 px-3 py-1 hover:bg-neutral-100 dark:hover:bg-neutral-800"
-          >
-            Settings
-          </button>
-          {authEnabled && (
-            <button onClick={logout} className="text-neutral-500 hover:underline">
-              Đăng xuất
-            </button>
-          )}
-        </div>
+        )}
       </nav>
 
       <SettingsDrawer
