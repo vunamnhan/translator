@@ -9,9 +9,11 @@ interface Props {
   chunks: ChunkDTO[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  /** Chế độ đọc: chỉ còn bài, bấm vào đoạn không chọn/tô màu nữa. */
+  readOnly?: boolean;
 }
 
-export default function Preview({ chunks, selectedId, onSelect }: Props) {
+export default function Preview({ chunks, selectedId, onSelect, readOnly = false }: Props) {
   const boxRef = useRef<HTMLDivElement>(null);
 
   const rendered = useMemo(
@@ -45,15 +47,15 @@ export default function Preview({ chunks, selectedId, onSelect }: Props) {
       )}
 
       {rendered.map((r) => {
-        const selected = r.id === selectedId;
+        const selected = !readOnly && r.id === selectedId;
         return (
           <section
             key={r.id}
             data-chunk={r.id}
-            onClick={() => onSelect(r.id)}
-            className={`-mx-3.5 mb-1.5 cursor-pointer scroll-mt-6 rounded-[18px] px-3.5 py-2.5 transition-colors ${
-              selected ? "bg-accent-100 ring-2 ring-inset ring-accent-300" : ""
-            }`}
+            onClick={readOnly ? undefined : () => onSelect(r.id)}
+            className={`-mx-3.5 mb-1.5 scroll-mt-6 rounded-[18px] px-3.5 py-2.5 transition-colors ${
+              readOnly ? "" : "cursor-pointer"
+            } ${selected ? "bg-accent-100 ring-2 ring-inset ring-accent-300" : ""}`}
           >
             {r.html ? (
               <div

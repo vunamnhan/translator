@@ -5,12 +5,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import SettingsDrawer from "./SettingsDrawer";
 import { useSettings } from "@/lib/useSettings";
+import { useReadMode } from "@/lib/readMode";
 
 export default function AppHeader({ authEnabled }: { authEnabled: boolean }) {
   const { settings, update, loaded } = useSettings();
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const { readMode, toggle: toggleRead } = useReadMode();
 
   if (pathname === "/login") return null;
 
@@ -26,6 +28,19 @@ export default function AppHeader({ authEnabled }: { authEnabled: boolean }) {
   return (
     <>
       <nav className="relative z-30 flex h-[52px] shrink-0 flex-nowrap items-center gap-2 overflow-hidden border-b border-divider bg-white/[0.78] px-3 backdrop-blur-md lg:gap-4 lg:px-5">
+        {/* Chế độ đọc chỉ có nghĩa ở màn job và ở khổ mobile — desktop vốn đã rộng. */}
+        {pathname.startsWith("/job/") && (
+          <button
+            onClick={toggleRead}
+            title={readMode ? "Thoát chế độ đọc" : "Chế độ đọc — giấu hết nút, chỉ còn bài"}
+            className={`grid h-8 w-8 shrink-0 place-items-center rounded-pill text-[15px] lg:hidden ${
+              readMode ? "bg-accent text-white" : "bg-accent-100 text-accent-800"
+            }`}
+          >
+            {readMode ? "✕" : "📖"}
+          </button>
+        )}
+
         <Link href="/" className="flex items-center gap-2.5 text-ink hover:no-underline">
           <span className="grid h-[26px] w-[26px] place-items-center rounded-pill bg-accent font-heading text-[13px] text-white">
             T

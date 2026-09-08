@@ -25,6 +25,8 @@ interface Props {
   filters: FilterDef[];
   filter: string;
   onFilter: (key: string) => void;
+  /** Chế độ đọc (mobile) — giấu chrome, khoá chọn thẻ trong khung đọc. */
+  readMode: boolean;
   /** Sheet danh sách ở mobile — state nằm trên JobView để hai tab dùng chung. */
   listOpen: boolean;
   onCloseList: () => void;
@@ -38,6 +40,7 @@ interface Props {
 
 /** Bố cục y hệt tab Translate: danh sách bên trái, khung đọc bên phải. */
 export default function SummaryView({
+  readMode,
   listOpen,
   onCloseList,
   job,
@@ -95,7 +98,11 @@ export default function SummaryView({
   const toggle = (id: string) => onSelect(selectedId === id ? null : id);
 
   return (
-    <div className="flex min-h-0 flex-1 gap-3 px-3 pb-[76px] pt-3 lg:px-5 lg:pb-4">
+    <div
+      className={`flex min-h-0 flex-1 gap-3 px-3 pt-3 lg:px-5 lg:pb-4 ${
+        readMode ? "pb-3" : "pb-[76px]"
+      }`}
+    >
       <ListPanel
         open={listOpen}
         onClose={onCloseList}
@@ -152,6 +159,7 @@ export default function SummaryView({
           sections={sections}
           selectedId={selectedId}
           onSelect={onSelect}
+          readOnly={readMode}
         />
       </div>
     </div>

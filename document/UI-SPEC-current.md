@@ -437,3 +437,16 @@ State mở/đóng sheet danh sách (`listOpen` trong `JobView`) tồn tại ở 
 6. **Bảng trong khung đọc** cuộn ngang trong lòng nó, không đẩy cả trang.
 7. **Chiều cao khung app** dùng `100dvh` (thanh địa chỉ của iOS ăn mất một khúc của `100vh`).
 8. **Safe area** — thanh dính đáy và sheet chừa `env(safe-area-inset-bottom)`.
+
+### 14.1 Chế độ đọc (chỉ mobile)
+
+Nút 📖 ở top bar, **sát bên trái logo**, chỉ hiện khi đang ở màn job và chỉ dưới 1024px. Bấm vào thì:
+
+- giấu card header job (tên, tag, tab Translate/Summary, số liệu)
+- giấu hàng tiến độ (kèm cụm A− / A+)
+- giấu thanh nút dính đáy (Start · Dịch lại lỗi · Export · ⋯ · Danh sách)
+- khoá tương tác trong khung đọc: bấm vào đoạn không chọn, không đổi màu, không có con trỏ tay
+
+Còn lại đúng khung đọc và các dải cảnh báo. Nút đổi thành ✕ nền accent để thoát.
+
+State nằm ở `src/lib/readMode.ts` (store dùng chung vì nút ở `AppHeader` còn thứ bị giấu ở `JobView`), **không lưu localStorage** — mở app lên mà thấy trống trơn thì tưởng hỏng. Vào chế độ đọc thì sheet danh sách tự đóng. Từ 1024px trở lên state này không có tác dụng gì.

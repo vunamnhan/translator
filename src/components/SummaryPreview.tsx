@@ -12,10 +12,18 @@ interface Props {
   sections: SectionDTO[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  /** Chế độ đọc: chỉ còn bài, bấm vào đoạn không chọn/tô màu nữa. */
+  readOnly?: boolean;
 }
 
 /** Khung đọc bên phải — song song với Preview của tab Translate. */
-export default function SummaryPreview({ context, sections, selectedId, onSelect }: Props) {
+export default function SummaryPreview({
+  context,
+  sections,
+  selectedId,
+  onSelect,
+  readOnly = false,
+}: Props) {
   const boxRef = useRef<HTMLDivElement>(null);
 
   const contextHtml = useMemo(() => (context ? renderMarkdown(context) : ""), [context]);
@@ -47,10 +55,10 @@ export default function SummaryPreview({ context, sections, selectedId, onSelect
     <ReadingPane boxRef={boxRef}>
       <section
         data-section={CONTEXT_ID}
-        onClick={() => onSelect(CONTEXT_ID)}
-        className={`mb-[26px] cursor-pointer scroll-mt-6 rounded-[20px] bg-accent-100 px-5 py-[18px] transition-shadow ${
-          selectedId === CONTEXT_ID ? "ring-2 ring-inset ring-accent-300" : ""
-        }`}
+        onClick={readOnly ? undefined : () => onSelect(CONTEXT_ID)}
+        className={`mb-[26px] scroll-mt-6 rounded-[20px] bg-accent-100 px-5 py-[18px] transition-shadow ${
+          readOnly ? "" : "cursor-pointer"
+        } ${!readOnly && selectedId === CONTEXT_ID ? "ring-2 ring-inset ring-accent-300" : ""}`}
       >
         <div className="mb-1.5 text-[10.5px] uppercase tracking-[0.1em] text-accent-700">
           Ngữ cảnh chung · §0
@@ -72,15 +80,15 @@ export default function SummaryPreview({ context, sections, selectedId, onSelect
       )}
 
       {rendered.map((r) => {
-        const selected = r.id === selectedId;
+        const selected = !readOnly && r.id === selectedId;
         return (
           <section
             key={r.id}
             data-section={r.id}
-            onClick={() => onSelect(r.id)}
-            className={`-mx-3.5 mb-1.5 cursor-pointer scroll-mt-6 rounded-[18px] px-3.5 py-2.5 transition-colors ${
-              selected ? "bg-accent-100 ring-2 ring-inset ring-accent-300" : ""
-            }`}
+            onClick={readOnly ? undefined : () => onSelect(r.id)}
+            className={`-mx-3.5 mb-1.5 scroll-mt-6 rounded-[18px] px-3.5 py-2.5 transition-colors ${
+              readOnly ? "" : "cursor-pointer"
+            } ${selected ? "bg-accent-100 ring-2 ring-inset ring-accent-300" : ""}`}
           >
             <h3>{r.heading}</h3>
             {r.html ? (

@@ -11,6 +11,7 @@ import SummaryView from "./SummaryView";
 import { useConfirm } from "./ConfirmDialog";
 import { Banner, ListPanel, ProgressBar, ReadingSizeControl, type FilterDef } from "./chrome";
 import Menu from "./Menu";
+import { useReadMode } from "@/lib/readMode";
 import TagEditor from "./TagEditor";
 import { useTags } from "@/lib/useTags";
 import { useSettings } from "@/lib/useSettings";
@@ -45,6 +46,12 @@ export default function JobView({ jobId }: { jobId: string }) {
   /* Chỉ có nghĩa dưới 768px: cột danh sách là sheet trượt từ đáy. Từ md trở lên
      CSS cho cột hiện luôn nên state này bị kệ, không cần đo bề ngang màn hình. */
   const [listOpen, setListOpen] = useState(false);
+  const { readMode } = useReadMode();
+
+  // Vào chế độ đọc thì đóng luôn sheet danh sách — nút mở nó cũng vừa bị giấu.
+  useEffect(() => {
+    if (readMode) setListOpen(false);
+  }, [readMode]);
   const [dismissed, setDismissed] = useState<Record<string, boolean>>({});
   // Key nào đã gọi thẻ nào — chỉ giữ trong bộ nhớ trang, không lưu DB (§8.1).
   const [keyUsed, setKeyUsed] = useState<Record<string, number>>({});
@@ -643,7 +650,7 @@ export default function JobView({ jobId }: { jobId: string }) {
   return (
     <main className="flex min-h-0 flex-1 flex-col">
       {/* Toolbar — một thẻ nổi, gom tên job, tab, số liệu và mọi nút hành động. */}
-      <div className="flex-none px-3 pt-3 lg:px-5">
+      <div className={`flex-none px-3 pt-3 lg:block lg:px-5 ${readMode ? "hidden" : ""}`}>
         <div className="flex flex-wrap items-center gap-2.5 rounded-3xl bg-white px-3 py-2.5 shadow-sm lg:gap-3.5 lg:px-4 lg:py-3">
           <Link href="/" title="Về danh sách job" className="text-base text-sand-600">
             ←
@@ -720,7 +727,7 @@ export default function JobView({ jobId }: { jobId: string }) {
 
           <span className="min-w-[8px] flex-1" />
 
-          <div className="action-dock no-scrollbar">
+          <div className={`action-dock no-scrollbar lg:flex ${readMode ? "hidden" : ""}`}>
             {/* Mở cột danh sách — dưới md nó là sheet nên mới cần nút; desktop luôn hiện. */}
             <button
               onClick={() => setListOpen(true)}
@@ -806,7 +813,11 @@ export default function JobView({ jobId }: { jobId: string }) {
       </div>
 
       {/* Thanh tiến độ ôm cột trái; chỗ trống bên phải để cụm chỉnh cỡ chữ khung đọc. */}
-      <div className="flex flex-none items-center gap-3 px-3 pt-2.5 lg:px-5">
+      <div
+        className={`flex-none items-center gap-3 px-3 pt-2.5 lg:flex lg:px-5 ${
+          readMode ? "hidden" : "flex"
+        }`}
+      >
         {isTranslate ? (
           <ProgressBar
             done={stats.done}
@@ -889,7 +900,11 @@ export default function JobView({ jobId }: { jobId: string }) {
       </div>
 
       {isTranslate ? (
-        <div className="flex min-h-0 flex-1 gap-3 px-3 pb-[76px] pt-3 lg:px-5 lg:pb-4">
+        <div
+          className={`flex min-h-0 flex-1 gap-3 px-3 pt-3 lg:px-5 lg:pb-4 ${
+            readMode ? "pb-3" : "pb-[76px]"
+          }`}
+        >
           <ListPanel
             open={listOpen}
             onClose={() => setListOpen(false)}
@@ -922,11 +937,17 @@ export default function JobView({ jobId }: { jobId: string }) {
           </ListPanel>
 
           <div className="min-w-0 flex-1">
-            <Preview chunks={chunks} selectedId={selectedId} onSelect={setSelectedId} />
+            <Preview
+              chunks={chunks}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              readOnly={readMode}
+            />
           </div>
         </div>
       ) : (
         <SummaryView
+          readMode={readMode}
           listOpen={listOpen}
           onCloseList={() => setListOpen(false)}
           job={job}
