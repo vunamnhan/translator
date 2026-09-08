@@ -432,7 +432,7 @@ State mở/đóng sheet danh sách (`listOpen` trong `JobView`) tồn tại ở 
 
 1. **Top bar** — một dòng, không bọc: ẩn chữ "Tranzlator" (dưới 640) và link "Jobs", chip key rút còn `●` / `○` (bỏ phần chữ dài), tên model chỉ hiện từ 1024.
 2. **Màn job** — header job gom [tag][tab][số liệu] thành một hàng cuộn ngang (`display: contents` từ 1024 nên desktop không thấy khác biệt gì). Nút Start/Pause · Dịch lại lỗi · Export · ⋯ xuống thanh dính đáy, kèm nút **Danh sách** mở sheet chunk/section. Menu ⋯ bung **lên** vì nằm sát đáy.
-3. **Danh sách job** — mỗi dòng job xuống 2 hàng: tên + ngày ở trên, tiến độ dịch và §tóm tắt ở dưới (trước đây ẩn hẳn dưới 640px).
+3. **Danh sách job** — mỗi dòng job xuống 2 hàng: tên + ngày ở trên, tiến độ dịch và §tóm tắt ở dưới (trước đây ẩn hẳn dưới 640px). Toolbar rút chữ cho khỏi rơi hàng: nút **Gồm archive** còn `Archive`, **＋ New job** còn `＋ New` (chữ thừa bọc trong `span.hidden.lg:inline`, không render hai nút).
 4. **Vùng chạm** — nút cao tối thiểu 40px, ô nhập 44px.
 5. **Ô nhập luôn 16px** dù utility đặt nhỏ hơn — dưới 16px thì iOS tự phóng to trang khi focus.
 6. **Khung đọc bỏ hẳn card** — không padding ngoài, không bo góc, không đổ bóng: chữ được thêm ~28px mỗi dòng. Chỗ chừa cho thanh nút đáy nằm trong chính khung đọc (`pb-20`) nên hàng bọc nó không cần padding dưới.

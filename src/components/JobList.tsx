@@ -262,7 +262,8 @@ export default function JobList() {
             onChange={(e) => query({ archived: e.target.checked ? "include" : null })}
             className="h-3.5 w-3.5 accent-accent"
           />
-          Gồm archive
+          {/* Mobile chỉ còn "Archive" cho khỏi rơi hàng — cùng một nút, chữ thừa ẩn bằng CSS. */}
+          <span className="hidden lg:inline">Gồm&nbsp;</span>Archive
         </label>
 
         {hasFilter && (
@@ -277,7 +278,7 @@ export default function JobList() {
         <span className="flex-1" />
 
         <button onClick={() => setShowNew((v) => !v)} className="btn btn-primary h-9 py-0">
-          ＋ New job
+          ＋ New<span className="hidden lg:inline">&nbsp;job</span>
         </button>
       </div>
 
