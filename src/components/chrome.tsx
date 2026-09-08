@@ -20,9 +20,17 @@ export function ReadingPane({
   return (
     <div
       ref={boxRef}
-      className="relative h-full overflow-y-auto rounded-3xl bg-white px-[30px] pb-20 pt-[34px] shadow-md"
+      className="relative h-full overflow-y-auto rounded-3xl bg-white px-[30px] pb-16 pt-[34px] shadow-md"
     >
-      <div className="pointer-events-none sticky top-0 z-10 -mt-2 flex justify-end">
+      <div
+        className="md-preview mx-auto max-w-[764px]"
+        style={{ "--reading-size": `${size}px` } as React.CSSProperties}
+      >
+        {children}
+      </div>
+
+      {/* Cụm chỉnh cỡ chữ nổi ở đáy khung đọc; padding dưới của khung chừa chỗ cho nó. */}
+      <div className="pointer-events-none sticky bottom-0 z-10 -mb-10 flex justify-end pt-6">
         <div className="pointer-events-auto flex items-center gap-0.5 rounded-pill border border-divider bg-white/90 px-1 py-0.5 shadow-sm backdrop-blur">
           <button
             onClick={() => set(size - 1)}
@@ -49,13 +57,6 @@ export function ReadingPane({
           </button>
         </div>
       </div>
-
-      <div
-        className="md-preview mx-auto max-w-[764px]"
-        style={{ "--reading-size": `${size}px` } as React.CSSProperties}
-      >
-        {children}
-      </div>
     </div>
   );
 }
@@ -81,8 +82,9 @@ export function ProgressBar({
 }) {
   const pct = (n: number) => (total > 0 ? `${(n / total) * 100}%` : "0%");
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex h-2.5 flex-1 overflow-hidden rounded-pill bg-white shadow-sm">
+    // Chỉ chiếm bề ngang cột trái — tiến độ nói về danh sách thẻ, không phải khung đọc.
+    <div className="flex w-[392px] max-w-full items-center gap-2.5">
+      <div className="flex h-[3px] flex-1 overflow-hidden rounded-pill bg-white shadow-sm">
         <div style={{ width: pct(done) }} className="bg-accent-500 transition-[width] duration-500" />
         <div
           style={{ width: pct(running) }}
@@ -91,12 +93,9 @@ export function ProgressBar({
         <div style={{ width: pct(errors) }} className="bg-danger-bar transition-[width] duration-500" />
         <div style={{ width: pct(skipped) }} className="bg-moss-300" />
       </div>
-      <div className="flex items-center gap-3 text-[11.5px] text-sand-700">
-        <span>● xong</span>
-        <span className="text-run-fg">● đang chạy</span>
-        <span className="text-danger-700">● lỗi</span>
-        <span className="font-mono">{total > 0 ? Math.round((done / total) * 100) : 0}%</span>
-      </div>
+      <span className="shrink-0 font-mono text-[11px] text-sand-600">
+        {total > 0 ? Math.round((done / total) * 100) : 0}%
+      </span>
     </div>
   );
 }
