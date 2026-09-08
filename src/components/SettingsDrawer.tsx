@@ -17,6 +17,17 @@ type Tab = "general" | "prompt";
 /** Prompt nằm riêng một tab vì textarea dài, đẩy mọi thông số khác trôi khỏi màn hình. */
 const PROMPT_KEYS: (keyof Settings)[] = ["systemPrompt", "summaryPrompt"];
 
+/**
+ * So sánh theo giá trị, không theo tham chiếu: `apiKeys` là mảng và store luôn
+ * dựng mảng mới khi lưu, so bằng `!==` thì lưu xong vẫn báo "chưa lưu".
+ */
+function sameValue(a: unknown, b: unknown): boolean {
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return a.length === b.length && a.every((v, i) => v === b[i]);
+  }
+  return a === b;
+}
+
 /** Một chỗ duy nhất: cấu hình này áp cho MỌI job. Lưu trong trình duyệt. */
 export default function SettingsDrawer({ open, onClose, settings, updateSettings }: Props) {
   const [draft, setDraft] = useState<Settings>(settings);
@@ -34,7 +45,7 @@ export default function SettingsDrawer({ open, onClose, settings, updateSettings
   }, [open]);
 
   const changed = (Object.keys(settings) as (keyof Settings)[]).filter(
-    (k) => draft[k] !== settings[k]
+    (k) => !sameValue(draft[k], settings[k])
   );
   const dirty = changed.length > 0;
   const promptDirty = changed.some((k) => PROMPT_KEYS.includes(k));
