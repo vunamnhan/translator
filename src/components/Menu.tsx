@@ -9,7 +9,16 @@ export interface MenuItem {
 }
 
 /** Menu ⋯ dùng chung: đóng khi bấm ra ngoài hoặc Esc. */
-export default function Menu({ items, label = "⋯" }: { items: MenuItem[]; label?: string }) {
+export default function Menu({
+  items,
+  label = "⋯",
+  /** Nút nằm trong thanh dính đáy ở mobile → menu phải bung lên, không thì rơi khỏi màn. */
+  dropUp = false,
+}: {
+  items: MenuItem[];
+  label?: string;
+  dropUp?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -40,7 +49,11 @@ export default function Menu({ items, label = "⋯" }: { items: MenuItem[]; labe
       </button>
 
       {open && (
-        <div className="absolute right-0 top-9 z-20 min-w-[184px] animate-tz-pop overflow-hidden rounded-[18px] border border-divider bg-white py-1 shadow-lg">
+        <div
+          className={`absolute right-0 z-20 min-w-[184px] animate-tz-pop overflow-hidden rounded-[18px] border border-divider bg-white py-1 shadow-lg ${
+            dropUp ? "bottom-12 lg:bottom-auto lg:top-9" : "top-9"
+          }`}
+        >
           {items.map((it) => (
             <button
               key={it.label}

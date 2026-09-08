@@ -28,15 +28,16 @@ export default function ExportModal({ title, text, href, filename, note, onClose
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center p-6"
+      className="sheet-wrap sheet-wrap-center"
       style={{ background: "color-mix(in srgb, #16310d 40%, transparent)" }}
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[85vh] w-[min(1152px,100%)] animate-tz-pop flex-col overflow-hidden rounded-[28px] bg-white shadow-lg"
+        className="sheet bg-white"
       >
-        <div className="flex flex-none flex-wrap items-center gap-3.5 px-[22px] py-[18px]">
+        <span className="sheet-grab" />
+        <div className="flex flex-none flex-wrap items-center gap-3 px-4 py-3.5 lg:gap-3.5 lg:px-[22px] lg:py-[18px]">
           <h4 className="m-0">{title}</h4>
           {note && (
             <span className="rounded-pill bg-warn-bg px-3 py-1 text-xs text-warn-fg">{note}</span>
@@ -53,11 +54,11 @@ export default function ExportModal({ title, text, href, filename, note, onClose
           </button>
         </div>
 
-        <pre className="m-0 mx-[22px] mb-[22px] min-h-0 flex-1 overflow-auto whitespace-pre-wrap rounded-[20px] border border-divider bg-paper px-[18px] py-4 font-mono text-xs leading-[1.7] text-sand-800">
+        <pre className="m-0 mx-4 mb-4 min-h-0 flex-1 overflow-auto whitespace-pre-wrap rounded-[20px] border border-divider bg-paper px-3.5 py-3.5 font-mono text-xs leading-[1.7] text-sand-800 lg:mx-[22px] lg:mb-[22px] lg:px-[18px] lg:py-4">
           {text}
         </pre>
 
-        <div className="flex-none px-[22px] pb-4 text-[11.5px] text-sand-600">
+        <div className="flex-none px-4 pb-4 text-[11.5px] text-sand-600 lg:px-[22px]">
           Tên file: {filename}
         </div>
       </div>

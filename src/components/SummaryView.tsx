@@ -25,6 +25,9 @@ interface Props {
   filters: FilterDef[];
   filter: string;
   onFilter: (key: string) => void;
+  /** Sheet danh sách ở mobile — state nằm trên JobView để hai tab dùng chung. */
+  listOpen: boolean;
+  onCloseList: () => void;
   onGenerateContext: () => void;
   onSaveContext: (value: string) => void;
   onResection: () => void;
@@ -35,6 +38,8 @@ interface Props {
 
 /** Bố cục y hệt tab Translate: danh sách bên trái, khung đọc bên phải. */
 export default function SummaryView({
+  listOpen,
+  onCloseList,
   job,
   chunks,
   sections,
@@ -90,8 +95,10 @@ export default function SummaryView({
   const toggle = (id: string) => onSelect(selectedId === id ? null : id);
 
   return (
-    <div className="flex min-h-0 flex-1 gap-3 px-5 pb-4 pt-3">
+    <div className="flex min-h-0 flex-1 gap-3 px-3 pb-[76px] pt-3 lg:px-5 lg:pb-4">
       <ListPanel
+        open={listOpen}
+        onClose={onCloseList}
         query={query}
         onQuery={onQuery}
         filters={filters}

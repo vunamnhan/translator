@@ -42,7 +42,7 @@ export default function JobRow({
 
   return (
     <div
-      className={`flex items-center gap-3 rounded-[20px] px-3 py-2.5 transition-colors hover:bg-accent-100/50 ${
+      className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-[20px] px-3 py-2.5 transition-colors hover:bg-accent-100/50 ${
         archived ? "opacity-60" : ""
       }`}
     >
@@ -87,7 +87,8 @@ export default function JobRow({
         </div>
       </div>
 
-      <div className="hidden shrink-0 items-center gap-4 text-[12px] text-sand-700 sm:flex">
+      {/* Mobile: xuống dòng 2 (w-full + order) chứ không ẩn — tiến độ là thứ cần nhất. */}
+      <div className="order-last flex w-full shrink-0 items-center gap-4 pl-12 text-[12px] text-sand-700 lg:order-none lg:w-auto lg:pl-0">
         <div className="flex items-center gap-2" title="Tiến độ dịch">
           <span className="font-mono">
             {job.done}/{job.total}

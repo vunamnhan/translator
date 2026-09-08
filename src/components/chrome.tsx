@@ -21,7 +21,7 @@ export function ReadingPane({
   return (
     <div
       ref={boxRef}
-      className="h-full overflow-y-auto rounded-3xl bg-white px-[30px] pb-20 pt-[34px] shadow-md"
+      className="h-full overflow-y-auto rounded-3xl bg-white px-4 pb-20 pt-6 shadow-md lg:px-[30px] lg:pt-[34px]"
     >
       <div
         className="md-preview mx-auto max-w-[764px]"
@@ -88,7 +88,8 @@ export function ProgressBar({
   const pct = (n: number) => (total > 0 ? `${(n / total) * 100}%` : "0%");
   return (
     // Chỉ chiếm bề ngang cột trái — tiến độ nói về danh sách thẻ, không phải khung đọc.
-    <div className="flex w-[392px] max-w-full items-center gap-2.5">
+    // Mobile không có cột trái nên nó tự trải hết bề ngang.
+    <div className="flex w-[var(--pane-w)] max-w-full items-center gap-2.5">
       <div className="flex h-[3px] flex-1 overflow-hidden rounded-pill bg-white shadow-sm">
         <div style={{ width: pct(done) }} className="bg-accent-500 transition-[width] duration-500" />
         <div
@@ -144,7 +145,11 @@ export function Banner({
   );
 }
 
-/** Cột trái: ô tìm, chip lọc, rồi vùng cuộn chứa các thẻ. */
+/**
+ * Cột trái: ô tìm, chip lọc, rồi vùng cuộn chứa các thẻ.
+ * Từ md trở lên là cột cố định; dưới md cùng DOM đó thành sheet trượt từ đáy
+ * (xem `.pane-list` trong globals.css). `open` chỉ có tác dụng ở khổ mobile.
+ */
 export function ListPanel({
   query,
   onQuery,
@@ -152,6 +157,8 @@ export function ListPanel({
   filter,
   onFilter,
   empty,
+  open,
+  onClose,
   children,
 }: {
   query: string;
@@ -161,42 +168,57 @@ export function ListPanel({
   onFilter: (key: string) => void;
   /** Câu hiện khi không còn thẻ nào; null nghĩa là có thẻ. */
   empty: string | null;
+  open: boolean;
+  onClose: () => void;
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex w-[392px] shrink-0 flex-col rounded-3xl bg-white py-3 pl-3.5 pr-2 shadow-md">
-      <div className="flex shrink-0 flex-col gap-2 pr-1.5">
-        <input
-          value={query}
-          onChange={(e) => onQuery(e.target.value)}
-          placeholder="Tìm trong nội dung…"
-          className="input h-8 min-h-0 bg-paper text-[12.5px]"
-        />
-        <div className="flex flex-wrap gap-1.5">
-          {filters.map((f) => (
+    <>
+      {open && <div onClick={onClose} className="pane-backdrop" />}
+      <div className={`pane-list flex-col bg-white py-3 pl-3.5 pr-2 ${open ? "is-open" : ""}`}>
+        <span className="sheet-grab" />
+        <div className="flex shrink-0 flex-col gap-2 pr-1.5">
+          <div className="flex items-center gap-2 lg:contents">
+            <input
+              value={query}
+              onChange={(e) => onQuery(e.target.value)}
+              placeholder="Tìm trong nội dung…"
+              className="input h-8 bg-paper text-[12.5px] lg:min-h-0"
+            />
             <button
-              key={f.key}
-              onClick={() => onFilter(f.key)}
-              className={`rounded-pill border px-2.5 py-[3px] text-[11.5px] ${
-                filter === f.key
-                  ? "border-accent bg-accent text-white"
-                  : "border-divider text-sand-700 hover:bg-accent-100"
-              }`}
+              onClick={onClose}
+              title="Đóng danh sách"
+              className="h-9 w-9 shrink-0 rounded-pill bg-sand-100 text-sand-700 lg:hidden"
             >
-              {f.label} {f.count}
+              ×
             </button>
-          ))}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {filters.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => onFilter(f.key)}
+                className={`rounded-pill border px-2.5 py-[3px] text-[11.5px] ${
+                  filter === f.key
+                    ? "border-accent bg-accent text-white"
+                    : "border-divider text-sand-700 hover:bg-accent-100"
+                }`}
+              >
+                {f.label} {f.count}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-2.5 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-1.5">
+          {children}
+          {empty && (
+            <div className="rounded-[18px] border border-dashed border-sand-300 p-[18px] text-center text-[12.5px] text-sand-600">
+              {empty}
+            </div>
+          )}
         </div>
       </div>
-
-      <div className="mt-2.5 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-1.5">
-        {children}
-        {empty && (
-          <div className="rounded-[18px] border border-dashed border-sand-300 p-[18px] text-center text-[12.5px] text-sand-600">
-            {empty}
-          </div>
-        )}
-      </div>
-    </div>
+    </>
   );
 }

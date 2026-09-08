@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/organic-fcb376b2-83a5-4af3-aa08-7bb766491206/styles.css">
+<script src="_ds/organic-fcb376b2-83a5-4af3-aa08-7bb766491206/_ds_bundle.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --color-bg:#f1f8e6;
+  --color-text:#1b2418;
+  --color-accent:#3a7a24;
+  --color-accent-100:#f0fae1;
+  --color-accent-200:#dcf0c4;
+  --color-accent-300:#bde39a;
+  --color-accent-400:#94cf6c;
+  --color-accent-500:#66b03f;
+  --color-accent-600:#31691d;
+  --color-accent-700:#275716;
+  --color-accent-800:#1f4412;
+  --color-divider:color-mix(in srgb,#1b2418 12%,transparent);
+  --font-mono:"IBM Plex Mono",ui-monospace,monospace;
+  --shadow-sm:0 1px 2px color-mix(in srgb,#274119 12%,transparent);
+  --shadow-md:0 4px 14px color-mix(in srgb,#274119 12%,transparent);
+  --shadow-lg:0 -14px 40px color-mix(in srgb,#274119 20%,transparent);
+}
+body{margin:0;background:var(--color-bg)}
+a{color:var(--color-accent);text-decoration:none}
+a:hover{color:var(--color-accent-600);text-decoration:underline}
+@keyframes tz-pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes tz-up{from{transform:translateY(34px);opacity:0}to{transform:none;opacity:1}}
+@keyframes tz-pop{from{transform:scale(.97);opacity:0}to{transform:none;opacity:1}}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#c9dfb4;border-radius:99px}
+::-webkit-scrollbar-track{background:transparent}
+</style>
+</helmet>
+<div style="min-height:100vh;height:100vh;display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(180deg,#f1f8e6,#e8f4d8);color:var(--color-text);font-family:var(--font-body);font-size:15px">
+
+  <!-- ══ LOGIN ══ -->
+  <sc-if value="{{ isLogin }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:1;overflow:auto;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:24px 18px 40px">
+      <div style="width:100%;max-width:400px">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:26px">
+          <span style="width:56px;height:56px;border-radius:999px;background:var(--color-accent);display:grid;place-items:center;color:#fff;font-family:var(--font-heading);font-size:26px">T</span>
+          <h3 style="margin:0;text-align:center">Tranzlator</h3>
+          <p style="margin:0;font-size:13.5px;color:var(--color-neutral-700);text-align:center;max-width:280px;text-wrap:pretty">Dịch và tóm tắt file Markdown bằng LLM, dùng API key của bạn.</p>
+        </div>
+        <div style="background:#fff;border-radius:26px;padding:22px 20px;box-shadow:var(--shadow-md)">
+          <div class="field" style="margin-bottom:14px">
+            <label>Mật khẩu admin</label>
+            <input class="input" type="password" placeholder="••••••••" style="height:48px;font-size:16px" value="{{ pw }}" onChange="{{ onPw }}">
+          </div>
+          <button class="btn btn-primary btn-block" style="color:#fff;height:50px;font-size:16px" onClick="{{ onLogin }}">Đăng nhập</button>
+          <p style="font-size:11.5px;color:var(--color-neutral-600);margin:16px 0 0;line-height:1.55">Phiên lưu 30 ngày. API key nhập riêng trong Settings và không bao giờ gửi lên server.</p>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ══ HEADER ══ -->
+  <sc-if value="{{ showChrome }}" hint-placeholder-val="{{ true }}">
+    <div style="flex:none;display:flex;align-items:center;gap:10px;padding:10px 14px;background:color-mix(in srgb,#fff 82%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--color-divider);z-index:6">
+      <sc-if value="{{ isJob }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ goList }}" title="Về danh sách" style="flex:none;width:38px;height:38px;border:0;border-radius:999px;background:var(--color-accent-100);color:var(--color-accent-700);cursor:pointer;font-size:17px" style-hover="background:var(--color-accent-200)">←</button>
+      </sc-if>
+      <sc-if value="{{ isList }}" hint-placeholder-val="{{ true }}">
+        <span style="flex:none;width:30px;height:30px;border-radius:999px;background:var(--color-accent);display:grid;place-items:center;color:#fff;font-family:var(--font-heading);font-size:15px">T</span>
+      </sc-if>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:var(--font-heading);font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ headTitle }}</div>
+        <div style="font-size:11.5px;color:var(--color-neutral-600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ headSub }}</div>
+      </div>
+      <button onClick="{{ openSettings }}" title="Settings" style="flex:none;height:38px;padding:0 14px;border:0;border-radius:999px;cursor:pointer;font:inherit;font-size:12.5px;background:{{ keyChip.bg }};color:{{ keyChip.fg }}" style-hover="filter:brightness(.96)">{{ keyChip.label }}</button>
+    </div>
+  </sc-if>
+
+  <!-- ══ LISTING ══ -->
+  <sc-if value="{{ isList }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:1;overflow:auto;padding:18px 14px 96px">
+      <div style="max-width:900px;margin:0 auto">
+        <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px">
+          <h4 style="margin:0;flex:1">Jobs</h4>
+          <span style="font-size:12.5px;color:var(--color-neutral-600)">{{ jobCount }}</span>
+        </div>
+        <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:12px">
+          <sc-for list="{{ jobFilters }}" as="f" hint-placeholder-count="4">
+            <button onClick="{{ f.onClick }}" style="flex:none;border:1px solid {{ f.bd }};border-radius:999px;padding:6px 14px;cursor:pointer;font:inherit;font-size:12.5px;background:{{ f.bg }};color:{{ f.fg }}">{{ f.label }}</button>
+          </sc-for>
+        </div>
+        <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(272px,1fr))">
+          <sc-for list="{{ jobs }}" as="j" hint-placeholder-count="4">
+            <div onClick="{{ j.onOpen }}" style="background:#fff;border-radius:24px;padding:16px 18px;box-shadow:var(--shadow-sm);cursor:pointer;display:flex;flex-direction:column;gap:12px" style-hover="box-shadow:var(--shadow-md)">
+              <div style="display:flex;align-items:flex-start;gap:10px">
+                <div style="flex:1;min-width:0">
+                  <div style="font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ j.name }}</div>
+                  <div style="font-size:12px;color:var(--color-neutral-600);margin-top:3px">{{ j.date }}</div>
+                </div>
+                <span style="flex:none;font-size:11px;padding:3px 10px;border-radius:999px;background:{{ j.pillBg }};color:{{ j.pillFg }};animation:{{ j.pillAnim }}">{{ j.pill }}</span>
+              </div>
+              <div>
+                <div style="height:8px;border-radius:99px;background:var(--color-accent-100);overflow:hidden;display:flex">
+                  <div style="width:{{ j.pct }};background:var(--color-accent-500)"></div>
+                  <div style="width:{{ j.runPct }};background:#3d9aa8;animation:{{ j.pillAnim }}"></div>
+                  <div style="width:{{ j.errPct }};background:#c4402c"></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:8px;font-size:12px;color:var(--color-neutral-700)">
+                  <span style="font-family:var(--font-mono)">{{ j.count }}</span>
+                  <sc-if value="{{ j.errText }}" hint-placeholder-val="{{ false }}">
+                    <span style="color:#a3271a">{{ j.errText }}</span>
+                  </sc-if>
+                  <span style="flex:1"></span>
+                  <button onClick="{{ j.onDelete }}" title="Xoá job" style="border:0;background:transparent;cursor:pointer;font:inherit;font-size:12px;color:var(--color-neutral-500);padding:4px 6px;border-radius:8px" style-hover="background:#fbdcd6;color:#8a2418">Xoá</button>
+                </div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+    <div style="position:fixed;left:0;right:0;bottom:0;padding:14px;background:linear-gradient(180deg,transparent,color-mix(in srgb,#e8f4d8 90%,transparent) 45%);z-index:8">
+      <div style="max-width:900px;margin:0 auto">
+        <button class="btn btn-primary btn-block" style="color:#fff;height:52px;font-size:16px;box-shadow:var(--shadow-md)" onClick="{{ openNew }}">＋ Job mới</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ══ TRANSLATE — reading first ══ -->
+  <sc-if value="{{ isJob }}" hint-placeholder-val="{{ true }}">
+    <div style="flex:none;display:flex;align-items:center;gap:8px;padding:8px 14px;background:color-mix(in srgb,#fff 70%,transparent);border-bottom:1px solid var(--color-divider);overflow-x:auto;z-index:5">
+      <div style="flex:none;display:flex;padding:3px;background:var(--color-accent-100);border-radius:999px">
+        <button onClick="{{ toTranslate }}" style="border:0;cursor:pointer;font:inherit;font-size:13px;padding:7px 15px;border-radius:999px;background:{{ tabT.bg }};color:{{ tabT.fg }}">Bản dịch</button>
+        <button onClick="{{ toSummary }}" style="border:0;cursor:pointer;font:inherit;font-size:13px;padding:7px 15px;border-radius:999px;background:{{ tabS.bg }};color:{{ tabS.fg }}">Tóm tắt</button>
+      </div>
+      <span style="flex:none;width:1px;height:22px;background:var(--color-divider)"></span>
+      <button onClick="{{ cycleType }}" title="Cỡ chữ khi đọc" style="flex:none;height:34px;padding:0 13px;border:1px solid var(--color-divider);border-radius:999px;background:#fff;cursor:pointer;font:inherit;font-size:12.5px;color:var(--color-neutral-700)">A {{ typeLabel }}</button>
+      <button onClick="{{ toggleSource }}" title="Hiện bản gốc xen kẽ" style="flex:none;height:34px;padding:0 13px;border:1px solid {{ srcBtn.bd }};border-radius:999px;background:{{ srcBtn.bg }};cursor:pointer;font:inherit;font-size:12.5px;color:{{ srcBtn.fg }}">Bản gốc</button>
+      <button onClick="{{ openFilters }}" style="flex:none;height:34px;padding:0 13px;border:1px solid {{ filBtn.bd }};border-radius:999px;background:{{ filBtn.bg }};cursor:pointer;font:inherit;font-size:12.5px;color:{{ filBtn.fg }}">{{ filBtn.label }}</button>
+      <span style="flex:1;min-width:6px"></span>
+      <button onClick="{{ openExport }}" style="flex:none;height:34px;padding:0 14px;border:1px solid var(--color-divider);border-radius:999px;background:#fff;cursor:pointer;font:inherit;font-size:12.5px;color:var(--color-neutral-800)">Export</button>
+    </div>
+
+    <div style="flex:none;display:flex;align-items:center;gap:10px;padding:0 14px;height:16px;background:color-mix(in srgb,#fff 70%,transparent)">
+      <div style="flex:1;height:6px;border-radius:99px;background:var(--color-accent-100);overflow:hidden;display:flex">
+        <div style="width:{{ prog.done }};background:var(--color-accent-500);transition:width .4s"></div>
+        <div style="width:{{ prog.run }};background:#3d9aa8;animation:tz-pulse 1.2s infinite"></div>
+        <div style="width:{{ prog.err }};background:#c4402c"></div>
+      </div>
+      <span style="flex:none;font-size:11px;font-family:var(--font-mono);color:var(--color-neutral-600)">{{ progText }}</span>
+    </div>
+
+    <sc-if value="{{ noticeText }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:none;margin:10px 14px 0;border-radius:16px;padding:10px 14px;display:flex;align-items:center;gap:10px;font-size:12.5px;background:#e2f0f4;color:#1d5a66">
+        <span style="flex:1">{{ noticeText }}</span>
+        <button onClick="{{ clearNotice }}" style="border:0;background:transparent;cursor:pointer;font:inherit;font-size:15px;color:inherit;opacity:.6">×</button>
+      </div>
+    </sc-if>
+
+    <div ref="{{ readRef }}" style="flex:1;min-height:0;overflow:auto;padding:22px 14px 120px">
+      <div style="max-width:{{ readWidth }};margin:0 auto">
+
+        <sc-if value="{{ contextBlock }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ onCtx }}" style="cursor:pointer;background:var(--color-accent-100);border-radius:22px;padding:18px 20px;margin-bottom:24px">
+            <div style="font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:8px">Ngữ cảnh chung · §0</div>
+            <div style="font-size:{{ readSize }};line-height:1.75;white-space:pre-wrap;text-wrap:pretty">{{ contextBlock }}</div>
+            <div style="font-size:11.5px;color:var(--color-accent-700);margin-top:10px">Chạm để sửa</div>
+          </div>
+        </sc-if>
+
+        <sc-for list="{{ blocks }}" as="b" hint-placeholder-count="8">
+          <div data-sel="{{ b.id }}" onClick="{{ b.onClick }}" style="cursor:pointer;border-radius:20px;padding:12px 14px;margin:0 -14px 4px;background:{{ b.bg }};box-shadow:{{ b.ring }};animation:{{ b.anim }};position:relative">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:{{ b.gap }}">
+              <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--color-neutral-500)">{{ b.num }}</span>
+              <sc-if value="{{ b.chip }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size:10.5px;padding:2px 8px;border-radius:999px;background:{{ b.chipBg }};color:{{ b.chipFg }};animation:{{ b.anim }}">{{ b.chip }}</span>
+              </sc-if>
+              <sc-if value="{{ b.edited }}" hint-placeholder-val="{{ false }}">
+                <span title="đã sửa tay" style="font-size:11px;color:var(--color-accent)">✎ đã sửa</span>
+              </sc-if>
+            </div>
+            <sc-if value="{{ b.heading }}" hint-placeholder-val="{{ false }}">
+              <h4 style="margin:6px 0 12px;font-size:{{ b.headSize }}">{{ b.heading }}</h4>
+            </sc-if>
+            <sc-if value="{{ b.text }}" hint-placeholder-val="{{ false }}">
+              <p style="margin:0;font-size:{{ readSize }};line-height:1.8;text-wrap:pretty">{{ b.text }}</p>
+            </sc-if>
+            <sc-if value="{{ b.srcText }}" hint-placeholder-val="{{ false }}">
+              <p style="margin:10px 0 0;padding-left:12px;border-left:2px solid var(--color-accent-200);font-family:var(--font-mono);font-size:12.5px;line-height:1.7;color:var(--color-neutral-600);text-wrap:pretty">{{ b.srcText }}</p>
+            </sc-if>
+            <sc-if value="{{ b.fallback }}" hint-placeholder-val="{{ false }}">
+              <div style="border-radius:16px;padding:12px 14px;background:{{ b.fbBg }};font-size:13px;color:{{ b.fbFg }}">
+                <div style="font-weight:600;margin-bottom:6px">{{ b.fbTitle }}</div>
+                <div style="font-family:var(--font-mono);font-size:12px;line-height:1.65;opacity:.9;white-space:pre-wrap;text-wrap:pretty">{{ b.fallback }}</div>
+                <sc-if value="{{ b.fbAction }}" hint-placeholder-val="{{ false }}">
+                  <button onClick="{{ b.onRetry }}" style="margin-top:10px;height:34px;padding:0 14px;border:0;border-radius:999px;background:#fff;cursor:pointer;font:inherit;font-size:12.5px;color:{{ b.fbFg }};box-shadow:var(--shadow-sm)">{{ b.fbAction }}</button>
+                </sc-if>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+
+        <sc-if value="{{ emptyRead }}" hint-placeholder-val="{{ false }}">
+          <div style="text-align:center;padding:56px 12px;color:var(--color-neutral-600)">
+            <div style="font-size:14px;text-wrap:pretty">{{ emptyRead }}</div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+
+    <div style="position:fixed;left:0;right:0;bottom:0;padding:12px 14px 14px;display:flex;align-items:center;gap:10px;background:linear-gradient(180deg,transparent,color-mix(in srgb,#e8f4d8 92%,transparent) 40%);z-index:8">
+      <button class="btn btn-primary" style="flex:1;color:#fff;height:50px;font-size:15.5px;background:{{ runBtn.bg }};box-shadow:var(--shadow-md)" onClick="{{ onRun }}">{{ runBtn.label }}</button>
+      <sc-if value="{{ errCount }}" hint-placeholder-val="{{ false }}">
+        <button style="flex:none;height:50px;padding:0 16px;border:0;border-radius:999px;background:#fff;box-shadow:var(--shadow-md);cursor:pointer;font:inherit;font-size:14px;color:#8a2418" onClick="{{ onRetryAll }}">Thử lại {{ errCount }}</button>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <!-- ══ SHEET: chunk detail / filters / new job ══ -->
+  <sc-if value="{{ sheetOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;justify-content:flex-end;background:color-mix(in srgb,#16310d 38%,transparent)">
+      <div onClick="{{ closeSheet }}" style="flex:1;min-height:56px"></div>
+      <div style="flex:none;max-height:82vh;display:flex;flex-direction:column;background:#fff;border-radius:28px 28px 0 0;box-shadow:var(--shadow-lg);animation:tz-up .24s ease-out">
+        <div style="flex:none;padding:10px 0 0;display:grid;place-items:center">
+          <span style="width:44px;height:4px;border-radius:99px;background:var(--color-neutral-300)"></span>
+        </div>
+        <div style="flex:none;display:flex;align-items:center;gap:10px;padding:12px 18px 10px">
+          <div style="flex:1;min-width:0">
+            <div style="font-family:var(--font-heading);font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ sheet.title }}</div>
+            <div style="font-size:12px;color:var(--color-neutral-600)">{{ sheet.sub }}</div>
+          </div>
+          <button onClick="{{ closeSheet }}" style="flex:none;width:36px;height:36px;border:0;border-radius:999px;background:var(--color-neutral-100);cursor:pointer;font-size:16px;color:var(--color-neutral-700)">×</button>
+        </div>
+
+        <sc-if value="{{ sheet.isDetail }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:none;display:flex;gap:4px;padding:0 18px;border-bottom:1px solid var(--color-divider)">
+            <sc-for list="{{ sheet.tabs }}" as="t" hint-placeholder-count="3">
+              <button onClick="{{ t.onClick }}" style="border:0;background:transparent;cursor:pointer;font:inherit;font-size:13px;padding:9px 12px;color:{{ t.fg }};box-shadow:{{ t.underline }}">{{ t.label }}</button>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <div style="flex:1;min-height:0;overflow:auto;padding:16px 18px 8px;display:flex;flex-direction:column;gap:12px">
+          <sc-if value="{{ sheet.errMsg }}" hint-placeholder-val="{{ false }}">
+            <div style="background:#fdeae5;border-radius:16px;padding:11px 14px;font-size:12.5px;color:#7d2114">
+              <div style="font-family:var(--font-mono);font-size:12px">{{ sheet.errMsg }}</div>
+              <div style="margin-top:5px;opacity:.85;text-wrap:pretty">{{ sheet.errHint }}</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ sheet.warn }}" hint-placeholder-val="{{ false }}">
+            <div style="background:#fdf3dc;border-radius:16px;padding:11px 14px;font-size:12.5px;color:#7a5312;text-wrap:pretty">⚠ {{ sheet.warn }}</div>
+          </sc-if>
+
+          <sc-if value="{{ sheet.showRead }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:15.5px;line-height:1.8;white-space:pre-wrap;text-wrap:pretty">{{ sheet.body }}</div>
+          </sc-if>
+          <sc-if value="{{ sheet.showEdit }}" hint-placeholder-val="{{ false }}">
+            <textarea placeholder="{{ sheet.placeholder }}" value="{{ sheet.body }}" onChange="{{ sheet.onEdit }}" style="width:100%;min-height:216px;border:1px solid var(--color-accent-300);border-radius:18px;padding:12px 14px;font-family:var(--font-mono);font-size:13px;line-height:1.7;background:var(--color-accent-100);color:inherit;resize:vertical" style-focus="border-color:var(--color-accent);outline:none"></textarea>
+          </sc-if>
+          <sc-if value="{{ sheet.showSource }}" hint-placeholder-val="{{ false }}">
+            <div style="border:1px solid var(--color-divider);border-radius:18px;padding:12px 14px;background:#fbfdf7;font-family:var(--font-mono);font-size:12.5px;line-height:1.7;white-space:pre-wrap;color:var(--color-neutral-800)">{{ sheet.source }}</div>
+          </sc-if>
+          <sc-if value="{{ sheet.showRaw }}" hint-placeholder-val="{{ false }}">
+            <div style="border:1px dashed var(--color-neutral-300);border-radius:18px;padding:12px 14px;font-family:var(--font-mono);font-size:12px;line-height:1.7;white-space:pre-wrap;color:var(--color-neutral-700)">{{ sheet.raw }}</div>
+          </sc-if>
+
+          <sc-if value="{{ sheet.isFilters }}" hint-placeholder-val="{{ false }}">
+            <input placeholder="Tìm trong nội dung…" value="{{ query }}" onChange="{{ onQuery }}" style="width:100%;height:46px;border:1px solid var(--color-divider);border-radius:999px;padding:0 16px;font:inherit;font-size:15px;background:#fbfdf7;color:inherit" style-focus="border-color:var(--color-accent);outline:none">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <sc-for list="{{ filters }}" as="f" hint-placeholder-count="5">
+                <button onClick="{{ f.onClick }}" style="display:flex;align-items:center;gap:10px;text-align:left;border:1px solid {{ f.bd }};border-radius:18px;padding:13px 15px;cursor:pointer;font:inherit;font-size:14.5px;background:{{ f.bg }};color:{{ f.fg }}">
+                  <span style="flex:1">{{ f.name }}</span>
+                  <span style="font-family:var(--font-mono);font-size:13px;opacity:.75">{{ f.n }}</span>
+                  <span style="font-size:14px">{{ f.tick }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ sheet.isNew }}" hint-placeholder-val="{{ false }}">
+            <label style="display:grid;place-items:center;gap:6px;min-height:130px;border:1.5px dashed var(--color-accent-300);border-radius:22px;background:var(--color-accent-100);cursor:pointer;font-size:14px;color:var(--color-accent-700);text-align:center;padding:16px">
+              <span>Chọn file .md từ thiết bị</span>
+              <span style="font-size:12px;color:var(--color-neutral-600)">tối đa 2 MB</span>
+              <input type="file" style="display:none">
+            </label>
+            <div style="display:flex;align-items:center;gap:10px;color:var(--color-neutral-500);font-size:12px">
+              <span style="flex:1;height:1px;background:var(--color-divider)"></span>hoặc<span style="flex:1;height:1px;background:var(--color-divider)"></span>
+            </div>
+            <textarea placeholder="# Paste Markdown vào đây" value="{{ pasted }}" onChange="{{ onPaste }}" style="width:100%;min-height:140px;border:1px solid var(--color-divider);border-radius:20px;padding:12px 14px;font-family:var(--font-mono);font-size:13px;background:#fbfdf7;color:inherit;resize:vertical" style-focus="border-color:var(--color-accent);outline:none"></textarea>
+          </sc-if>
+
+          <sc-if value="{{ sheet.isSettings }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:12.5px;color:var(--color-neutral-700);background:var(--color-accent-100);border-radius:16px;padding:11px 14px;text-wrap:pretty">Áp cho mọi job. Lưu trong trình duyệt — API key không gửi lên server.</div>
+            <div class="field"><label>API key</label><input class="input" type="password" style="height:46px;font-size:15px" placeholder="sk-..." value="{{ s.apiKey }}" onChange="{{ onApiKey }}"></div>
+            <div class="field"><label>Endpoint</label><input class="input" style="height:46px;font-size:15px" value="{{ s.endpoint }}" onChange="{{ onEndpoint }}"></div>
+            <div class="field"><label>Model</label><input class="input" style="height:46px;font-size:15px" value="{{ s.model }}" onChange="{{ onModel }}"></div>
+            <div class="field">
+              <label>Concurrency: {{ s.concurrency }}</label>
+              <input type="range" min="2" max="6" step="1" value="{{ s.concurrency }}" onChange="{{ onConc }}" style="width:100%;height:32px;accent-color:var(--color-accent)">
+            </div>
+            <label style="display:flex;gap:12px;align-items:flex-start;font-size:14px;cursor:pointer;padding:4px 0">
+              <input type="checkbox" checked="{{ s.useContext }}" onChange="{{ onUseContext }}" style="margin-top:2px;width:20px;height:20px;accent-color:var(--color-accent)">
+              <span>Dùng ngữ cảnh chung khi dịch<br><span style="font-size:12px;color:var(--color-neutral-600)">Giữ thuật ngữ nhất quán giữa các chunk.</span></span>
+            </label>
+            <a href="#" onClick="{{ goLogin }}" style="font-size:13.5px;color:#a3271a;padding:6px 0">Đăng xuất</a>
+          </sc-if>
+
+          <sc-if value="{{ sheet.isExport }}" hint-placeholder-val="{{ false }}">
+            <sc-if value="{{ exportWarn }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size:12.5px;background:#fdf3dc;color:#7a5312;padding:10px 14px;border-radius:16px;text-wrap:pretty">{{ exportWarn }}</div>
+            </sc-if>
+            <div style="border:1px solid var(--color-divider);border-radius:18px;padding:12px 14px;background:#fbfdf7;font-family:var(--font-mono);font-size:12px;line-height:1.7;white-space:pre-wrap;color:var(--color-neutral-800);max-height:40vh;overflow:auto">{{ exportBody }}</div>
+            <div style="font-size:11.5px;color:var(--color-neutral-600)">{{ exportFile }}</div>
+          </sc-if>
+        </div>
+
+        <sc-if value="{{ sheet.hasFooter }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:none;display:flex;gap:10px;padding:12px 18px 20px;border-top:1px solid var(--color-divider)">
+            <sc-if value="{{ sheet.secLabel }}" hint-placeholder-val="{{ false }}">
+              <button class="btn btn-secondary" style="flex:1;height:48px;font-size:15px" disabled="{{ sheet.secDisabled }}" onClick="{{ sheet.onSec }}">{{ sheet.secLabel }}</button>
+            </sc-if>
+            <sc-if value="{{ sheet.priLabel }}" hint-placeholder-val="{{ false }}">
+              <button class="btn btn-primary" style="flex:1;height:48px;font-size:15px;color:#fff" disabled="{{ sheet.priDisabled }}" onClick="{{ sheet.onPri }}">{{ sheet.priLabel }}</button>
+            </sc-if>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ confirmOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop" style="z-index:50;padding:18px">
+      <div class="dialog" style="animation:tz-pop .18s ease-out;background:#fff;max-width:400px">
+        <div class="dialog-title">{{ confirmTitle }}</div>
+        <div class="dialog-body" style="text-wrap:pretty">{{ confirmBody }}</div>
+        <div class="dialog-actions" style="gap:10px">
+          <button class="btn btn-secondary" style="height:46px" onClick="{{ onConfirmNo }}">Huỷ</button>
+          <button class="btn btn-primary" style="height:46px;color:#fff;background:#a3271a" onClick="{{ onConfirmYes }}">{{ confirmOk }}</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:420,&quot;height&quot;:900},&quot;accentColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#3a7a24&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#3a7a24&quot;,&quot;#2f7d4a&quot;,&quot;#4e8f1f&quot;,&quot;#2c6e5d&quot;],&quot;section&quot;:&quot;Thương hiệu&quot;},&quot;startScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;login&quot;,&quot;list&quot;,&quot;job&quot;],&quot;default&quot;:&quot;job&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Demo&quot;}}">
+class Component extends DCLogic {
+  state = Object.assign(this.seed(), { screen: this.props.startScreen || "job" });
+
+  seed() {
+    const heads = ["Bối cảnh dự án", "Kiến trúc hệ thống", "Luồng dữ liệu", "Mô hình chunk",
+      "Giao thức đồng bộ", "Xử lý lỗi và thử lại", "Hiệu năng và giới hạn", "Bảo mật khoá API"];
+    const src = [
+      "The pipeline splits a Markdown document into token-bounded chunks, preserving heading boundaries wherever possible so each request carries enough context to be translated independently.",
+      "Each chunk is dispatched with a system prompt, the shared document context, and an output contract requiring the model to wrap its answer in a single translation tag.",
+      "Failures are retried up to three times with exponential backoff. A chunk that still fails is marked as an error and keeps its original source text in the exported document.",
+      "Sections group consecutive chunks up to a token ceiling. A section summary is written against the document-wide context so terminology stays consistent.",
+      "Progress is persisted after every completed chunk, so reloading the page never loses finished work; resuming picks up exactly where the loop stopped."
+    ];
+    const tr = [
+      "Pipeline cắt tài liệu Markdown thành các chunk giới hạn theo token, cố gắng giữ nguyên ranh giới heading để mỗi request mang đủ ngữ cảnh và dịch được độc lập.",
+      "Mỗi chunk được gửi kèm system prompt, ngữ cảnh chung của tài liệu, và một output contract buộc model bọc câu trả lời trong đúng một thẻ translation.",
+      "Lỗi được thử lại tối đa ba lần với backoff tăng dần. Chunk vẫn thất bại sẽ bị đánh dấu lỗi và giữ nguyên văn bản gốc trong file xuất ra.",
+      "Section gom các chunk liên tiếp cho tới ngưỡng token. Tóm tắt của section được viết dựa trên ngữ cảnh chung nên thuật ngữ luôn nhất quán.",
+      "Tiến độ được lưu sau mỗi chunk xong, nên tải lại trang không bao giờ mất phần đã làm; bấm Tiếp tục là chạy tiếp đúng chỗ vòng lặp dừng."
+    ];
+    const errs = { 7: 429, 18: 401, 21: 500 };
+    const chunks = [];
+    for (let i = 0; i < 32; i++) {
+      const heading = i % 4 === 0 ? heads[i / 4 | 0] || heads[7] : "";
+      const c = { id: "c" + i, n: i, heading, source: (heading ? "## " + heading + "\n\n" : "") + src[i % 5], translation: "", status: "pending", code: 0, warn: "", edited: false, calls: 0, raw: "" };
+      if (i === 0) { c.status = "skipped"; c.source = "---\ntitle: Tranzlator spec\nlang: en\n---"; c.heading = ""; }
+      else if (errs[i]) { c.status = "error"; c.code = errs[i]; c.calls = 3; c.raw = "HTTP " + errs[i] + " — request failed after 3 attempts"; }
+      else if (i <= 13) {
+        c.status = "done"; c.calls = 1;
+        c.translation = (heading ? "## " + heading + "\n\n" : "") + tr[i % 5];
+        c.raw = "<translation>\n" + tr[i % 5] + "\n</translation>";
+        if (i === 4 || i === 9) c.warn = "Bản dịch dài gấp 3 lần bản gốc — kiểm tra xem model có tự thêm nội dung.";
+        if (i === 5) { c.edited = true; c.calls = 2; }
+      }
+      chunks.push(c);
+    }
+    const ranges = [[0, 3], [4, 7], [8, 11], [12, 15], [16, 19], [20, 23], [24, 27], [28, 31]];
+    const sections = ranges.map((r, i) => {
+      const st = i < 3 ? "done" : i === 3 ? "error" : "pending";
+      return {
+        id: "s" + (i + 1), n: i + 1, from: r[0], to: r[1], heading: heads[i],
+        summary: st === "done" ? "Phần này trình bày " + heads[i].toLowerCase() + ": mục tiêu, các ràng buộc chính và cách hệ thống xử lý trường hợp biên. Điểm cần nhớ là mọi bước đều lưu tiến độ và chạy lại được độc lập." : "",
+        status: st, code: st === "error" ? 429 : 0, calls: st === "done" ? 1 : 3,
+        raw: st === "done" ? "<summary>…</summary>" : st === "error" ? "HTTP 429 — rate limited" : "", edited: false, warn: ""
+      };
+    });
+    return {
+      screen: "job", tab: "translate", pw: "", pasted: "",
+      chunks, sections,
+      context: "Tài liệu mô tả Tranzlator — công cụ nội bộ dịch và tóm tắt file Markdown bằng LLM với khoá API của người dùng. Khái niệm xuyên suốt: chunk (đơn vị dịch), section (nhóm chunk để tóm tắt) và ngữ cảnh chung (bản tóm tắt toàn tài liệu, người dùng sửa được).",
+      ctxDraft: null,
+      sel: "", sheet: "", sheetTab: "read",
+      filter: "all", query: "", jobFilter: "all",
+      typeStep: 1, showSource: false,
+      running: null, notice: "", confirm: "",
+      settings: { apiKey: "sk-proj-3f9a1c7d2b4e8", endpoint: "https://api.openai.com/v1", model: "gpt-4o-mini", concurrency: 3, useContext: true },
+      draft: null
+    };
+  }
+
+  componentWillUnmount() { clearInterval(this.timer); }
+  componentDidUpdate(_p, prev) {
+    if (prev.sel !== this.state.sel && this.state.sel && this.readEl) {
+      const t = this.readEl.querySelector('[data-sel="' + this.state.sel + '"]');
+      if (t) this.readEl.scrollTop = Math.max(0, t.offsetTop - 20);
+    }
+  }
+
+  note(t) { this.setState({ notice: t }); }
+  ask(title, body, ok, fn) { this.setState({ confirm: { title, body, ok, fn } }); }
+  busy(s) { return s === "translating" || s === "summarizing"; }
+
+  tick() {
+    const key = this.state.running === "translate" ? "chunks" : "sections";
+    const list = this.state[key].slice();
+    const now = Date.now();
+    let active = 0;
+    list.forEach((it, i) => {
+      if (this.busy(it.status)) {
+        if (now - it.startedAt > 1500) {
+          const d = Object.assign({}, it, { status: "done", calls: it.calls + 1 });
+          if (key === "chunks") { d.translation = (it.heading ? "## " + it.heading + "\n\n" : "") + "Bản dịch vừa hoàn tất cho chunk #" + it.n + ". " + it.source.replace(/^##.*\n\n/, "").slice(0, 130) + "…"; d.raw = "<translation>…</translation>"; }
+          else { d.summary = "Tóm tắt vừa hoàn tất cho " + it.heading + ": mục tiêu, quyết định kỹ thuật và ràng buộc chính của phần này."; d.raw = "<summary>…</summary>"; }
+          list[i] = d;
+        } else active++;
+      }
+    });
+    const cap = Number(this.state.settings.concurrency) || 3;
+    for (let i = 0; i < list.length && active < cap; i++) {
+      if (list[i].status === "pending") { list[i] = Object.assign({}, list[i], { status: key === "chunks" ? "translating" : "summarizing", startedAt: now }); active++; }
+    }
+    const left = list.some(x => x.status === "pending" || this.busy(x.status));
+    const patch = {}; patch[key] = list;
+    if (!left) { clearInterval(this.timer); this.timer = null; patch.running = null; patch.notice = "Xong toàn bộ hàng đợi."; }
+    this.setState(patch);
+  }
+
+  toggleRun() {
+    const st = this.state;
+    if (!st.settings.apiKey) { this.setState({ sheet: "settings", notice: "Chưa có API key — nhập trong Settings." }); return; }
+    if (st.running === st.tab) { clearInterval(this.timer); this.timer = null; this.setState({ running: null, notice: "Đã tạm dừng." }); return; }
+    if (st.running) return this.note("Đang có vòng lặp khác chạy — tạm dừng trước.");
+    this.setState({ running: st.tab });
+    clearInterval(this.timer);
+    this.timer = setInterval(() => this.tick(), 600);
+  }
+
+  retryOne(id) {
+    const key = this.state.tab === "translate" ? "chunks" : "sections";
+    const list = this.state[key].map(x => x.id === id ? Object.assign({}, x, { status: key === "chunks" ? "translating" : "summarizing", code: 0, startedAt: Date.now() }) : x);
+    const patch = {}; patch[key] = list; this.setState(patch);
+    setTimeout(() => this.tick(), 1600);
+  }
+  retryAll() {
+    const key = this.state.tab === "translate" ? "chunks" : "sections";
+    const list = this.state[key].map(x => x.status === "error" ? Object.assign({}, x, { status: "pending", code: 0 }) : x);
+    const patch = {}; patch[key] = list;
+    this.setState(patch, () => { if (!this.timer) { this.setState({ running: this.state.tab }); this.timer = setInterval(() => this.tick(), 600); } });
+  }
+  edit(id, field, val) {
+    const key = this.state.tab === "translate" ? "chunks" : "sections";
+    const list = this.state[key].map(x => x.id === id ? Object.assign({}, x, { [field]: val, edited: true }) : x);
+    const patch = {}; patch[key] = list; this.setState(patch);
+  }
+
+  chip(status) {
+    const m = {
+      pending: ["chưa dịch", "#eef1ea", "#4a5346"],
+      translating: ["đang dịch…", "#d7eef2", "#1d5a66"],
+      summarizing: ["đang tóm tắt…", "#d7eef2", "#1d5a66"],
+      done: ["", "var(--color-accent-200)", "var(--color-accent-800)"],
+      error: ["lỗi", "#fbdcd6", "#8a2418"],
+      skipped: ["không dịch", "#fbeccd", "#7a5312"]
+    };
+    return m[status] || m.pending;
+  }
+  hint(code) {
+    const m = { 429: "Bị giới hạn tốc độ — giảm concurrency hoặc chờ rồi thử lại.", 401: "API key sai hoặc hết hạn.", 403: "Key không có quyền với model này.", 402: "Hết credit — cần thanh toán.", 404: "Endpoint hoặc model không tồn tại.", 500: "Lỗi phía nhà cung cấp, thử lại sau.", 503: "Nhà cung cấp quá tải, thử lại sau." };
+    return m[code] || "Lỗi không có mã — kiểm tra mạng hoặc định dạng phản hồi.";
+  }
+  exportText() {
+    if (this.state.tab === "translate") return this.state.chunks.map(c => c.status === "skipped" ? c.source : c.translation || "<!-- CHƯA DỊCH #" + c.n + " -->\n" + c.source).join("\n\n");
+    return "# Ngữ cảnh chung\n\n" + this.state.context + "\n\n" + this.state.sections.map(s => "## " + s.heading + "\n\n" + (s.summary || "<!-- CHƯA TÓM TẮT §" + s.n + " -->")).join("\n\n");
+  }
+
+  renderVals() {
+    const st = this.state, S = st.settings, isT = st.tab === "translate";
+    const accent = this.props.accentColor;
+    if (accent && this.lastAccent !== accent) { this.lastAccent = accent; document.documentElement.style.setProperty("--color-accent", accent); }
+
+    const cDone = st.chunks.filter(x => x.status === "done").length;
+    const cErr = st.chunks.filter(x => x.status === "error").length;
+    const cRun = st.chunks.filter(x => this.busy(x.status)).length;
+    const list = isT ? st.chunks : st.sections;
+    const total = list.length;
+    const doneN = list.filter(x => x.status === "done").length;
+    const errN = list.filter(x => x.status === "error").length;
+    const runN = list.filter(x => this.busy(x.status)).length;
+    const skipN = list.filter(x => x.status === "skipped").length;
+    const pendN = total - doneN - errN - runN - skipN;
+    const warnN = list.filter(x => x.warn).length;
+    const pct = n => (n / total * 100).toFixed(1) + "%";
+
+    const sizes = ["15px", "16.5px", "18.5px"], heads = ["19px", "21px", "23px"], labels = ["nhỏ", "vừa", "lớn"];
+    const step = st.typeStep;
+
+    const matches = it => {
+      if (st.filter === "error" && it.status !== "error") return false;
+      if (st.filter === "warn" && !it.warn) return false;
+      if (st.filter === "pending" && it.status !== "pending") return false;
+      if (st.filter === "done" && it.status !== "done") return false;
+      if (st.query) {
+        const hay = ((it.source || "") + (it.translation || "") + (it.summary || "") + (it.heading || "")).toLowerCase();
+        if (hay.indexOf(st.query.toLowerCase()) < 0) return false;
+      }
+      return true;
+    };
+    const shown = list.filter(matches);
+
+    const blocks = shown.map(it => {
+      const ch = this.chip(it.status);
+      const sel = st.sel === it.id;
+      const body = isT ? it.translation : it.summary;
+      const bare = String(body || "").replace(/^##\s*.*\n\n/, "");
+      const b = {
+        id: it.id, num: isT ? "#" + it.n : "§" + it.n + " · chunk " + it.from + "–" + it.to,
+        chip: ch[0], chipBg: ch[1], chipFg: ch[2],
+        edited: it.edited,
+        anim: this.busy(it.status) ? "tz-pulse 1.2s infinite" : "none",
+        heading: it.heading && body ? it.heading : "",
+        headSize: heads[step],
+        text: bare, gap: bare || it.heading ? "8px" : "10px",
+        srcText: st.showSource && body ? String(it.source || "").replace(/^##\s*.*\n\n/, "") : "",
+        bg: sel ? "var(--color-accent-100)" : "transparent",
+        ring: sel ? "inset 0 0 0 2px var(--color-accent-300)" : "none",
+        onClick: () => this.setState({ sel: it.id, sheet: "detail", sheetTab: body ? "read" : "source" }),
+        fallback: "", fbTitle: "", fbBg: "", fbFg: "", fbAction: "", onRetry: null
+      };
+      if (!body) {
+        const raw = String(it.source || "").replace(/^##\s*/, "");
+        if (it.status === "error") {
+          b.fallback = this.hint(it.code); b.fbTitle = "Lỗi " + it.code + " — giữ bản gốc";
+          b.fbBg = "#fdeae5"; b.fbFg = "#7d2114"; b.fbAction = isT ? "Dịch lại chunk này" : "Tóm tắt lại";
+          b.onRetry = e => { e.stopPropagation(); this.retryOne(it.id); };
+        } else if (it.status === "skipped") {
+          b.fallback = raw; b.fbTitle = "Front matter — không dịch"; b.fbBg = "#fdf3dc"; b.fbFg = "#7a5312";
+        } else if (this.busy(it.status)) {
+          b.fallback = raw.slice(0, 150) + "…"; b.fbTitle = isT ? "Đang dịch…" : "Đang tóm tắt…"; b.fbBg = "#e2f0f4"; b.fbFg = "#1d5a66";
+        } else {
+          b.fallback = isT ? raw : "Chunk " + it.from + "–" + it.to + " · " + it.heading;
+          b.fbTitle = isT ? "Chưa dịch — bản gốc" : "Chưa tóm tắt";
+          b.fbBg = "#f3f5f0"; b.fbFg = "#3f463b"; b.fbAction = isT ? "Dịch chunk này" : "Tóm tắt phần này";
+          b.onRetry = e => { e.stopPropagation(); this.retryOne(it.id); };
+        }
+      }
+      return b;
+    });
+
+    const fdef = isT
+      ? [["all", "Tất cả", total], ["done", "Đã dịch", doneN], ["pending", "Chưa dịch", pendN], ["error", "Lỗi", errN], ["warn", "Cảnh báo", warnN]]
+      : [["all", "Tất cả", total], ["done", "Đã tóm tắt", doneN], ["pending", "Chưa tóm tắt", pendN], ["error", "Lỗi", errN]];
+    const filters = fdef.map(f => ({
+      name: f[1], n: f[2], tick: st.filter === f[0] ? "✓" : "",
+      onClick: () => this.setState({ filter: f[0] }),
+      bg: st.filter === f[0] ? "var(--color-accent-100)" : "#fff",
+      fg: st.filter === f[0] ? "var(--color-accent-800)" : "var(--color-text)",
+      bd: st.filter === f[0] ? "var(--color-accent)" : "var(--color-divider)"
+    }));
+
+    // sheet
+    const sel = list.filter(x => x.id === st.sel)[0];
+    const ctxDraft = st.ctxDraft === null ? st.context : st.ctxDraft;
+    let sheet = { isDetail: false, isFilters: false, isNew: false, isSettings: false, isExport: false, hasFooter: false, tabs: [], title: "", sub: "" };
+    if (st.sheet === "detail" && sel) {
+      const tabs = isT ? [["read", "Đọc"], ["edit", "Sửa"], ["source", "Bản gốc"], ["raw", "Raw"]] : [["read", "Đọc"], ["edit", "Sửa"], ["source", "Nguồn"], ["raw", "Raw"]];
+      const b = isT ? sel.translation : sel.summary;
+      sheet = {
+        isDetail: true, isFilters: false, isNew: false, isSettings: false, isExport: false,
+        title: (isT ? "Chunk #" + sel.n : "Section §" + sel.n + " · " + sel.heading),
+        sub: this.chip(sel.status)[0] || "đã xong",
+        tabs: tabs.map(t => ({ label: t[1], onClick: () => this.setState({ sheetTab: t[0] }), fg: st.sheetTab === t[0] ? "var(--color-accent-700)" : "var(--color-neutral-600)", underline: st.sheetTab === t[0] ? "inset 0 -2px 0 var(--color-accent)" : "none" })),
+        errMsg: sel.status === "error" ? "HTTP " + sel.code + " — thất bại sau 3 lần gọi" : "",
+        errHint: sel.status === "error" ? this.hint(sel.code) : "",
+        warn: sel.warn || "",
+        showRead: st.sheetTab === "read", showEdit: st.sheetTab === "edit",
+        showSource: st.sheetTab === "source", showRaw: st.sheetTab === "raw",
+        body: b || (st.sheetTab === "read" ? "Chưa có nội dung — mở tab Bản gốc để đọc, hoặc bấm dịch bên dưới." : ""),
+        placeholder: isT ? "Dán bản dịch của bạn…" : "Viết tóm tắt…",
+        onEdit: e => this.edit(sel.id, isT ? "translation" : "summary", e.target.value),
+        source: isT ? sel.source : st.chunks.slice(sel.from, sel.to + 1).map(c => c.source).join("\n\n"),
+        raw: sel.raw || "Chưa gọi LLM lần nào cho thẻ này.",
+        hasFooter: true,
+        secLabel: "Đóng", secDisabled: false, onSec: () => this.setState({ sheet: "" }),
+        priLabel: this.busy(sel.status) ? "Đang chạy…" : (isT ? "Dịch lại" : "Tóm tắt lại"),
+        priDisabled: this.busy(sel.status) || sel.status === "skipped",
+        onPri: () => this.retryOne(sel.id)
+      };
+    } else if (st.sheet === "ctx") {
+      sheet = Object.assign(sheet, {
+        title: "Ngữ cảnh chung", sub: "§0 · dùng cho mọi tóm tắt", isDetail: false,
+        showEdit: true, body: ctxDraft, placeholder: "Chưa có ngữ cảnh chung.",
+        onEdit: e => this.setState({ ctxDraft: e.target.value }),
+        hasFooter: true, secLabel: "Huỷ", onSec: () => this.setState({ sheet: "", ctxDraft: null }),
+        priLabel: "Lưu", priDisabled: st.ctxDraft === null || st.ctxDraft === st.context,
+        onPri: () => this.setState({ context: ctxDraft, ctxDraft: null, sheet: "", notice: "Đã lưu ngữ cảnh chung." })
+      });
+    } else if (st.sheet === "filters") {
+      sheet = Object.assign(sheet, { title: "Lọc & tìm", sub: shown.length + "/" + total + " thẻ đang hiện", isFilters: true, hasFooter: true, secLabel: "Xoá lọc", secDisabled: st.filter === "all" && !st.query, onSec: () => this.setState({ filter: "all", query: "" }), priLabel: "Xem kết quả", onPri: () => this.setState({ sheet: "" }) });
+    } else if (st.sheet === "new") {
+      sheet = Object.assign(sheet, { title: "Job mới", sub: "Upload .md hoặc paste text", isNew: true, hasFooter: true, secLabel: "Huỷ", onSec: () => this.setState({ sheet: "" }), priLabel: "Tạo job", onPri: () => this.setState({ sheet: "", screen: "job", notice: "Đã tạo job — bấm Bắt đầu để dịch." }) });
+    } else if (st.sheet === "settings") {
+      sheet = Object.assign(sheet, { title: "Settings", sub: S.model, isSettings: true, hasFooter: true, secLabel: "Huỷ", secDisabled: !st.draft, onSec: () => this.setState({ draft: null }), priLabel: st.draft ? "Lưu •" : "Lưu", priDisabled: !st.draft, onPri: () => this.setState({ settings: st.draft, draft: null, sheet: "", notice: "Đã lưu settings." }) });
+    } else if (st.sheet === "export") {
+      sheet = Object.assign(sheet, { title: isT ? "Export bản dịch" : "Export tóm tắt", sub: "Markdown", isExport: true, hasFooter: true, secLabel: "Copy", onSec: () => this.note("Đã copy vào clipboard."), priLabel: "Tải .md", onPri: () => this.setState({ sheet: "", notice: "Đã tải file." }) });
+    }
+
+    const view = st.draft || S;
+    const patchS = (k, v) => this.setState({ draft: Object.assign({}, view, { [k]: v }) });
+    const verb = isT ? "dịch" : "tóm tắt";
+    const runLabel = st.running === st.tab ? "Tạm dừng" : (doneN > 0 ? "Tiếp tục " : "Bắt đầu ") + verb;
+
+    const jobsRaw = [
+      { name: "tranzlator-spec.md", date: "08/09/2026 09:14", done: cDone, err: cErr, run: cRun, total: st.chunks.length, status: st.running ? "running" : cErr ? "error" : "partial" },
+      { name: "onboarding-guide.md", date: "05/09/2026 16:02", done: 26, err: 0, run: 0, total: 26, status: "done" },
+      { name: "api-reference.md", date: "02/09/2026 11:40", done: 31, err: 5, run: 0, total: 92, status: "error" },
+      { name: "release-notes-q3.md", date: "28/08/2026 08:20", done: 0, err: 0, run: 0, total: 12, status: "new" }
+    ];
+    const jpill = { running: ["đang chạy", "#d7eef2", "#1d5a66", "tz-pulse 1.1s infinite"], done: ["xong", "var(--color-accent-200)", "var(--color-accent-800)", "none"], error: ["có lỗi", "#fbdcd6", "#8a2418", "none"], partial: ["đang dở", "#eef1ea", "#4a5346", "none"], new: ["chưa chạy", "#eef1ea", "#4a5346", "none"] };
+    const jobs = jobsRaw.filter(j => st.jobFilter === "all" || (st.jobFilter === "run" && j.status === "running") || (st.jobFilter === "err" && j.status === "error") || (st.jobFilter === "done" && j.status === "done")).map(j => {
+      const p = jpill[j.status];
+      return {
+        name: j.name, date: j.date, pill: p[0], pillBg: p[1], pillFg: p[2], pillAnim: p[3],
+        pct: (j.done / j.total * 100).toFixed(1) + "%", runPct: (j.run / j.total * 100).toFixed(1) + "%", errPct: (j.err / j.total * 100).toFixed(1) + "%",
+        count: j.done + "/" + j.total, errText: j.err ? j.err + " lỗi" : "",
+        onOpen: () => this.setState({ screen: "job" }),
+        onDelete: e => { e.stopPropagation(); this.ask("Xoá job?", 'Xoá "' + j.name + '"? Toàn bộ chunk và bản dịch sẽ mất.', "Xoá job", () => this.note("Đã xoá " + j.name)); }
+      };
+    });
+    const jf = [["all", "Tất cả"], ["run", "Đang chạy"], ["err", "Có lỗi"], ["done", "Đã xong"]];
+
+    return {
+      isLogin: st.screen === "login", isList: st.screen === "list", isJob: st.screen === "job",
+      showChrome: st.screen !== "login",
+      pw: st.pw, onPw: e => this.setState({ pw: e.target.value }),
+      onLogin: () => this.setState({ screen: "list", pw: "" }),
+      goLogin: e => { e.preventDefault(); this.setState({ screen: "login", sheet: "" }); },
+      goList: () => this.setState({ screen: "list", sheet: "" }),
+      headTitle: st.screen === "job" ? "tranzlator-spec.md" : "Tranzlator",
+      headSub: st.screen === "job" ? doneN + "/" + total + (isT ? " chunk đã dịch" : " section đã tóm tắt") + (errN ? " · " + errN + " lỗi" : "") : jobsRaw.length + " job · " + cDone + "/" + st.chunks.length + " chunk ở job đang mở",
+      keyChip: S.apiKey ? { bg: "var(--color-accent-200)", fg: "var(--color-accent-800)", label: "⚙ Settings" } : { bg: "#fbdcd6", fg: "#8a2418", label: "Chưa có key" },
+      openSettings: () => this.setState({ sheet: "settings" }),
+      jobCount: jobsRaw.length + " job", jobs: jobs,
+      jobFilters: jf.map(f => ({ label: f[1], onClick: () => this.setState({ jobFilter: f[0] }), bg: st.jobFilter === f[0] ? "var(--color-accent)" : "#fff", fg: st.jobFilter === f[0] ? "#fff" : "var(--color-neutral-700)", bd: st.jobFilter === f[0] ? "var(--color-accent)" : "var(--color-divider)" })),
+      openNew: () => this.setState({ sheet: "new" }),
+      tabT: isT ? { bg: "var(--color-accent)", fg: "#fff" } : { bg: "transparent", fg: "var(--color-accent-800)" },
+      tabS: !isT ? { bg: "var(--color-accent)", fg: "#fff" } : { bg: "transparent", fg: "var(--color-accent-800)" },
+      toTranslate: () => this.setState({ tab: "translate", filter: "all", sel: "" }),
+      toSummary: () => this.setState({ tab: "summary", filter: "all", sel: "" }),
+      typeLabel: labels[step], cycleType: () => this.setState({ typeStep: (step + 1) % 3 }),
+      readSize: sizes[step], readWidth: step === 2 ? "660px" : "620px",
+      showSourceOn: st.showSource, toggleSource: () => this.setState({ showSource: !st.showSource }),
+      srcBtn: st.showSource ? { bg: "var(--color-accent)", fg: "#fff", bd: "var(--color-accent)" } : { bg: "#fff", fg: "var(--color-neutral-700)", bd: "var(--color-divider)" },
+      filBtn: st.filter === "all" && !st.query ? { label: "Lọc", bg: "#fff", fg: "var(--color-neutral-700)", bd: "var(--color-divider)" } : { label: "Lọc · " + shown.length, bg: "var(--color-accent)", fg: "#fff", bd: "var(--color-accent)" },
+      openFilters: () => this.setState({ sheet: "filters" }),
+      prog: { done: pct(doneN), run: pct(runN), err: pct(errN) },
+      progText: Math.round(doneN / total * 100) + "%",
+      noticeText: st.notice, clearNotice: () => this.setState({ notice: "" }),
+      readRef: el => { this.readEl = el; },
+      contextBlock: isT ? "" : st.context,
+      onCtx: () => this.setState({ sheet: "ctx" }),
+      blocks,
+      emptyRead: blocks.length === 0 ? "Không có thẻ nào khớp bộ lọc." : "",
+      runBtn: { label: runLabel, bg: runLabel === "Tạm dừng" ? "#b4741a" : "var(--color-accent)" },
+      onRun: () => this.toggleRun(),
+      errCount: errN ? String(errN) : "", onRetryAll: () => this.retryAll(),
+      sheetOpen: !!st.sheet, sheet, closeSheet: () => this.setState({ sheet: "", ctxDraft: null }),
+      query: st.query, onQuery: e => this.setState({ query: e.target.value }), filters,
+      pasted: st.pasted, onPaste: e => this.setState({ pasted: e.target.value }),
+      s: view,
+      onApiKey: e => patchS("apiKey", e.target.value), onEndpoint: e => patchS("endpoint", e.target.value),
+      onModel: e => patchS("model", e.target.value), onConc: e => patchS("concurrency", e.target.value),
+      onUseContext: e => patchS("useContext", e.target.checked),
+      exportBody: this.exportText(), exportFile: isT ? "tranzlator-spec.vi.md" : "tranzlator-spec.summary.md",
+      exportWarn: isT ? (pendN + errN > 0 ? (pendN + errN) + " chunk chưa dịch → giữ bản gốc kèm marker" : "") : (total - doneN > 0 ? (total - doneN) + " section chưa tóm tắt" : ""),
+      confirmOpen: !!st.confirm,
+      confirmTitle: st.confirm ? st.confirm.title : "", confirmBody: st.confirm ? st.confirm.body : "", confirmOk: st.confirm ? st.confirm.ok : "",
+      onConfirmNo: () => this.setState({ confirm: "" }),
+      onConfirmYes: () => { const c = st.confirm; this.setState({ confirm: "" }); if (c && c.fn) c.fn(); }
+    };
+  }
+}
+
+</script>
+</body>
+</html>

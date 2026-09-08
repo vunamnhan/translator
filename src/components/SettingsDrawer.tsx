@@ -117,12 +117,14 @@ export default function SettingsDrawer({ open, onClose, settings, updateSettings
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end"
+      className="sheet-wrap"
       style={{ background: "color-mix(in srgb, #16310d 34%, transparent)" }}
     >
       <div onClick={() => void tryClose()} className="flex-1" />
 
-      <aside className="flex h-full w-[452px] max-w-full animate-tz-slide flex-col bg-bg shadow-lg">
+      {/* Cùng một panel: dưới md là bottom sheet, từ md là drawer bên phải. */}
+      <aside className="sheet bg-bg">
+        <span className="sheet-grab" />
         <div className="flex-none px-[22px] pt-[18px]">
           <div className="flex items-center gap-3">
             <h4 className="m-0 flex-1">Settings</h4>

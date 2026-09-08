@@ -56,6 +56,9 @@
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
   /* Cỡ chữ khung đọc — nút A− / A+ ghi đè biến này. */
   --reading-size: 15px;
+  /* Bề ngang cột danh sách chunk/section. Thanh tiến độ ôm đúng cột này nên
+     phải dùng chung một biến, đừng viết lại 392px ở component. */
+  --pane-w: 392px;
 
   --shadow-sm: 0 1px 2px color-mix(in srgb, #274119 12%, transparent);
   --shadow-md: 0 4px 14px color-mix(in srgb, #274119 12%, transparent);
@@ -110,6 +113,7 @@
 @keyframes tz-spin { to { transform: rotate(360deg) } }
 @keyframes tz-slide { from { transform: translateX(26px); opacity: 0 } to { transform: none; opacity: 1 } }
 @keyframes tz-pop { from { transform: scale(.96); opacity: 0 } to { transform: none; opacity: 1 } }
+@keyframes tz-up { from { transform: translateY(34px); opacity: 0 } to { transform: none; opacity: 1 } }
 
 /* ══════════════════════════════════════════════════════════════════════════
    Component class — mặt đối mặt với design system, dùng lại thay vì
@@ -172,6 +176,91 @@
     border-bottom: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
   }
   .table tbody tr:hover { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
+
+  /* ────────────────────────────────────────────────────────────────────────
+     Responsive — một mốc duy nhất: 1024px (lg của Tailwind). Chọn 1024 chứ
+     không 768 vì ở 768 hai cột chia ra khung đọc chỉ còn ~254px, hẹp hơn cả
+     một cột trên điện thoại. Tablet dọc vì thế dùng bố cục một cột.
+     Nguyên tắc: cùng một cây DOM ở mọi khổ, CSS chỉ đổi chỗ đặt. Không có
+     nhánh markup riêng cho mobile, cũng không có hook đo bề ngang màn hình.
+     ──────────────────────────────────────────────────────────────────── */
+
+  /* Hàng cuộn ngang ở mobile — giấu thanh cuộn, nếu không nó thành một vạch xám. */
+  .no-scrollbar { scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+
+  /**
+   * Cột danh sách (chunk / section). Desktop: cột trái rộng --pane-w.
+   * Mobile: sheet trượt từ đáy, mở bằng nút "Danh sách" trên toolbar.
+   * Desktop kệ luôn class .is-open — state mở/đóng chỉ có nghĩa ở mobile.
+   */
+  .pane-list {
+    @apply fixed inset-x-0 bottom-0 z-40 hidden max-h-[78dvh] rounded-t-[28px] shadow-lg;
+    animation: tz-up 0.24s ease-out;
+    /* Chừa vạch home của iPhone; máy không có notch thì env() = 0. */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pane-list.is-open { @apply flex; }
+  /* Nền mờ sau sheet danh sách; desktop không có sheet nên cũng không có nền. */
+  .pane-backdrop { @apply fixed inset-0 z-30 lg:hidden; background: color-mix(in srgb, #16310d 30%, transparent); }
+
+  /**
+   * Cụm nút chính của màn job. Mobile: dán đáy màn cho ngón cái với tới,
+   * cuộn ngang nếu thừa nút. Desktop: nằm nguyên trong toolbar như cũ.
+   */
+  .action-dock {
+    @apply fixed inset-x-0 bottom-0 z-30 flex flex-nowrap items-center gap-2 overflow-x-auto px-3 pt-6;
+    background: linear-gradient(180deg, transparent, color-mix(in srgb, #e8f4d8 92%, transparent) 42%);
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    scrollbar-width: none;
+  }
+  .action-dock::-webkit-scrollbar { display: none; }
+  .action-dock > .btn { @apply h-11 flex-none; }
+  .action-dock > .btn-primary { @apply flex-1; min-width: 128px; }
+
+  /**
+   * Panel phụ (Settings, Export). Mobile: bottom sheet. Desktop: drawer bên
+   * phải, hoặc modal giữa màn khi wrapper thêm .sheet-wrap-center.
+   * Nền của panel do nơi dùng tự đặt (Settings nền bg, Export nền trắng).
+   */
+  .sheet-wrap { @apply fixed inset-0 z-50 flex flex-col justify-end; }
+  .sheet {
+    @apply flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[28px] shadow-lg;
+    animation: tz-up 0.24s ease-out;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  /* Thanh kéo báo hiệu sheet — desktop không có khái niệm này nên ẩn đi. */
+  .sheet-grab { @apply mx-auto mt-2.5 h-1 w-11 shrink-0 rounded-pill bg-sand-300 lg:hidden; }
+
+  @media (min-width: 1024px) {
+    .pane-list {
+      @apply static inset-auto z-auto flex h-full max-h-none shrink-0 rounded-3xl shadow-md;
+      width: var(--pane-w);
+      animation: none;
+      padding-bottom: 0;
+    }
+    .action-dock { @apply static z-auto flex-wrap gap-2 overflow-visible p-0; background: none; padding-bottom: 0; }
+    .action-dock > .btn { @apply h-9 py-0; }
+    .action-dock > .btn-primary { @apply flex-none; min-width: 0; }
+
+    .sheet-wrap { @apply flex-row justify-end; }
+    .sheet { @apply h-full max-h-none w-[452px] rounded-none; animation: tz-slide 0.22s ease-out; padding-bottom: 0; }
+    .sheet-wrap-center { @apply items-center justify-center p-6; }
+    .sheet-wrap-center > .sheet {
+      @apply h-auto max-h-[85vh] rounded-[28px];
+      width: min(1152px, 100%);
+      animation: tz-pop 0.18s ease-out;
+    }
+  }
+
+  @media (max-width: 1023px) {
+    /* Ngón tay cần vùng chạm to hơn con trỏ chuột. */
+    .btn { min-height: 40px; }
+    .input { min-height: 44px; }
+    /* iOS tự phóng to trang khi focus ô có chữ < 16px. Utility của Tailwind
+       nằm ở layer sau nên phải !important mới ghi đè được. */
+    .input, .textarea, select { font-size: 16px !important; }
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -207,5 +296,9 @@
 .md-preview table { @apply my-3 w-full border-collapse overflow-hidden rounded-xl; font-size: 0.92em; }
 .md-preview th, .md-preview td { @apply border border-divider px-2.5 py-1.5 text-left; }
 .md-preview th { @apply bg-accent-100 font-semibold; }
+/* Bảng rộng hơn màn: cho cuộn ngang trong lòng bảng, đừng đẩy cả trang lệch. */
+@media (max-width: 1023px) {
+  .md-preview table { display: block; max-width: 100%; overflow-x: auto; }
+}
 .md-preview hr { @apply my-6 border-divider; }
 .md-preview img { @apply my-3 rounded-2xl; }

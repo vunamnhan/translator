@@ -13,6 +13,7 @@ Next.js 15 App Router + TypeScript, Tailwind, Postgres + Drizzle (`postgres-js`)
 - Ngữ cảnh chung (`jobs.context`) bơm vào system prompt **sau** prompt user, **trước** output contract — xem `documentContextBlock` trong `src/lib/defaults.ts`.
 - Xoay key + cool down nằm ở front-end. Server vẫn nhận đúng 1 key qua `x-llm-key` mỗi request, không biết gì về vòng xoay.
 - Chỉ light mode. Design không có palette tối nên đừng thêm lại `dark:`.
+- Responsive chỉ có **một mốc 1024px** và làm **hoàn toàn bằng CSS**: cùng một cây DOM ở mọi khổ, không `useMediaQuery`, không render hai nhánh markup. Class đổi bố cục (`.pane-list`, `.action-dock`, `.sheet`) nằm ở `globals.css` — sửa ở đó, đừng rải `lg:` mới vào component.
 
 ## Bản đồ file
 | File | Việc |
@@ -34,7 +35,7 @@ Next.js 15 App Router + TypeScript, Tailwind, Postgres + Drizzle (`postgres-js`)
 | `src/lib/modelHistory.ts` | Lịch sử model đã dùng cho gợi ý ở ô Model (localStorage riêng, không nằm trong settings) |
 | `src/lib/readingSize.ts` | Cỡ chữ khung đọc, lưu localStorage, dùng chung 2 tab |
 | `src/components/JobList.tsx` | Trang Jobs: search + lọc tag + favorite + archive + phân trang, state nằm trên URL query |
-| `src/components/chrome.tsx` | Thanh tiến độ, banner, panel danh sách trái, khung đọc (`ReadingPane`) |
+| `src/components/chrome.tsx` | Thanh tiến độ, banner, panel danh sách trái, khung đọc (`ReadingPane`). Panel danh sách dưới 1024px là sheet đáy — state `listOpen` ở `JobView`, CSS quyết định nó có nghĩa hay không |
 | `src/app/globals.css` + `tailwind.config.ts` | Token của design. Đổi màu/bo/shadow ở globals, đừng rải hex trong component |
 
 ## Chạy

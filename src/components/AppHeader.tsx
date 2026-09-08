@@ -25,14 +25,14 @@ export default function AppHeader({ authEnabled }: { authEnabled: boolean }) {
 
   return (
     <>
-      <nav className="relative z-30 flex h-[52px] shrink-0 items-center gap-4 border-b border-divider bg-white/[0.78] px-5 backdrop-blur-md">
+      <nav className="relative z-30 flex h-[52px] shrink-0 flex-nowrap items-center gap-2 overflow-hidden border-b border-divider bg-white/[0.78] px-3 backdrop-blur-md lg:gap-4 lg:px-5">
         <Link href="/" className="flex items-center gap-2.5 text-ink hover:no-underline">
           <span className="grid h-[26px] w-[26px] place-items-center rounded-pill bg-accent font-heading text-[13px] text-white">
             T
           </span>
-          <span className="font-heading text-[16.5px]">Tranzlator</span>
+          <span className="hidden font-heading text-[16.5px] sm:inline">Tranzlator</span>
         </Link>
-        <Link href="/" className="text-[13.5px] text-sand-700">
+        <Link href="/" className="hidden text-[13.5px] text-sand-700 lg:inline">
           Jobs
         </Link>
 
@@ -45,22 +45,24 @@ export default function AppHeader({ authEnabled }: { authEnabled: boolean }) {
               ? `${keyCount} API key lưu trong trình duyệt`
               : "Chưa có API key — bấm để nhập"
           }
-          className={`rounded-pill px-3 py-[5px] text-xs ${
+          className={`shrink-0 whitespace-nowrap rounded-pill px-3 py-[5px] text-xs ${
             hasKey ? "bg-accent-200 text-accent-800" : "bg-danger-bg text-danger-fg"
           }`}
         >
-          {hasKey
-            ? keyCount > 1
-              ? `● ${keyCount} key`
-              : "● có key"
-            : "○ chưa có key — nhập ngay"}
+          {/* Mobile chỉ còn ký hiệu + số; phần chữ dài ẩn đi chứ không render hai lần. */}
+          {hasKey ? (keyCount > 1 ? `● ${keyCount}` : "●") : "○"}
+          <span className="hidden lg:inline">
+            {hasKey ? (keyCount > 1 ? " key" : " có key") : " chưa có key — nhập ngay"}
+          </span>
         </button>
-        <span className="hidden font-mono text-[11.5px] text-sand-600 sm:inline">{settings.model}</span>
-        <button onClick={() => setOpen(true)} className="btn btn-secondary h-[34px] py-0">
+        <span className="hidden shrink-0 font-mono text-[11.5px] text-sand-600 lg:inline">
+          {settings.model}
+        </span>
+        <button onClick={() => setOpen(true)} className="btn btn-secondary h-[34px] shrink-0 py-0">
           Settings
         </button>
         {authEnabled && (
-          <button onClick={logout} className="text-[13px] text-sand-600 hover:underline">
+          <button onClick={logout} className="shrink-0 whitespace-nowrap text-[13px] text-sand-600 hover:underline">
             Đăng xuất
           </button>
         )}

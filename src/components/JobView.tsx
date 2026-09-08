@@ -42,6 +42,9 @@ export default function JobView({ jobId }: { jobId: string }) {
   // Lọc + tìm ở cột trái. Đổi tab thì reset để không lọc nhầm sang danh sách kia.
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
+  /* Chỉ có nghĩa dưới 768px: cột danh sách là sheet trượt từ đáy. Từ md trở lên
+     CSS cho cột hiện luôn nên state này bị kệ, không cần đo bề ngang màn hình. */
+  const [listOpen, setListOpen] = useState(false);
   const [dismissed, setDismissed] = useState<Record<string, boolean>>({});
   // Key nào đã gọi thẻ nào — chỉ giữ trong bộ nhớ trang, không lưu DB (§8.1).
   const [keyUsed, setKeyUsed] = useState<Record<string, number>>({});
@@ -640,8 +643,8 @@ export default function JobView({ jobId }: { jobId: string }) {
   return (
     <main className="flex min-h-0 flex-1 flex-col">
       {/* Toolbar — một thẻ nổi, gom tên job, tab, số liệu và mọi nút hành động. */}
-      <div className="flex-none px-5 pt-3">
-        <div className="flex flex-wrap items-center gap-3.5 rounded-3xl bg-white px-4 py-3 shadow-sm">
+      <div className="flex-none px-3 pt-3 lg:px-5">
+        <div className="flex flex-wrap items-center gap-2.5 rounded-3xl bg-white px-3 py-2.5 shadow-sm lg:gap-3.5 lg:px-4 lg:py-3">
           <Link href="/" title="Về danh sách job" className="text-base text-sand-600">
             ←
           </Link>
@@ -668,9 +671,11 @@ export default function JobView({ jobId }: { jobId: string }) {
             </button>
           )}
 
+          {/* Hàng cuộn ngang ở mobile; từ md dùng `contents` nên layout desktop y như cũ. */}
+          <div className="no-scrollbar flex w-full items-center gap-2.5 overflow-x-auto lg:contents">
           <TagEditor tags={job.tags} suggestions={allTags} onChange={saveTags} />
 
-          <div className="flex rounded-pill bg-accent-100 p-[3px]">
+          <div className="flex shrink-0 rounded-pill bg-accent-100 p-[3px]">
             {(["translate", "summary"] as Tab[]).map((t) => (
               <button
                 key={t}
@@ -684,7 +689,7 @@ export default function JobView({ jobId }: { jobId: string }) {
             ))}
           </div>
 
-          <div className="flex items-center gap-3 text-[12.5px] text-sand-700">
+          <div className="flex shrink-0 items-center gap-3 whitespace-nowrap text-[12.5px] text-sand-700">
             {isTranslate ? (
               <>
                 <span>
@@ -711,13 +716,23 @@ export default function JobView({ jobId }: { jobId: string }) {
             )}
           </div>
 
+          </div>
+
           <span className="min-w-[8px] flex-1" />
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="action-dock no-scrollbar">
+            {/* Mở cột danh sách — dưới md nó là sheet nên mới cần nút; desktop luôn hiện. */}
+            <button
+              onClick={() => setListOpen(true)}
+              className="btn btn-secondary lg:hidden"
+            >
+              Danh sách
+            </button>
+
             {running ? (
               <button
                 onClick={pause}
-                className="btn btn-primary h-9 py-0"
+                className="btn btn-primary"
                 style={{ background: "#b4741a" }}
               >
                 Pause
@@ -737,7 +752,7 @@ export default function JobView({ jobId }: { jobId: string }) {
                       ? "Cần có ngữ cảnh chung trước"
                       : undefined
                 }
-                className="btn btn-primary h-9 py-0"
+                className="btn btn-primary"
               >
                 {doneCount > 0 ? "Resume" : "Start"}
               </button>
@@ -750,7 +765,7 @@ export default function JobView({ jobId }: { jobId: string }) {
                 loop !== null ||
                 (!isTranslate && !hasContext)
               }
-              className="btn btn-secondary h-9 py-0"
+              className="btn btn-secondary"
             >
               {isTranslate
                 ? `Dịch lại lỗi (${stats.errors})`
@@ -762,7 +777,7 @@ export default function JobView({ jobId }: { jobId: string }) {
                 onClick={() => resection(settings.summaryTokens, hasSummary)}
                 disabled={loop !== null || contextBusy}
                 title="Xoá sections hiện tại và gom lại theo Section tokens trong Settings"
-                className="btn btn-secondary h-9 py-0"
+                className="btn btn-secondary"
               >
                 Gom lại section
               </button>
@@ -770,12 +785,13 @@ export default function JobView({ jobId }: { jobId: string }) {
 
             <button
               onClick={() => (isTranslate ? setShowExport(true) : setShowSummaryExport(true))}
-              className="btn btn-secondary h-9 py-0"
+              className="btn btn-secondary"
             >
               {isTranslate ? "Export" : "Export summary"}
             </button>
 
             <Menu
+              dropUp
               items={[
                 {
                   label: archived ? "Unarchive" : "Archive",
@@ -790,7 +806,7 @@ export default function JobView({ jobId }: { jobId: string }) {
       </div>
 
       {/* Thanh tiến độ ôm cột trái; chỗ trống bên phải để cụm chỉnh cỡ chữ khung đọc. */}
-      <div className="flex flex-none items-center gap-3 px-5 pt-2.5">
+      <div className="flex flex-none items-center gap-3 px-3 pt-2.5 lg:px-5">
         {isTranslate ? (
           <ProgressBar
             done={stats.done}
@@ -812,7 +828,7 @@ export default function JobView({ jobId }: { jobId: string }) {
         <ReadingSizeControl />
       </div>
 
-      <div className="flex flex-none flex-col gap-2 px-5 pt-2.5 empty:hidden">
+      <div className="flex flex-none flex-col gap-2 px-3 pt-2.5 empty:hidden lg:px-5">
         {archived && (
           <div className="flex shrink-0 flex-wrap items-center gap-2.5 rounded-[18px] bg-idle-bg px-3.5 py-2.5 text-[12.5px] text-idle-fg">
             <span className="flex-1">
@@ -873,8 +889,10 @@ export default function JobView({ jobId }: { jobId: string }) {
       </div>
 
       {isTranslate ? (
-        <div className="flex min-h-0 flex-1 gap-3 px-5 pb-4 pt-3">
+        <div className="flex min-h-0 flex-1 gap-3 px-3 pb-[76px] pt-3 lg:px-5 lg:pb-4">
           <ListPanel
+            open={listOpen}
+            onClose={() => setListOpen(false)}
             query={query}
             onQuery={setQuery}
             filters={filters}
@@ -909,6 +927,8 @@ export default function JobView({ jobId }: { jobId: string }) {
         </div>
       ) : (
         <SummaryView
+          listOpen={listOpen}
+          onCloseList={() => setListOpen(false)}
           job={job}
           chunks={chunks}
           sections={sections}

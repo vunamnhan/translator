@@ -37,10 +37,12 @@ function Form() {
   }
 
   return (
-    <main className="grid flex-1 place-items-center p-6">
+    <main className="grid flex-1 place-items-center p-4 sm:p-6">
       <form
         onSubmit={submit}
-        className="w-[396px] max-w-full animate-tz-pop rounded-[30px] bg-white p-[30px] shadow-lg"
+        /* w-full + max-w chứ không w-[396px] + max-w-full: cột grid tự nở theo
+           nội dung nên max-w-full tính lại trên chính 396px và không chặn được gì. */
+        className="w-full max-w-[396px] animate-tz-pop rounded-[30px] bg-white p-5 shadow-lg sm:p-[30px]"
       >
         <div className="mb-1 flex items-center gap-2.5">
           <span className="grid h-[30px] w-[30px] place-items-center rounded-pill bg-accent font-heading text-[15px] text-white">

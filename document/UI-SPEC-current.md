@@ -128,7 +128,7 @@ Toàn bộ trạng thái lọc nằm trên URL (`?q=&tags=&fav=1&archived=includ
 └──────────────┴───────────────────────────────────────────────────────┘
 ```
 
-Trên màn hình dưới 1024px, hai cột xếp dọc: sidebar trên, khung đọc dưới.
+Dưới 1024px bố cục đổi hẳn: chỉ còn khung đọc, sidebar thành sheet trượt từ đáy (xem mục 14).
 
 ### 5.2 Header job
 
@@ -405,3 +405,35 @@ Dialog riêng của app (không còn dùng `confirm()` của trình duyệt): th
 ## 13. Thay đổi sắp tới
 
 Chưa có. `CR-v0.2-jobs-list.md` đã làm xong: trang Jobs (mục 4), tag / favorite / pin / archive trên màn hình job (mục 5), nhiều API key + cool down trong Settings (mục 6).
+
+---
+
+## 14. Responsive
+
+Một mốc duy nhất: **1024px**. Từ 1024 trở lên là bố cục desktop mô tả ở các mục trên, **không đổi một pixel nào**. Dưới 1024 chuyển sang một cột.
+
+Chọn 1024 chứ không 768: ở 768 hai cột chia ra khung đọc chỉ còn ~254px, hẹp hơn cả một cột trên điện thoại. Tablet dọc vì thế dùng bố cục một cột.
+
+**Cách làm**: cùng một cây DOM ở mọi khổ, CSS chỉ đổi chỗ đặt. Không có nhánh markup riêng cho mobile, không có hook đo bề ngang màn hình. Các class dùng chung nằm ở `src/app/globals.css`:
+
+| Class | < 1024px | ≥ 1024px |
+|---|---|---|
+| `.pane-list` | sheet trượt từ đáy, cao tối đa 78dvh, mở bằng nút "Danh sách" | cột trái tĩnh rộng `--pane-w` (392px) |
+| `.pane-backdrop` | nền mờ sau sheet | không có |
+| `.action-dock` | thanh dính đáy màn, cuộn ngang nếu thừa nút | nằm nguyên trong header job như cũ |
+| `.sheet` | bottom sheet bo góc trên 28px | drawer phải 452px (Settings) hoặc modal giữa màn (Export) |
+| `.sheet-grab` | thanh kéo nhỏ trên đầu sheet | ẩn |
+| `.no-scrollbar` | giấu thanh cuộn của hàng cuộn ngang | — |
+
+State mở/đóng sheet danh sách (`listOpen` trong `JobView`) tồn tại ở mọi khổ; từ 1024 trở lên CSS cho cột hiện luôn nên state đó bị kệ.
+
+**Khác biệt dưới 1024px**:
+
+1. **Top bar** — một dòng, không bọc: ẩn chữ "Tranzlator" (dưới 640) và link "Jobs", chip key rút còn `●` / `○` (bỏ phần chữ dài), tên model chỉ hiện từ 1024.
+2. **Màn job** — header job gom [tag][tab][số liệu] thành một hàng cuộn ngang (`display: contents` từ 1024 nên desktop không thấy khác biệt gì). Nút Start/Pause · Dịch lại lỗi · Export · ⋯ xuống thanh dính đáy, kèm nút **Danh sách** mở sheet chunk/section. Menu ⋯ bung **lên** vì nằm sát đáy.
+3. **Danh sách job** — mỗi dòng job xuống 2 hàng: tên + ngày ở trên, tiến độ dịch và §tóm tắt ở dưới (trước đây ẩn hẳn dưới 640px).
+4. **Vùng chạm** — nút cao tối thiểu 40px, ô nhập 44px.
+5. **Ô nhập luôn 16px** dù utility đặt nhỏ hơn — dưới 16px thì iOS tự phóng to trang khi focus.
+6. **Bảng trong khung đọc** cuộn ngang trong lòng nó, không đẩy cả trang.
+7. **Chiều cao khung app** dùng `100dvh` (thanh địa chỉ của iOS ăn mất một khúc của `100vh`).
+8. **Safe area** — thanh dính đáy và sheet chừa `env(safe-area-inset-bottom)`.
