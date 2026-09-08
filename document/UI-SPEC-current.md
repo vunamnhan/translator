@@ -115,11 +115,11 @@ Toàn bộ trạng thái lọc nằm trên URL (`?q=&tags=&fav=1&archived=includ
 ├─ Header job ─────────────────────────────────────────────────────────┤
 │ ←  Tên job ✎  ★ 📌  [chip tag] [+tag]  [Translate|Summary]  12/40 xong │
 │                          [Start] [Dịch lại lỗi] [Export] [⋯]         │
-├─ Thanh tiến độ mảnh 3px, chỉ rộng bằng cột trái, kèm % ──────────────┤
+├─ Tiến độ mảnh 3px (rộng bằng cột trái) + % ······· [A− 15px A+] ─────┤
 ├─ (dải "job đang ở archive" + nút Unarchive, nếu có) ─────────────────┤
 ├─ (dải cảnh báo / thông báo, có nút × để đóng) ───────────────────────┤
 ├──────────────┬───────────────────────────────────────────────────────┤
-│  SIDEBAR     │  KHUNG ĐỌC (Preview) — đáy phải nổi cụm A− 15px A+    │
+│  SIDEBAR     │  KHUNG ĐỌC (Preview)                                  │
 │  ~25% rộng   │  ~75% rộng                                            │
 │  cuộn riêng  │  cuộn riêng                                           │
 │              │                                                       │
@@ -286,7 +286,7 @@ Job archived: dải xám ngay dưới header — "Job này đang ở archive —
 
 ### 5.10 Khung đọc — chỉnh cỡ chữ
 
-Đáy phải khung đọc nổi cụm **A− · 15px · A+** (dính khi cuộn). Bấm số ở giữa để về mặc định. Khoảng 12–24px, lưu trong localStorage, dùng chung cho cả tab Translate và Summary.
+Cụm **A− · 15px · A+** nằm ở đầu phải hàng thanh tiến độ, ngay trên khung đọc (thanh tiến độ chỉ chiếm cột trái nên chỗ đó trống). Bấm số ở giữa để về mặc định. Khoảng 12–24px, lưu trong localStorage, dùng chung cho cả tab Translate và Summary.
 
 ---
 

@@ -5,8 +5,9 @@ import { DEFAULT_READING, MAX_READING, MIN_READING, useReadingSize } from "@/lib
 /** Khung quanh nội dung màn hình job: thanh tiến độ, banner, panel danh sách bên trái. */
 
 /**
- * Khung đọc bên phải: bọc nội dung markdown và gắn nút chỉnh cỡ chữ.
- * Cỡ chữ đi qua biến CSS `--reading-size`, heading trong `.md-preview` dùng em nên co giãn theo.
+ * Khung đọc bên phải. Cỡ chữ đi qua biến CSS `--reading-size`, heading trong
+ * `.md-preview` dùng em nên co giãn theo. Nút chỉnh cỡ nằm ở hàng thanh tiến độ
+ * (`ReadingSizeControl`), không nhét trong khung để khỏi che chữ.
  */
 export function ReadingPane({
   boxRef,
@@ -15,12 +16,12 @@ export function ReadingPane({
   boxRef: React.Ref<HTMLDivElement>;
   children: React.ReactNode;
 }) {
-  const { size, set } = useReadingSize();
+  const { size } = useReadingSize();
 
   return (
     <div
       ref={boxRef}
-      className="relative h-full overflow-y-auto rounded-3xl bg-white px-[30px] pb-16 pt-[34px] shadow-md"
+      className="h-full overflow-y-auto rounded-3xl bg-white px-[30px] pb-20 pt-[34px] shadow-md"
     >
       <div
         className="md-preview mx-auto max-w-[764px]"
@@ -28,35 +29,39 @@ export function ReadingPane({
       >
         {children}
       </div>
+    </div>
+  );
+}
 
-      {/* Cụm chỉnh cỡ chữ nổi ở đáy khung đọc; padding dưới của khung chừa chỗ cho nó. */}
-      <div className="pointer-events-none sticky bottom-0 z-10 -mb-10 flex justify-end pt-6">
-        <div className="pointer-events-auto flex items-center gap-0.5 rounded-pill border border-divider bg-white/90 px-1 py-0.5 shadow-sm backdrop-blur">
-          <button
-            onClick={() => set(size - 1)}
-            disabled={size <= MIN_READING}
-            title="Giảm cỡ chữ"
-            className="h-6 w-6 rounded-pill text-[13px] text-sand-700 hover:bg-accent-100 disabled:opacity-40"
-          >
-            A−
-          </button>
-          <button
-            onClick={() => set(DEFAULT_READING)}
-            title="Về cỡ mặc định"
-            className="min-w-[34px] rounded-pill px-1 font-mono text-[11px] text-sand-600 hover:bg-accent-100"
-          >
-            {size}px
-          </button>
-          <button
-            onClick={() => set(size + 1)}
-            disabled={size >= MAX_READING}
-            title="Tăng cỡ chữ"
-            className="h-6 w-6 rounded-pill text-[13px] text-sand-700 hover:bg-accent-100 disabled:opacity-40"
-          >
-            A+
-          </button>
-        </div>
-      </div>
+/** Cụm A− / A+ cho khung đọc, đặt ở chỗ trống bên phải hàng thanh tiến độ. */
+export function ReadingSizeControl() {
+  const { size, set } = useReadingSize();
+
+  return (
+    <div className="flex items-center gap-0.5 rounded-pill border border-divider bg-white/70 px-1 py-0.5">
+      <button
+        onClick={() => set(size - 1)}
+        disabled={size <= MIN_READING}
+        title="Giảm cỡ chữ khung đọc"
+        className="h-5 w-6 rounded-pill text-[12.5px] leading-none text-sand-700 hover:bg-accent-100 disabled:opacity-40"
+      >
+        A−
+      </button>
+      <button
+        onClick={() => set(DEFAULT_READING)}
+        title="Về cỡ chữ mặc định"
+        className="min-w-[32px] rounded-pill px-1 font-mono text-[11px] leading-none text-sand-600 hover:bg-accent-100"
+      >
+        {size}px
+      </button>
+      <button
+        onClick={() => set(size + 1)}
+        disabled={size >= MAX_READING}
+        title="Tăng cỡ chữ khung đọc"
+        className="h-5 w-6 rounded-pill text-[12.5px] leading-none text-sand-700 hover:bg-accent-100 disabled:opacity-40"
+      >
+        A+
+      </button>
     </div>
   );
 }

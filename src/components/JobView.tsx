@@ -9,7 +9,7 @@ import Preview from "./Preview";
 import ExportModal from "./ExportModal";
 import SummaryView from "./SummaryView";
 import { useConfirm } from "./ConfirmDialog";
-import { Banner, ListPanel, ProgressBar, type FilterDef } from "./chrome";
+import { Banner, ListPanel, ProgressBar, ReadingSizeControl, type FilterDef } from "./chrome";
 import Menu from "./Menu";
 import TagEditor from "./TagEditor";
 import { useTags } from "@/lib/useTags";
@@ -789,7 +789,8 @@ export default function JobView({ jobId }: { jobId: string }) {
         </div>
       </div>
 
-      <div className="flex-none px-5 pt-2.5">
+      {/* Thanh tiến độ ôm cột trái; chỗ trống bên phải để cụm chỉnh cỡ chữ khung đọc. */}
+      <div className="flex flex-none items-center gap-3 px-5 pt-2.5">
         {isTranslate ? (
           <ProgressBar
             done={stats.done}
@@ -807,6 +808,8 @@ export default function JobView({ jobId }: { jobId: string }) {
             total={summaryStats.total}
           />
         )}
+        <span className="flex-1" />
+        <ReadingSizeControl />
       </div>
 
       <div className="flex flex-none flex-col gap-2 px-5 pt-2.5 empty:hidden">
