@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { DEFAULT_SETTINGS, MAX_API_KEYS, normalizeApiKeys, type Settings } from "@/lib/defaults";
+import { forgetModel, matchModels, readModels, rememberModel } from "@/lib/modelHistory";
 import { clampCooldown } from "@/lib/validate";
 import { useConfirm } from "./ConfirmDialog";
 
@@ -80,6 +81,8 @@ export default function SettingsDrawer({ open, onClose, settings, updateSettings
 
   const save = useCallback(() => {
     updateSettings(draft);
+    // Chỉ nhớ model lúc lưu, không nhớ lúc gõ — nếu không lịch sử đầy các chuỗi gõ dở.
+    rememberModel(draft.model);
     // Hiện lại đúng thứ vừa lưu: ô rỗng biến mất, key trùng gộp lại.
     syncFrom({ ...draft, apiKeys: normalizeApiKeys(draft.apiKeys) });
     setSavedAt(new Date().toLocaleTimeString("vi-VN"));
@@ -203,11 +206,7 @@ export default function SettingsDrawer({ open, onClose, settings, updateSettings
 
               <div className="grid grid-cols-[1.4fr_1fr] gap-3">
                 <Field label="Model">
-                  <input
-                    value={draft.model}
-                    onChange={(e) => set("model", e.target.value)}
-                    className="input"
-                  />
+                  <ModelInput value={draft.model} onChange={(v) => set("model", v)} />
                 </Field>
                 <Field label="Temperature">
                   <input
@@ -379,6 +378,89 @@ export default function SettingsDrawer({ open, onClose, settings, updateSettings
       </aside>
 
       {dialog}
+    </div>
+  );
+}
+
+/**
+ * Ô Model kèm gợi ý các model đã dùng (lưu ở localStorage, xem `modelHistory`).
+ * Không dùng <datalist>: mỗi trình duyệt xổ một kiểu và không xoá được từng dòng.
+ */
+function ModelInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [history, setHistory] = useState<string[]>([]);
+  const [open, setOpen] = useState(false);
+  /** Chỉ lọc sau khi người dùng gõ — bấm vào ô đang điền sẵn thì phải thấy cả danh sách. */
+  const [typing, setTyping] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  // Đọc lại mỗi lần xổ: `save()` ở drawer có thể vừa thêm model mới vào lịch sử.
+  const openList = () => {
+    setHistory(readModels());
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (!boxRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+        setTyping(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const hits = typing ? matchModels(history, value) : history.filter((m) => m !== value);
+
+  return (
+    <div ref={boxRef} className="relative">
+      <input
+        value={value}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setTyping(true);
+          if (!open) openList();
+        }}
+        onFocus={openList}
+        onClick={openList}
+        onKeyDown={(e) => {
+          // Esc đóng gợi ý trước, không để nó đóng luôn cả drawer.
+          if (e.key === "Escape" && open) {
+            e.stopPropagation();
+            setOpen(false);
+            setTyping(false);
+          }
+        }}
+        autoComplete="off"
+        className="input"
+      />
+      {open && hits.length > 0 && (
+        <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-[188px] overflow-y-auto rounded-2xl border border-divider bg-white p-1 shadow-md">
+          {hits.map((model) => (
+            <div key={model} className="group flex items-center gap-1">
+              <button
+                onClick={() => {
+                  onChange(model);
+                  setOpen(false);
+                  setTyping(false);
+                }}
+                title={model}
+                className="min-w-0 flex-1 truncate rounded-pill px-2.5 py-1.5 text-left font-mono text-[11.5px] text-sand-800 hover:bg-accent-100"
+              >
+                {model}
+              </button>
+              <button
+                onClick={() => setHistory(forgetModel(model))}
+                title="Quên model này"
+                className="h-6 w-6 shrink-0 rounded-pill text-sand-500 opacity-0 hover:bg-danger-bg hover:text-danger-fg group-hover:opacity-100"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

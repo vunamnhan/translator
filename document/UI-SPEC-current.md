@@ -302,7 +302,7 @@ Trượt từ **phải**, rộng tối đa 448px, nền phủ đen 30%. Bấm ng
 1. Chú thích: "Áp cho **mọi job**, kể cả job đã tạo. Lưu trong trình duyệt — API key không bao giờ được lưu trên server."
 2. **API keys** — danh sách 1..5 ô password, placeholder `sk-...`. Ô đã có giá trị hiện 4 ký tự cuối (`…a4f9`) để phân biệt, kèm nút × xoá dòng (ẩn khi chỉ còn 1 dòng). Dưới cùng link **+ Thêm key** (ẩn khi đã 5 key). Chú: "Nhiều key → app xoay vòng từng cú gọi, dính 429 thì đổi key kế tiếp. Các key phải cùng endpoint."
 3. **Endpoint (base URL)** — ô text, mặc định `https://api.openai.com/v1`. Chú "App tự nối /chat/completions."
-4. **Model** — ô text, mặc định `gpt-4o-mini`.
+4. **Model** — ô text kèm gợi ý các model đã dùng, mặc định `gpt-4o-mini`. Bấm vào ô là xổ danh sách (tối đa 10 dòng, mới nhất lên đầu, bỏ dòng đang trùng giá trị hiện tại); gõ thì lọc theo chuỗi con. Bấm một dòng để điền, hover hiện nút × để quên dòng đó. Esc đóng gợi ý trước, Esc lần nữa mới đóng drawer. Model chỉ được nhớ **khi bấm Lưu**, lưu riêng ở `localStorage` key `tranzlator.modelHistory` (không nằm trong settings).
 5. **Temperature: 0.2** — ô số, bước 0.1, từ 0 đến 2.
 6. **Concurrency: 3** — thanh trượt 2 đến 6.
 7. **Cool down (giây)** — ô số, mặc định 5, từ 0 đến 60, bước 0.5. `0` = tắt. Dưới ô hiện ước lượng "≈ 3 call / 5s với concurrency 3. Mỗi worker nghỉ sau khi xong một call."

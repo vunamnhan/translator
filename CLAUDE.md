@@ -31,6 +31,7 @@ Next.js 15 App Router + TypeScript, Tailwind, Postgres + Drizzle (`postgres-js`)
 | `src/lib/settingsStore.ts` | Store settings dùng chung (useSyncExternalStore). Không quay lại useState-per-component: key nhập ở header sẽ không tới được JobView. Cũng là chỗ chuyển `apiKey` (v0.1) sang `apiKeys[]` (v0.2) |
 | `src/lib/runner.ts` | Xoay key round-robin, nhận diện 429, cool down cắt được giữa chừng |
 | `src/lib/tags.ts` | Chuẩn hoá tag (trim, gộp trùng không phân biệt hoa thường, 32 ký tự, 20 tag) |
+| `src/lib/modelHistory.ts` | Lịch sử model đã dùng cho gợi ý ở ô Model (localStorage riêng, không nằm trong settings) |
 | `src/lib/readingSize.ts` | Cỡ chữ khung đọc, lưu localStorage, dùng chung 2 tab |
 | `src/components/JobList.tsx` | Trang Jobs: search + lọc tag + favorite + archive + phân trang, state nằm trên URL query |
 | `src/components/chrome.tsx` | Thanh tiến độ, banner, panel danh sách trái, khung đọc (`ReadingPane`) |
