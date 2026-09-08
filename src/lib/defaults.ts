@@ -9,7 +9,10 @@ export const DEFAULT_SUMMARY_PROMPT = `Tóm tắt đoạn văn bản Markdown sa
 Nêu ý chính, kết luận, con số hoặc quyết định quan trọng nếu có.
 Không diễn giải thêm, không nhận xét.`;
 
-/** Prompt tóm tắt chung — cố định, user sửa bản kết quả chứ không sửa prompt. */
+/**
+ * Prompt tóm tắt chung mặc định. Từ CR v0.3 preset ghi đè được (`contextPrompt`
+ * trong Settings); `CONTEXT_TRUNCATED_NOTE` và `CONTEXT_CONTRACT` vẫn do app nối.
+ */
 export const CONTEXT_PROMPT = `Bạn đọc toàn bộ tài liệu Markdown dưới đây và viết phần "ngữ cảnh chung" bằng tiếng Việt,
 dùng làm nền cho việc dịch và tóm tắt từng phần sau này.
 Trả về đúng khung sau, không thêm phần nào khác:
@@ -65,6 +68,10 @@ export interface Settings {
   chunkTokens: number;
   concurrency: number;
   summaryPrompt: string;
+  /** Prompt tạo ngữ cảnh chung (CR v0.3). Rỗng = dùng `CONTEXT_PROMPT` của app. */
+  contextPrompt: string;
+  /** Preset đang gắn (CR v0.3). null = "Tuỳ chỉnh". Preset không còn trên DB cũng coi như null. */
+  presetId: string | null;
   summaryTokens: number;
   contextMaxTokens: number;
   useContextForTranslation: boolean;
@@ -81,6 +88,8 @@ export const DEFAULT_SETTINGS: Settings = {
   chunkTokens: 1500,
   concurrency: 3,
   summaryPrompt: DEFAULT_SUMMARY_PROMPT,
+  contextPrompt: "",
+  presetId: null,
   summaryTokens: 6000,
   contextMaxTokens: 80000,
   useContextForTranslation: true,

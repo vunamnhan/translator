@@ -2,15 +2,19 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import SettingsDrawer from "./SettingsDrawer";
 import { ReadingSizeControl } from "./chrome";
 import { useSettings } from "@/lib/useSettings";
+import type { Settings } from "@/lib/defaults";
 import { useReadMode } from "@/lib/readMode";
+import { presetPromptSet, samePromptSet } from "@/lib/presets";
+import { getPreset, loadPresets, usePresetState } from "@/lib/presetStore";
 
 export default function AppHeader({ authEnabled }: { authEnabled: boolean }) {
   const { settings, update, loaded } = useSettings();
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<"general" | "prompt">("general");
   const pathname = usePathname();
   const router = useRouter();
   const { readMode, toggle: toggleRead } = useReadMode();
@@ -19,6 +23,11 @@ export default function AppHeader({ authEnabled }: { authEnabled: boolean }) {
 
   const keyCount = settings.apiKeys.length;
   const hasKey = loaded && keyCount > 0;
+
+  function openTab(next: "general" | "prompt") {
+    setTab(next);
+    setOpen(true);
+  }
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -68,8 +77,10 @@ export default function AppHeader({ authEnabled }: { authEnabled: boolean }) {
 
         <span className="flex-1" />
 
+        <PresetChip presetId={settings.presetId} settings={settings} onClick={() => openTab("prompt")} />
+
         <button
-          onClick={() => setOpen(true)}
+          onClick={() => openTab("general")}
           title={
             hasKey
               ? `${keyCount} API key lưu trong trình duyệt`
@@ -88,7 +99,7 @@ export default function AppHeader({ authEnabled }: { authEnabled: boolean }) {
         <span className="hidden shrink-0 font-mono text-[11.5px] text-sand-600 lg:inline">
           {settings.model}
         </span>
-        <button onClick={() => setOpen(true)} className="btn btn-secondary h-[34px] shrink-0 py-0">
+        <button onClick={() => openTab("general")} className="btn btn-secondary h-[34px] shrink-0 py-0">
           Settings
         </button>
         {authEnabled && (
@@ -100,10 +111,54 @@ export default function AppHeader({ authEnabled }: { authEnabled: boolean }) {
 
       <SettingsDrawer
         open={open}
+        initialTab={tab}
         onClose={() => setOpen(false)}
         settings={settings}
         updateSettings={update}
       />
     </>
+  );
+}
+
+/**
+ * Chip preset cạnh chip key (CR v0.3 §6.3). Chỉ nạp danh sách preset khi settings
+ * đang gắn một preset — không gắn thì tên đã biết sẵn là "Tuỳ chỉnh", khỏi gọi API.
+ */
+function PresetChip({
+  presetId,
+  settings,
+  onClick,
+}: {
+  presetId: string | null;
+  settings: Settings;
+  onClick: () => void;
+}) {
+  usePresetState();
+
+  useEffect(() => {
+    if (presetId) void loadPresets();
+  }, [presetId]);
+
+  const preset = getPreset(presetId);
+  const modified =
+    preset !== null &&
+    !samePromptSet(
+      {
+        translatePrompt: settings.systemPrompt,
+        summaryPrompt: settings.summaryPrompt,
+        contextPrompt: settings.contextPrompt,
+      },
+      presetPromptSet(preset)
+    );
+
+  return (
+    <button
+      onClick={onClick}
+      title="Bộ prompt đang dùng — bấm để mở tab Prompt"
+      className="hidden max-w-[168px] shrink-0 truncate rounded-pill bg-sand-100 px-3 py-[5px] text-xs text-sand-700 lg:inline-block"
+    >
+      {preset ? preset.name : "Tuỳ chỉnh"}
+      {modified && "*"}
+    </button>
   );
 }

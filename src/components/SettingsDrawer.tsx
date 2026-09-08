@@ -1,22 +1,46 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { DEFAULT_SETTINGS, MAX_API_KEYS, normalizeApiKeys, type Settings } from "@/lib/defaults";
+import {
+  CONTEXT_PROMPT,
+  DEFAULT_SETTINGS,
+  MAX_API_KEYS,
+  normalizeApiKeys,
+  type Settings,
+} from "@/lib/defaults";
 import { forgetModel, matchModels, readModels, rememberModel } from "@/lib/modelHistory";
+import { contractWarning, type PromptSet } from "@/lib/presets";
 import { clampCooldown } from "@/lib/validate";
 import { useConfirm } from "./ConfirmDialog";
+import PresetBar from "./PresetBar";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   settings: Settings;
   updateSettings: (patch: Partial<Settings>) => void;
+  /** Chip preset ở top bar mở thẳng vào tab Prompt. */
+  initialTab?: Tab;
 }
 
 type Tab = "general" | "prompt";
 
 /** Prompt nằm riêng một tab vì textarea dài, đẩy mọi thông số khác trôi khỏi màn hình. */
-const PROMPT_KEYS: (keyof Settings)[] = ["systemPrompt", "summaryPrompt"];
+const PROMPT_KEYS: (keyof Settings)[] = [
+  "systemPrompt",
+  "summaryPrompt",
+  "contextPrompt",
+  "presetId",
+];
+
+/** Working copy trong Settings đặt tên theo v0 (`systemPrompt`); preset trên DB gọi là translate. */
+function promptSetOf(s: Settings): PromptSet {
+  return {
+    translatePrompt: s.systemPrompt,
+    summaryPrompt: s.summaryPrompt,
+    contextPrompt: s.contextPrompt,
+  };
+}
 
 /**
  * So sánh theo giá trị, không theo tham chiếu: `apiKeys` là mảng và store luôn
@@ -30,7 +54,13 @@ function sameValue(a: unknown, b: unknown): boolean {
 }
 
 /** Một chỗ duy nhất: cấu hình này áp cho MỌI job. Lưu trong trình duyệt. */
-export default function SettingsDrawer({ open, onClose, settings, updateSettings }: Props) {
+export default function SettingsDrawer({
+  open,
+  onClose,
+  settings,
+  updateSettings,
+  initialTab = "general",
+}: Props) {
   const [draft, setDraft] = useState<Settings>(settings);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("general");
@@ -42,6 +72,11 @@ export default function SettingsDrawer({ open, onClose, settings, updateSettings
    * màn hình sẽ hiện một đằng còn giá trị thật một nẻo.
    */
   const [keyRows, setKeyRowsRaw] = useState<string[]>([]);
+  const [showDefaultContext, setShowDefaultContext] = useState(false);
+
+  /** PresetBar ghi settings ngay khi ghi DB — cần draft mới nhất, không phải bản của render trước. */
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
 
   const syncFrom = useCallback((next: Settings) => {
     setDraft(next);
@@ -52,10 +87,11 @@ export default function SettingsDrawer({ open, onClose, settings, updateSettings
     if (open) {
       syncFrom(settings);
       setSavedAt(null);
-      setTab("general");
+      setTab(initialTab);
+      setShowDefaultContext(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, initialTab]);
 
   const changed = (Object.keys(settings) as (keyof Settings)[]).filter(
     (k) => !sameValue(draft[k], settings[k])
@@ -87,6 +123,32 @@ export default function SettingsDrawer({ open, onClose, settings, updateSettings
     syncFrom({ ...draft, apiKeys: normalizeApiKeys(draft.apiKeys) });
     setSavedAt(new Date().toLocaleTimeString("vi-VN"));
   }, [draft, syncFrom, updateSettings]);
+
+  /** PresetBar nạp preset vào draft: 3 ô prompt + preset đang gắn. */
+  const applyPreset = useCallback((patch: { presetId?: string | null; prompts?: PromptSet }) => {
+    setDraft((d) => ({
+      ...d,
+      ...(patch.presetId !== undefined ? { presetId: patch.presetId } : {}),
+      ...(patch.prompts
+        ? {
+            systemPrompt: patch.prompts.translatePrompt,
+            summaryPrompt: patch.prompts.summaryPrompt,
+            contextPrompt: patch.prompts.contextPrompt,
+          }
+        : {}),
+    }));
+  }, []);
+
+  /** Ghi DB xong thì ghi working copy vào settings luôn (§3.2), khỏi chờ nút Lưu. */
+  const persistPreset = useCallback(
+    (presetId: string | null) => {
+      const next = { ...draftRef.current, presetId };
+      updateSettings(next);
+      setDraft(next);
+      setSavedAt(new Date().toLocaleTimeString("vi-VN"));
+    },
+    [updateSettings]
+  );
 
   const tryClose = useCallback(async () => {
     if (dirty) {
@@ -315,6 +377,19 @@ export default function SettingsDrawer({ open, onClose, settings, updateSettings
                 App tự nối output contract vào cuối mỗi prompt — đừng tự viết luật thẻ trong này.
               </Hint>
 
+              <PresetBar
+                presetId={draft.presetId}
+                prompts={promptSetOf(draft)}
+                onDraft={applyPreset}
+                onPersist={persistPreset}
+              />
+
+              {contractWarning(promptSetOf(draft)) && (
+                <p className="m-0 rounded-2xl bg-warn-bg px-3.5 py-2.5 text-xs text-warn-fg">
+                  {contractWarning(promptSetOf(draft))}
+                </p>
+              )}
+
               <Field
                 label="System prompt (dịch)"
                 action={
@@ -353,10 +428,33 @@ export default function SettingsDrawer({ open, onClose, settings, updateSettings
                 <Note>Nối thêm: bắt buộc thẻ &lt;summary&gt;.</Note>
               </Field>
 
-              <Note>
-                Prompt tạo <strong>ngữ cảnh chung</strong> là cố định trong app — sửa kết quả trực
-                tiếp ở tab Summary của từng job.
-              </Note>
+              <Field
+                label="Context prompt (ngữ cảnh chung)"
+                action={
+                  <button
+                    onClick={() => setShowDefaultContext((v) => !v)}
+                    className="text-xs text-accent hover:underline"
+                  >
+                    {showDefaultContext ? "Ẩn mặc định" : "Xem mặc định"}
+                  </button>
+                }
+              >
+                <textarea
+                  value={draft.contextPrompt}
+                  onChange={(e) => set("contextPrompt", e.target.value)}
+                  placeholder="Để trống = dùng prompt mặc định của app."
+                  className="textarea h-[130px] rounded-[18px] bg-white"
+                />
+                <Note>
+                  App vẫn tự nối contract thẻ &lt;context&gt; và ghi chú skeleton khi tài liệu bị
+                  cắt.
+                </Note>
+                {showDefaultContext && (
+                  <pre className="mt-2 max-h-[220px] overflow-auto whitespace-pre-wrap rounded-[18px] bg-paper p-3 text-[11.5px] leading-snug text-sand-700">
+                    {CONTEXT_PROMPT}
+                  </pre>
+                )}
+              </Field>
             </>
           )}
         </div>

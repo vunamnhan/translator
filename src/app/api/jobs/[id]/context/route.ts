@@ -18,6 +18,8 @@ interface PostBody {
   model?: string;
   temperature?: number;
   contextMaxTokens?: number;
+  /** CR v0.3: preset ghi đè prompt ngữ cảnh chung. Rỗng / thiếu = prompt của app. */
+  contextPrompt?: string;
 }
 
 /** Tạo tóm tắt chung: gửi nguyên văn nếu vừa ngưỡng, không thì gửi skeleton. */
@@ -54,11 +56,17 @@ export async function POST(req: Request, { params }: Ctx) {
   const input = buildContextInput(chunkRows, sectionRows, contextMaxTokens);
   if (input.text.trim().length === 0) return bad("Job chưa có nội dung để tóm tắt");
 
+  // Note cắt skeleton và contract vẫn do app nối, preset không sửa được (§3.3).
+  const basePrompt =
+    typeof body.contextPrompt === "string" && body.contextPrompt.trim()
+      ? body.contextPrompt
+      : CONTEXT_PROMPT;
+
   const outcome = await buildContext({
     endpoint: body.endpoint,
     apiKey,
     model: body.model,
-    systemPrompt: input.truncated ? `${CONTEXT_PROMPT}\n\n${CONTEXT_TRUNCATED_NOTE}` : CONTEXT_PROMPT,
+    systemPrompt: input.truncated ? `${basePrompt}\n\n${CONTEXT_TRUNCATED_NOTE}` : basePrompt,
     temperature: clampTemperature(body.temperature),
     source: input.text,
   });

@@ -46,12 +46,13 @@ Từ trái sang phải:
 1. **Tranzlator** — tên app, đậm, bấm về trang danh sách job.
 2. **Jobs** — link về trang danh sách job (trùng chức năng với logo, có thể bỏ một).
 3. *(khoảng trống đẩy các mục sau sang phải)*
-4. **Chip trạng thái key** — bấm vào đều mở Settings:
+4. **Chip preset** — tên bộ prompt đang dùng (`Truyện`) hoặc `Tuỳ chỉnh`, thêm `*` khi working copy khác preset. Bấm mở Settings thẳng vào tab Prompt. Chỉ hiện từ 1024px.
+5. **Chip trạng thái key** — bấm vào đều mở Settings:
    - Xanh lá: `● có key` (1 key) hoặc `● 3 key` (nhiều key)
    - Đỏ: `○ chưa có key — nhập ngay`
-5. **Tên model đang dùng** — chữ nhỏ xám, ví dụ `gpt-4o-mini`. Ẩn trên màn hình hẹp.
-6. **Settings** — nút viền, mở ngăn Settings.
-7. **Đăng xuất** — link chữ xám, chỉ hiện khi auth bật.
+6. **Tên model đang dùng** — chữ nhỏ xám, ví dụ `gpt-4o-mini`. Ẩn trên màn hình hẹp.
+7. **Settings** — nút viền, mở ngăn Settings.
+8. **Đăng xuất** — link chữ xám, chỉ hiện khi auth bật.
 
 ---
 
@@ -313,9 +314,29 @@ Trượt từ **phải**, rộng tối đa 448px, nền phủ đen 30%. Bấm ng
 
 **Tab Prompt**:
 1. Chú thích: "App tự nối output contract vào cuối mỗi prompt — đừng tự viết luật thẻ trong này."
-2. **System prompt (dịch)** — textarea 16 dòng mono. Dưới: chú "Nối thêm: bắt buộc thẻ <translation>." + link **Về mặc định** bên phải.
-3. **Summary prompt (tóm tắt section)** — textarea 12 dòng, tương tự.
-4. Chú thích: "Prompt tạo ngữ cảnh chung là cố định trong app — sửa kết quả trực tiếp ở tab Summary của từng job."
+2. **Thanh preset** (CR v0.3) — xem 6.1.
+3. Dải cảnh báo vàng khi prompt có chứa `<translation>` / `<summary>` / `<context>`: app đã tự nối luật thẻ, viết thêm dễ đá nhau. Chỉ cảnh báo, không chặn.
+4. **System prompt (dịch)** — textarea 16 dòng mono. Dưới: chú "Nối thêm: bắt buộc thẻ <translation>." + link **Về mặc định** bên phải.
+5. **Summary prompt (tóm tắt section)** — textarea 12 dòng, tương tự.
+6. **Context prompt (ngữ cảnh chung)** — textarea thấp hơn (~130px), placeholder "Để trống = dùng prompt mặc định của app.". Link **Xem mặc định** bên phải mở khối read-only chứa `CONTEXT_PROMPT` để copy ra sửa. Chú: "App vẫn tự nối contract thẻ <context> và ghi chú skeleton khi tài liệu bị cắt."
+
+### 6.1 Thanh preset (đầu tab Prompt, CR v0.3)
+
+```
+Preset  [ Tài liệu code        ▾ ]  ● đã sửa   [Lưu vào preset]  [⋯]
+```
+
+Hai tầng, đừng lẫn: **preset** nằm trên DB (dùng chung mọi trình duyệt), **working copy** là 3 ô prompt trong Settings (localStorage) — và working copy mới là thứ thực sự được gửi đi khi dịch. Thanh này chỉ nạp preset xuống working copy và cất working copy lên preset.
+
+- **Dropdown** — preset A→Z, dòng đầu **— Tuỳ chỉnh —** (không gắn preset nào). Nạp preset khi working copy đang "đã sửa" thì hỏi xác nhận bỏ thay đổi. Chọn "Tuỳ chỉnh" chỉ gỡ preset, **giữ nguyên** prompt đang gõ.
+- **● đã sửa** — chỉ hiện khi có preset và 3 prompt khác preset (so sau trim).
+- **Lưu vào preset** — enable khi "đã sửa". Ghi DB ngay, đồng thời ghi working copy vào Settings luôn (không để preset trên DB mới hơn thứ đang dùng).
+- **⋯** — Lưu thành preset mới… (luôn có, gợi ý tên `<tên cũ> (copy)`) · Đổi tên… · Xoá preset… (hai mục sau ẩn khi Tuỳ chỉnh). Hỏi tên bằng dialog 1 ô text; trùng tên → 409 hiện ngay dưới ô, dialog **không đóng**.
+- Xoá preset: prompt đang dùng **giữ nguyên**, chỉ về "Tuỳ chỉnh".
+- Danh sách nạp khi mở tab Prompt. Đang tải thì dropdown disable; lỗi mạng hiện "Không tải được preset" + **Thử lại**, các ô prompt vẫn dùng bình thường.
+- Preset bị xoá từ trình duyệt khác: mọi thao tác trả 404 → về "Tuỳ chỉnh", giữ working copy, không crash.
+- Nạp preset chỉ đổi **draft** — vẫn phải bấm **Lưu** ở chân drawer mới có hiệu lực, như mọi setting khác.
+- Dưới 1024px dropdown chiếm cả dòng, hai nút rơi xuống dòng dưới (chỉ bằng `flex-wrap`, không nhánh markup riêng).
 
 **Footer dính đáy**: nút **Lưu** (xanh, có • khi có thay đổi, vô hiệu khi không) · **Huỷ thay đổi** (viền) · bên phải trạng thái chữ nhỏ: `● chưa lưu` / `✓ đã lưu 14:32:05` / `✓ đã lưu`. Phím tắt Cmd/Ctrl+S để lưu.
 
@@ -361,6 +382,8 @@ Dialog riêng của app (không còn dùng `confirm()` của trình duyệt): th
 | Gom lại section | Gom lại section sẽ XOÁ toàn bộ tóm tắt section. Tiếp tục? |
 | Tạo lại ngữ cảnh chung | Tạo lại sẽ ghi đè ngữ cảnh chung hiện có. Tiếp tục? |
 | Đóng Settings còn thay đổi | Còn thay đổi chưa lưu. Đóng và bỏ luôn? |
+| Nạp preset khác khi đã sửa | Prompt đang khác preset «tên». Nạp preset khác sẽ mất phần sửa này. |
+| Xoá preset | Xoá preset «tên»? Prompt đang dùng vẫn giữ nguyên, chỉ mất bộ prompt lưu trên DB. |
 
 ---
 
@@ -404,7 +427,7 @@ Dialog riêng của app (không còn dùng `confirm()` của trình duyệt): th
 
 ## 13. Thay đổi sắp tới
 
-Chưa có. `CR-v0.2-jobs-list.md` đã làm xong: trang Jobs (mục 4), tag / favorite / pin / archive trên màn hình job (mục 5), nhiều API key + cool down trong Settings (mục 6).
+Chưa có. `CR-v0.2-jobs-list.md` đã làm xong: trang Jobs (mục 4), tag / favorite / pin / archive trên màn hình job (mục 5), nhiều API key + cool down trong Settings (mục 6). `CR-v0.3-presets.md` đã làm xong: thanh preset + ô context prompt trong tab Prompt (mục 6.1), chip preset ở top bar (mục 2).
 
 ---
 

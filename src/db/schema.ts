@@ -73,6 +73,19 @@ export const sections = pgTable(
   (t) => [uniqueIndex("sections_job_idx").on(t.jobId, t.idx), index("sections_job").on(t.jobId)]
 );
 
+/** CR v0.3 — bộ prompt đặt tên, dùng chung cho mọi trình duyệt mở tool. */
+export const presets = pgTable("presets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  translatePrompt: text("translate_prompt").notNull(),
+  summaryPrompt: text("summary_prompt").notNull(),
+  /** null / rỗng = dùng CONTEXT_PROMPT cố định của app. */
+  contextPrompt: text("context_prompt"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type Job = typeof jobs.$inferSelect;
 export type Chunk = typeof chunks.$inferSelect;
 export type Section = typeof sections.$inferSelect;
+export type Preset = typeof presets.$inferSelect;

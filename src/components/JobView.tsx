@@ -306,6 +306,7 @@ export default function JobView({ jobId }: { jobId: string }) {
           model: s.model,
           temperature: s.temperature,
           contextMaxTokens: s.contextMaxTokens,
+          contextPrompt: s.contextPrompt,
         }),
       });
       const data = await res.json();
