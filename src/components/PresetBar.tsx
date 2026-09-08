@@ -152,12 +152,14 @@ export default function PresetBar({ presetId, prompts, onDraft, onPersist }: Pro
     <div className="rounded-2xl bg-white p-3 shadow-sm">
       {/* Dưới 1024px dropdown chiếm cả dòng, hai nút rơi xuống dòng dưới — chỉ bằng flex-wrap. */}
       <div className="flex flex-wrap items-center gap-2">
-        <label className="shrink-0 text-[12.5px] text-sand-700">Preset</label>
+        {/* Không có label chữ "Preset": drawer chỉ rộng 452px, thêm chữ là nút ⋯ rớt hàng. */}
         <select
           value={presetId ?? ""}
           disabled={loading || Boolean(error)}
           onChange={(e) => void select(e.target.value)}
-          className="input h-9 w-full min-w-0 lg:h-8 lg:w-auto lg:min-h-0 lg:min-w-[190px] lg:flex-1"
+          aria-label="Preset"
+          title="Bộ prompt đang dùng"
+          className="input h-9 w-full min-w-0 lg:h-8 lg:w-auto lg:min-h-0 lg:min-w-[124px] lg:flex-1"
         >
           <option value="">— Tuỳ chỉnh —</option>
           {items.map((p) => (
@@ -178,7 +180,7 @@ export default function PresetBar({ presetId, prompts, onDraft, onPersist }: Pro
           disabled={!modified}
           className="btn btn-secondary h-9 shrink-0 py-0 text-[12.5px] lg:h-8"
         >
-          Lưu vào preset
+          Lưu preset
         </button>
         <Menu
           items={[

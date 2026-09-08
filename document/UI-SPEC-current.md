@@ -323,14 +323,16 @@ Trượt từ **phải**, rộng tối đa 448px, nền phủ đen 30%. Bấm ng
 ### 6.1 Thanh preset (đầu tab Prompt, CR v0.3)
 
 ```
-Preset  [ Tài liệu code        ▾ ]  ● đã sửa   [Lưu vào preset]  [⋯]
+[ Tài liệu code  ▾ ]  ● đã sửa  [Lưu preset]  [⋯]
 ```
+
+Không có chữ "Preset" đứng trước: drawer chỉ rộng 452px, thêm nhãn là nút ⋯ rớt xuống hàng dưới. Dropdown tự nói nó là gì (`aria-label`/`title` = Preset).
 
 Hai tầng, đừng lẫn: **preset** nằm trên DB (dùng chung mọi trình duyệt), **working copy** là 3 ô prompt trong Settings (localStorage) — và working copy mới là thứ thực sự được gửi đi khi dịch. Thanh này chỉ nạp preset xuống working copy và cất working copy lên preset.
 
 - **Dropdown** — preset A→Z, dòng đầu **— Tuỳ chỉnh —** (không gắn preset nào). Nạp preset khi working copy đang "đã sửa" thì hỏi xác nhận bỏ thay đổi. Chọn "Tuỳ chỉnh" chỉ gỡ preset, **giữ nguyên** prompt đang gõ.
 - **● đã sửa** — chỉ hiện khi có preset và 3 prompt khác preset (so sau trim).
-- **Lưu vào preset** — enable khi "đã sửa". Ghi DB ngay, đồng thời ghi working copy vào Settings luôn (không để preset trên DB mới hơn thứ đang dùng).
+- **Lưu preset** — enable khi "đã sửa". Ghi DB ngay, đồng thời ghi working copy vào Settings luôn (không để preset trên DB mới hơn thứ đang dùng).
 - **⋯** — Lưu thành preset mới… (luôn có, gợi ý tên `<tên cũ> (copy)`) · Đổi tên… · Xoá preset… (hai mục sau ẩn khi Tuỳ chỉnh). Hỏi tên bằng dialog 1 ô text; trùng tên → 409 hiện ngay dưới ô, dialog **không đóng**.
 - Xoá preset: prompt đang dùng **giữ nguyên**, chỉ về "Tuỳ chỉnh".
 - Danh sách nạp khi mở tab Prompt. Đang tải thì dropdown disable; lỗi mạng hiện "Không tải được preset" + **Thử lại**, các ô prompt vẫn dùng bình thường.
