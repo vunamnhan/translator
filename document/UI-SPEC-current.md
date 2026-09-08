@@ -286,7 +286,7 @@ Job archived: dải xám ngay dưới header — "Job này đang ở archive —
 
 ### 5.10 Khung đọc — chỉnh cỡ chữ
 
-Cụm **A− · 15px · A+** nằm ở đầu phải hàng thanh tiến độ, ngay trên khung đọc (thanh tiến độ chỉ chiếm cột trái nên chỗ đó trống). Bấm số ở giữa để về mặc định. Khoảng 12–24px, lưu trong localStorage, dùng chung cho cả tab Translate và Summary.
+Cụm **A− · 15px · A+** nằm ở đầu phải hàng thanh tiến độ, ngay trên khung đọc (thanh tiến độ chỉ chiếm cột trái nên chỗ đó trống). Bấm số ở giữa để về mặc định. Khoảng 12–24px, lưu trong localStorage, dùng chung cho cả tab Translate và Summary. Ở chế độ đọc của mobile hàng thanh tiến độ bị giấu nên cụm này nhảy lên top bar (xem 14.1).
 
 ---
 
@@ -424,6 +424,7 @@ Chọn 1024 chứ không 768: ở 768 hai cột chia ra khung đọc chỉ còn 
 | `.sheet` | bottom sheet bo góc trên 28px | drawer phải 452px (Settings) hoặc modal giữa màn (Export) |
 | `.sheet-grab` | thanh kéo nhỏ trên đầu sheet | ẩn |
 | `.no-scrollbar` | giấu thanh cuộn của hàng cuộn ngang | — |
+| `.reading-pane` | trải hết bề ngang màn, không bo góc, không đổ bóng, chỉ chừa 14px hai bên | card trắng bo 24px, đổ bóng, padding 30px |
 
 State mở/đóng sheet danh sách (`listOpen` trong `JobView`) tồn tại ở mọi khổ; từ 1024 trở lên CSS cho cột hiện luôn nên state đó bị kệ.
 
@@ -434,16 +435,17 @@ State mở/đóng sheet danh sách (`listOpen` trong `JobView`) tồn tại ở 
 3. **Danh sách job** — mỗi dòng job xuống 2 hàng: tên + ngày ở trên, tiến độ dịch và §tóm tắt ở dưới (trước đây ẩn hẳn dưới 640px).
 4. **Vùng chạm** — nút cao tối thiểu 40px, ô nhập 44px.
 5. **Ô nhập luôn 16px** dù utility đặt nhỏ hơn — dưới 16px thì iOS tự phóng to trang khi focus.
-6. **Bảng trong khung đọc** cuộn ngang trong lòng nó, không đẩy cả trang.
-7. **Chiều cao khung app** dùng `100dvh` (thanh địa chỉ của iOS ăn mất một khúc của `100vh`).
-8. **Safe area** — thanh dính đáy và sheet chừa `env(safe-area-inset-bottom)`.
+6. **Khung đọc bỏ hẳn card** — không padding ngoài, không bo góc, không đổ bóng: chữ được thêm ~28px mỗi dòng. Chỗ chừa cho thanh nút đáy nằm trong chính khung đọc (`pb-20`) nên hàng bọc nó không cần padding dưới.
+7. **Bảng trong khung đọc** cuộn ngang trong lòng nó, không đẩy cả trang.
+8. **Chiều cao khung app** dùng `100dvh` (thanh địa chỉ của iOS ăn mất một khúc của `100vh`).
+9. **Safe area** — thanh dính đáy và sheet chừa `env(safe-area-inset-bottom)`.
 
 ### 14.1 Chế độ đọc (chỉ mobile)
 
 Nút 📖 ở top bar, **sát bên trái logo**, chỉ hiện khi đang ở màn job và chỉ dưới 1024px. Bấm vào thì:
 
 - giấu card header job (tên, tag, tab Translate/Summary, số liệu)
-- giấu hàng tiến độ (kèm cụm A− / A+)
+- giấu hàng tiến độ, và **dời cụm A− / A+ lên top bar** — chỉnh cỡ chữ là thứ hay cần đúng lúc đang đọc. Chỗ cho nó lấy từ logo (logo ẩn ở chế độ đọc, chỉ ở mobile)
 - giấu thanh nút dính đáy (Start · Dịch lại lỗi · Export · ⋯ · Danh sách)
 - khoá tương tác trong khung đọc: bấm vào đoạn không chọn, không đổi màu, không có con trỏ tay
 

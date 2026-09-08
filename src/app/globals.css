@@ -232,6 +232,13 @@
   /* Thanh kéo báo hiệu sheet — desktop không có khái niệm này nên ẩn đi. */
   .sheet-grab { @apply mx-auto mt-2.5 h-1 w-11 shrink-0 rounded-pill bg-sand-300 lg:hidden; }
 
+  /**
+   * Khung đọc. Desktop là card trắng bo góc; mobile bỏ hẳn card — trải hết bề
+   * ngang màn, chỉ chừa 14px để chữ khỏi dính mép, lấy thêm ~28px mỗi dòng.
+   * pb-20 là chỗ chừa cho thanh nút dính đáy, nên hàng bọc nó khỏi cần padding.
+   */
+  .reading-pane { @apply h-full overflow-y-auto bg-white px-3.5 pb-20 pt-4; }
+
   @media (min-width: 1024px) {
     .pane-list {
       @apply static inset-auto z-auto flex h-full max-h-none shrink-0 rounded-3xl shadow-md;
@@ -242,6 +249,7 @@
     .action-dock { @apply static z-auto flex-wrap gap-2 overflow-visible p-0; background: none; padding-bottom: 0; }
     .action-dock > .btn { @apply h-9 py-0; }
     .action-dock > .btn-primary { @apply flex-none; min-width: 0; }
+    .reading-pane { @apply rounded-3xl px-[30px] pt-[34px] shadow-md; }
 
     .sheet-wrap { @apply flex-row justify-end; }
     .sheet { @apply h-full max-h-none w-[452px] rounded-none; animation: tz-slide 0.22s ease-out; padding-bottom: 0; }

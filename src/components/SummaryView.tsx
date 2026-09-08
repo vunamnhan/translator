@@ -98,11 +98,7 @@ export default function SummaryView({
   const toggle = (id: string) => onSelect(selectedId === id ? null : id);
 
   return (
-    <div
-      className={`flex min-h-0 flex-1 gap-3 px-3 pt-3 lg:px-5 lg:pb-4 ${
-        readMode ? "pb-3" : "pb-[76px]"
-      }`}
-    >
+    <div className="flex min-h-0 flex-1 gap-3 lg:px-5 lg:pb-4 lg:pt-3">
       <ListPanel
         open={listOpen}
         onClose={onCloseList}

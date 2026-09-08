@@ -900,11 +900,9 @@ export default function JobView({ jobId }: { jobId: string }) {
       </div>
 
       {isTranslate ? (
-        <div
-          className={`flex min-h-0 flex-1 gap-3 px-3 pt-3 lg:px-5 lg:pb-4 ${
-            readMode ? "pb-3" : "pb-[76px]"
-          }`}
-        >
+        <div className="flex min-h-0 flex-1 gap-3 lg:px-5 lg:pb-4 lg:pt-3">
+          {/* Mobile không padding — khung đọc trải hết bề ngang; chỗ chừa cho thanh
+              nút đáy nằm trong chính khung đọc (`.reading-pane` có pb-20). */}
           <ListPanel
             open={listOpen}
             onClose={() => setListOpen(false)}

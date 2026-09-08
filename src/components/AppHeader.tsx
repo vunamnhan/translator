@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import SettingsDrawer from "./SettingsDrawer";
+import { ReadingSizeControl } from "./chrome";
 import { useSettings } from "@/lib/useSettings";
 import { useReadMode } from "@/lib/readMode";
 
@@ -41,7 +42,21 @@ export default function AppHeader({ authEnabled }: { authEnabled: boolean }) {
           </button>
         )}
 
-        <Link href="/" className="flex items-center gap-2.5 text-ink hover:no-underline">
+        {/* Ở chế độ đọc, hàng thanh tiến độ — chỗ ở cũ của cụm chỉnh cỡ chữ — bị
+            giấu, mà chỉnh cỡ chữ lại đúng là thứ hay cần lúc đang đọc. */}
+        {readMode && (
+          <div className="lg:hidden">
+            <ReadingSizeControl />
+          </div>
+        )}
+
+        {/* Read mode ở mobile chật chỗ: nhường phần logo cho cụm chỉnh cỡ chữ. */}
+        <Link
+          href="/"
+          className={`flex items-center gap-2.5 text-ink hover:no-underline ${
+            readMode ? "hidden lg:flex" : ""
+          }`}
+        >
           <span className="grid h-[26px] w-[26px] place-items-center rounded-pill bg-accent font-heading text-[13px] text-white">
             T
           </span>

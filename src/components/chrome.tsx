@@ -7,7 +7,8 @@ import { DEFAULT_READING, MAX_READING, MIN_READING, useReadingSize } from "@/lib
 /**
  * Khung đọc bên phải. Cỡ chữ đi qua biến CSS `--reading-size`, heading trong
  * `.md-preview` dùng em nên co giãn theo. Nút chỉnh cỡ nằm ở hàng thanh tiến độ
- * (`ReadingSizeControl`), không nhét trong khung để khỏi che chữ.
+ * (`ReadingSizeControl`), không nhét trong khung để khỏi che chữ — ở chế độ
+ * đọc của mobile hàng đó bị giấu nên cụm này nhảy lên top bar.
  */
 export function ReadingPane({
   boxRef,
@@ -21,7 +22,7 @@ export function ReadingPane({
   return (
     <div
       ref={boxRef}
-      className="h-full overflow-y-auto rounded-3xl bg-white px-4 pb-20 pt-6 shadow-md lg:px-[30px] lg:pt-[34px]"
+      className="reading-pane"
     >
       <div
         className="md-preview mx-auto max-w-[764px]"
