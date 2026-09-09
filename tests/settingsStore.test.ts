@@ -49,6 +49,19 @@ describe("settingsStore", () => {
     expect(mod.getSnapshot().settings.apiKeys).toEqual(["sk-cu"]);
   });
 
+  it("chuỗi không đứng một mình: tắt chunkSummary thì chainPrevSummary tắt theo", async () => {
+    const { mod } = await freshStore(
+      JSON.stringify({ chunkSummary: false, chainPrevSummary: true })
+    );
+    expect(mod.getSnapshot().settings.chainPrevSummary).toBe(false);
+
+    mod.setSettings({ chunkSummary: true, chainPrevSummary: true });
+    expect(mod.getSnapshot().settings.chainPrevSummary).toBe(true);
+
+    mod.setSettings({ chunkSummary: false });
+    expect(mod.getSnapshot().settings.chainPrevSummary).toBe(false);
+  });
+
   it("thiếu key trong bản lưu cũ thì lấy mặc định", async () => {
     const { mod } = await freshStore(JSON.stringify({ model: "x" }));
     expect(mod.getSnapshot().settings.cooldownMs).toBe(DEFAULT_SETTINGS.cooldownMs);

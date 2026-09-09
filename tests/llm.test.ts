@@ -117,10 +117,14 @@ describe("translate", () => {
   });
 });
 
-/** System message của call đầu tiên. */
-function systemOf(fetchMock: ReturnType<typeof vi.fn>): string {
-  const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+/** System message của call thứ `i` (mặc định call đầu). */
+function systemAt(fetchMock: ReturnType<typeof vi.fn>, i = 0): string {
+  const body = JSON.parse((fetchMock.mock.calls[i][1] as RequestInit).body as string);
   return body.messages[0].content as string;
+}
+
+function systemOf(fetchMock: ReturnType<typeof vi.fn>): string {
+  return systemAt(fetchMock);
 }
 
 describe("bơm ngữ cảnh chung", () => {
@@ -162,5 +166,107 @@ describe("summarize / buildContext", () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonRes("<context>## Tổng quan\nabc</context>")));
     const out = await buildContext(params);
     expect(out.translated).toBe("## Tổng quan\nabc");
+  });
+});
+
+describe("tóm tắt chunk trong cùng cú gọi (CR v0.5)", () => {
+  it("tắt withSummary → system message y hệt v0.2, không nhắc <summary>", async () => {
+    const off = vi.fn(async () => jsonRes("<translation>ok</translation>"));
+    vi.stubGlobal("fetch", off);
+    await translate({ ...params, documentContext: "ngữ cảnh" });
+    const base = systemOf(off);
+
+    // Truyền kèm prompt tóm tắt và tóm tắt đoạn trước nhưng KHÔNG bật cờ → bỏ qua sạch.
+    const stillOff = vi.fn(async () => jsonRes("<translation>ok</translation>"));
+    vi.stubGlobal("fetch", stillOff);
+    const out = await translate({
+      ...params,
+      documentContext: "ngữ cảnh",
+      chunkSummaryPrompt: "tóm tắt kiểu này",
+      previousSummary: "đoạn trước kể chuyện A",
+    });
+
+    expect(systemOf(stillOff)).toBe(base);
+    expect(base).not.toContain("<summary>");
+    expect(base).not.toContain("<previous_chunk_summary>");
+    expect(out.summary).toBeNull();
+  });
+
+  it("bật → contract hai thẻ, bóc cả bản dịch lẫn tóm tắt", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonRes("<translation># Xin chào</translation>\n<summary>Đoạn chào hỏi.</summary>")
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const out = await translate({ ...params, withSummary: true });
+
+    const system = systemOf(fetchMock);
+    expect(system).toContain("Trả về đúng hai thẻ");
+    expect(system).toContain("Sau khi dịch, viết thêm phần tóm tắt");
+    expect(out.translated).toBe("# Xin chào");
+    expect(out.summary).toBe("Đoạn chào hỏi.");
+  });
+
+  it("prompt tóm tắt của preset thay mặc định app", async () => {
+    const fetchMock = vi.fn(async () => jsonRes("<translation>a</translation><summary>b</summary>"));
+    vi.stubGlobal("fetch", fetchMock);
+    await translate({ ...params, withSummary: true, chunkSummaryPrompt: "tóm tắt kiểu truyện" });
+
+    const system = systemOf(fetchMock);
+    expect(system).toContain("tóm tắt kiểu truyện");
+    expect(system).not.toContain("Sau khi dịch, viết thêm phần tóm tắt");
+  });
+
+  it("thứ tự: prompt dịch → ngữ cảnh chung → đoạn trước → prompt tóm tắt → contract", async () => {
+    const fetchMock = vi.fn(async () => jsonRes("<translation>a</translation><summary>b</summary>"));
+    vi.stubGlobal("fetch", fetchMock);
+    await translate({
+      ...params,
+      withSummary: true,
+      documentContext: "ngữ cảnh chung",
+      previousSummary: "đoạn trước kể chuyện A",
+      chunkSummaryPrompt: "PROMPT_TOM_TAT",
+    });
+
+    const system = systemOf(fetchMock);
+    const at = (needle: string) => system.indexOf(needle);
+    expect(at(params.systemPrompt)).toBeLessThan(at("<document_context>"));
+    expect(at("<document_context>")).toBeLessThan(at("<previous_chunk_summary>"));
+    expect(at("<previous_chunk_summary>")).toBeLessThan(at("PROMPT_TOM_TAT"));
+    expect(at("PROMPT_TOM_TAT")).toBeLessThan(at("QUY TẮC ĐẦU RA"));
+    expect(system).toContain("đoạn trước kể chuyện A");
+  });
+
+  it("thiếu <summary> → vẫn nhận bản dịch, không gọi lại", async () => {
+    const fetchMock = vi.fn(async () => jsonRes("<translation>ok</translation>"));
+    vi.stubGlobal("fetch", fetchMock);
+    const out = await translate({ ...params, withSummary: true });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(out.translated).toBe("ok");
+    expect(out.summary).toBeNull();
+  });
+
+  it("<summary> rỗng coi như thiếu; tóm tắt dài bị cắt 1000 ký tự", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonRes("<translation>ok</translation><summary>   </summary>")));
+    expect((await translate({ ...params, withSummary: true })).summary).toBeNull();
+
+    const long = "x".repeat(1500);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonRes(`<translation>ok</translation><summary>${long}</summary>`))
+    );
+    expect((await translate({ ...params, withSummary: true })).summary).toHaveLength(1000);
+  });
+
+  it("quên <translation> → retry với reminder nhắc cả hai thẻ", async () => {
+    const fetchMock = vi.fn(async () => jsonRes("quên hết"));
+    vi.stubGlobal("fetch", fetchMock);
+    const out = await translate({ ...params, withSummary: true });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const second = systemAt(fetchMock, 1);
+    expect(second).toContain("NHẮC LẠI");
+    expect(second).toContain("<translation>");
+    expect(second).toContain("<summary>");
+    expect(out.error).toMatch(/translation/);
   });
 });

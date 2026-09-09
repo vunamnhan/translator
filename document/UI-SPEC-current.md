@@ -139,7 +139,7 @@ Một dòng, các mục bọc xuống dòng khi hẹp:
 - **Tên job** — bấm vào để đổi tên tại chỗ. Khi hover hiện bút chì ✎. Khi sửa: ô input viền xanh, gợi ý "Enter lưu · Esc huỷ", đang lưu thì "đang lưu…"
 - **Bộ chuyển tab** dạng segmented control 2 nút: **Translate** | **Summary**. Tab active nền xanh chữ trắng.
 - **Thống kê** (chữ xám, đổi theo tab):
-  - Tab Translate: `12/40 xong` · `3 lỗi` (đỏ) · `2 cảnh báo` (vàng)
+  - Tab Translate: `12/40 xong` · `3 lỗi` (đỏ) · `2 cảnh báo` (vàng) · chip `Chuỗi 1-1` (CR v0.5, chỉ khi bật gửi kèm tóm tắt chunk trước)
   - Tab Summary: `4/9 section` · `1 lỗi` (đỏ)
 - **Chip model · host** — font mono nền xám, ví dụ `gpt-4o-mini · api.openai.com`. Hover hiện tooltip URL đầy đủ sẽ gọi.
 - **Cụm nút bên phải** (đổi theo tab, xem 5.5 và 5.6)
@@ -153,6 +153,7 @@ Có thể xuất hiện 0 đến 3 dải cùng lúc, mỗi dải một dòng:
 | Lệch chunk tokens | vàng | Settings để ngưỡng chunk khác với job, và job đã có bản dịch | "Settings để chunk 2000 token, job này đang chunk theo 1500." + nút **Chunk lại theo 2000** + chú "(mất toàn bộ bản dịch hiện có)" |
 | Lệch section tokens | vàng | tương tự cho ngưỡng section, và đã có tóm tắt | "Settings để section 8000 token, job này đang gom theo 6000." + nút **Gom lại theo 8000** + "(mất toàn bộ tóm tắt section)" |
 | Chưa có ngữ cảnh chung | xám nhạt, chữ nhỏ | Tab Translate, toggle "Dùng ngữ cảnh chung" bật nhưng job chưa có ngữ cảnh | "Toggle 'Dùng ngữ cảnh chung' đang bật nhưng job này **chưa có ngữ cảnh chung** — dịch vẫn chạy bình thường. Tạo ở tab Summary." (chữ Summary là link chuyển tab) |
+| Đứt chuỗi (CR v0.5) | đỏ nhạt | Tab Translate, chuỗi ngữ cảnh bật và vòng lặp dừng vì một chunk chưa dịch xong / lỗi | "Chuỗi đứt ở #12" + **hai** nút: **Dịch lại #12** và **Tiếp tục bất chấp** + chú "(tiếp tục = dịch không kèm tóm tắt đoạn trước cho tới khi Pause)". Dịch lại xong thì dải đổi sang xanh, còn một nút **Resume** |
 | Thông báo chung | xanh dương nhạt | sau một hành động | Ví dụ: "Chưa có API key — mở Settings trên thanh trên cùng để nhập.", "Đang có một vòng lặp chạy — Pause trước đã.", "Đã chunk lại theo 1500 token: 42 chunk", "Tạo ngữ cảnh chung thất bại: HTTP 401" |
 
 Các dải này hiện tại **không có nút đóng**, tự biến mất khi điều kiện hết. Designer có thể gợi ý cách gọn hơn (toast, banner thu gọn).
@@ -168,7 +169,7 @@ Các dải này hiện tại **không có nút đóng**, tự biến mất khi �
 │ #12  [done]  [429]  ⚠  ✎   Dòng đầu tiên của đoạn văn…│
 └──────────────────────────────────────────────────────┘
  │     │       │      │  │   └ text preview, cắt bằng "…"
- │     │       │      │  └ đã sửa tay
+ │     │       │      │  └ đã sửa tay (bên cạnh còn ⛓ = dịch có ngữ cảnh đoạn trước, CR v0.5)
  │     │       │      └ có cảnh báo (hover xem nội dung)
  │     │       └ mã lỗi HTTP, nền đỏ đậm chữ trắng (chỉ khi lỗi)
  │     └ pill trạng thái (xem bảng màu)
@@ -214,6 +215,10 @@ Thẻ chunk mở rộng có 3 tab nhỏ:
 | **Nguồn** (có ✎ nếu đã sửa nguồn) | textarea văn bản gốc | Có. Rời ô (blur) là tự lưu, không có nút Save |
 | **Bản dịch** | textarea bản dịch. Placeholder "chưa dịch" hoặc "(không dịch — front matter)" | Có. Blur tự lưu, thẻ hiện ✎ |
 | **Raw** | khung chỉ đọc, phản hồi thô của AI lần cuối. Trống thì hiện khung nét đứt "Chưa có raw response — chunk này chưa gọi LLM lần nào." | Không |
+
+Dưới vùng nội dung là **hàng gấp mở "Tóm tắt"** (CR v0.5): đóng thì hiện một dòng đầu của tóm tắt chunk, hoặc chữ mờ "(chưa có)"; mở ra là textarea nhỏ, blur tự lưu. Chunk `skipped` không có hàng này.
+
+Hai dấu hiệu mới trên thẻ chunk (CR v0.5): **⛓** = lần dịch gần nhất có kèm tóm tắt đoạn trước; **⚠** kèm tooltip "Tóm tắt đoạn trước đã đổi sau khi dịch" khi tóm tắt của chunk liền trước bị sửa / dịch lại sau chunk này.
 
 Nút hành động: **Dịch lại** (xanh). Khi đang dịch: spinner + "Đang dịch…", vô hiệu. Ẩn với chunk `skipped`.
 
@@ -307,10 +312,12 @@ Trượt từ **phải**, rộng tối đa 448px, nền phủ đen 30%. Bấm ng
 5. **Temperature: 0.2** — ô số, bước 0.1, từ 0 đến 2.
 6. **Concurrency: 3** — thanh trượt 2 đến 6.
 7. **Cool down (giây)** — ô số, mặc định 5, từ 0 đến 60, bước 0.5. `0` = tắt. Dưới ô hiện ước lượng "≈ 3 call / 5s với concurrency 3. Mỗi worker nghỉ sau khi xong một call."
-8. **Chunk tokens (ước lượng chars/4)** — ô số, mặc định 1500. Chú: "Đổi số này thì trang job sẽ nhắc chunk lại (chunk lại là mất bản dịch cũ)."
-9. Đường kẻ, tiêu đề nhỏ **Tóm tắt**
-10. Checkbox **Dùng ngữ cảnh chung khi dịch** (mặc định bật) + mô tả 2 dòng.
-11. **Section tokens** và **Context max tokens** — 2 ô số cạnh nhau, mặc định 6000 và 80000. Chú: "Tài liệu vượt ngưỡng thì gửi skeleton (heading + phần đầu mỗi section)."
+8. Checkbox **Tạo tóm tắt chunk** (CR v0.5, mặc định tắt). Chú: "Cùng cú gọi dịch, trả thêm thẻ `<summary>`, tốn thêm ~100 token output mỗi chunk."
+9. Checkbox **Gửi kèm tóm tắt chunk trước** (CR v0.5, mặc định tắt, mờ + vô hiệu khi checkbox trên tắt). Chú: "Dịch tuần tự 1-1, bỏ qua Concurrency. Thời gian ≈ số chunk × (latency + cool down)." Bật nó thì ô **Concurrency** ở trên mờ đi và hiện chữ "đang bị ép = 1 (chuỗi)".
+10. **Chunk tokens (ước lượng chars/4)** — ô số, mặc định 1500. Chú: "Đổi số này thì trang job sẽ nhắc chunk lại (chunk lại là mất bản dịch cũ)."
+11. Đường kẻ, tiêu đề nhỏ **Tóm tắt**
+12. Checkbox **Dùng ngữ cảnh chung khi dịch** (mặc định bật) + mô tả 2 dòng.
+13. **Section tokens** và **Context max tokens** — 2 ô số cạnh nhau, mặc định 6000 và 80000. Chú: "Tài liệu vượt ngưỡng thì gửi skeleton (heading + phần đầu mỗi section)."
 
 **Tab Prompt**:
 1. Chú thích: "App tự nối output contract vào cuối mỗi prompt — đừng tự viết luật thẻ trong này."
@@ -320,6 +327,8 @@ Trượt từ **phải**, rộng tối đa 448px, nền phủ đen 30%. Bấm ng
 5. **Summary prompt (tóm tắt section)** — textarea 12 dòng, tương tự.
 6. **Context prompt (ngữ cảnh chung)** — textarea thấp hơn (~130px), placeholder "Để trống = dùng prompt mặc định của app.". Link **Xem mặc định** bên phải mở khối read-only chứa `CONTEXT_PROMPT` để copy ra sửa. Chú: "App vẫn tự nối contract thẻ <context> và ghi chú skeleton khi tài liệu bị cắt."
 
+7. **Chunk summary prompt (tóm tắt chunk)** (CR v0.5) — textarea ~130px, placeholder "Để trống = dùng mặc định app.", link **Xem mặc định** bên phải. Chú: "Chỉ dùng khi bật 'Tạo tóm tắt chunk' ở tab Chung. App tự nối contract hai thẻ <translation> + <summary>."
+
 ### 6.1 Thanh preset (đầu tab Prompt, CR v0.3)
 
 ```
@@ -328,10 +337,10 @@ Trượt từ **phải**, rộng tối đa 448px, nền phủ đen 30%. Bấm ng
 
 Không có chữ "Preset" đứng trước: drawer chỉ rộng 452px, thêm nhãn là nút ⋯ rớt xuống hàng dưới. Dropdown tự nói nó là gì (`aria-label`/`title` = Preset).
 
-Hai tầng, đừng lẫn: **preset** nằm trên DB (dùng chung mọi trình duyệt), **working copy** là 3 ô prompt trong Settings (localStorage) — và working copy mới là thứ thực sự được gửi đi khi dịch. Thanh này chỉ nạp preset xuống working copy và cất working copy lên preset.
+Hai tầng, đừng lẫn: **preset** nằm trên DB (dùng chung mọi trình duyệt), **working copy** là 4 ô prompt trong Settings (localStorage) — và working copy mới là thứ thực sự được gửi đi khi dịch. Thanh này chỉ nạp preset xuống working copy và cất working copy lên preset.
 
 - **Dropdown** — preset A→Z, dòng đầu **— Tuỳ chỉnh —** (không gắn preset nào). Nạp preset khi working copy đang "đã sửa" thì hỏi xác nhận bỏ thay đổi. Chọn "Tuỳ chỉnh" chỉ gỡ preset, **giữ nguyên** prompt đang gõ.
-- **● đã sửa** — chỉ hiện khi có preset và 3 prompt khác preset (so sau trim).
+- **● đã sửa** — chỉ hiện khi có preset và 4 prompt khác preset (so sau trim).
 - **Lưu preset** — enable khi "đã sửa". Ghi DB ngay, đồng thời ghi working copy vào Settings luôn (không để preset trên DB mới hơn thứ đang dùng).
 - **⋯** — Lưu thành preset mới… (luôn có, gợi ý tên `<tên cũ> (copy)`) · Đổi tên… · Xoá preset… (hai mục sau ẩn khi Tuỳ chỉnh). Hỏi tên bằng dialog 1 ô text; trùng tên → 409 hiện ngay dưới ô, dialog **không đóng**.
 - Xoá preset: prompt đang dùng **giữ nguyên**, chỉ về "Tuỳ chỉnh".

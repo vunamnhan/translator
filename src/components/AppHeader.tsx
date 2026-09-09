@@ -147,6 +147,7 @@ function PresetChip({
         translatePrompt: settings.systemPrompt,
         summaryPrompt: settings.summaryPrompt,
         contextPrompt: settings.contextPrompt,
+        chunkSummaryPrompt: settings.chunkSummaryPrompt,
       },
       presetPromptSet(preset)
     );

@@ -35,6 +35,10 @@ export interface ChunkDTO {
   rawResponse: string | null;
   attempts: number;
   edited: boolean;
+  /** CR v0.5 — tóm tắt ngắn của chunk. null = chưa có (chưa bật, hoặc model quên thẻ). */
+  summary: string | null;
+  /** CR v0.5 — lần dịch gần nhất có kèm tóm tắt đoạn trước hay không. */
+  prevSummaryUsed: boolean;
   updatedAt: string;
 }
 

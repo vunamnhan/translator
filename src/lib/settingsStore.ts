@@ -34,6 +34,8 @@ function readStorage(): Settings {
     merged.chunkRule = normalizeChunkRule(merged.chunkRule);
     merged.headingLevel = clampHeadingLevel(merged.headingLevel);
     merged.chunkMarker = normalizeMarker(merged.chunkMarker);
+    // CR v0.5 — chuỗi không đứng một mình được: tóm tắt chunk tắt thì chuỗi cũng tắt.
+    merged.chainPrevSummary = merged.chunkSummary && merged.chainPrevSummary;
     return merged;
   } catch {
     return DEFAULT_SETTINGS;
@@ -76,6 +78,7 @@ export function getServerSnapshot(): SettingsState {
 export function setSettings(patch: Partial<Settings>) {
   const settings = { ...state.settings, ...patch };
   if (patch.apiKeys) settings.apiKeys = normalizeApiKeys(patch.apiKeys);
+  settings.chainPrevSummary = settings.chunkSummary && settings.chainPrevSummary;
   state = { settings, loaded: true };
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));

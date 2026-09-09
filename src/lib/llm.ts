@@ -1,9 +1,14 @@
 import {
   CONTEXT_CONTRACT,
   CONTEXT_REMINDER,
+  DEFAULT_CHUNK_SUMMARY_PROMPT,
   documentContextBlock,
+  normalizeChunkSummary,
   OUTPUT_CONTRACT,
+  OUTPUT_CONTRACT_WITH_SUMMARY,
+  previousChunkSummaryBlock,
   REMINDER,
+  REMINDER_WITH_SUMMARY,
   SUMMARY_CONTRACT,
   SUMMARY_REMINDER,
 } from "./defaults";
@@ -70,10 +75,18 @@ export interface TranslateParams {
   source: string;
   /** Ngữ cảnh chung của job. Rỗng/null → không bơm block nào. */
   documentContext?: string | null;
+  /** CR v0.5 — xin thêm thẻ <summary> trong cùng cú gọi. Tắt → prompt y hệt v0.2. */
+  withSummary?: boolean;
+  /** Prompt tóm tắt chunk (working copy). Rỗng → mặc định app. Chỉ dùng khi `withSummary`. */
+  chunkSummaryPrompt?: string | null;
+  /** Tóm tắt chunk liền trước. Rỗng/null → không bơm khối nào. */
+  previousSummary?: string | null;
 }
 
 export interface TranslateOutcome {
   translated: string | null;
+  /** CR v0.5 — nội dung thẻ <summary>. null khi tắt `withSummary` hoặc model quên thẻ. */
+  summary: string | null;
   raw: string | null;
   attempts: number;
   error: string | null;
@@ -178,20 +191,37 @@ const CONTEXT_SPEC: TagSpec = { tag: "context", contract: CONTEXT_CONTRACT, remi
 
 /**
  * Gọi LLM, retry khi model quên thẻ output.
- * Thứ tự system message: prompt user → block ngữ cảnh chung → output contract.
+ * Thứ tự system message: prompt user → ngữ cảnh chung → tóm tắt đoạn trước →
+ * prompt tóm tắt chunk → output contract. Ba mảnh giữa chỉ có khi CR v0.5 bật;
+ * tắt thì chuỗi ghép ra đúng byte như v0.2.
+ *
+ * Chỉ luồng dịch mới xin hai thẻ — tóm tắt section và ngữ cảnh chung không đụng vào.
  */
 async function runTagged(p: TranslateParams, spec: TagSpec): Promise<TranslateOutcome> {
   let raw: string | null = null;
   let attempts = 0;
   const ctx = p.documentContext?.trim() ? documentContextBlock(p.documentContext.trim()) : null;
 
+  const twoTag = spec === TRANSLATE_SPEC && p.withSummary === true;
+  const prevBlock =
+    twoTag && p.previousSummary?.trim()
+      ? previousChunkSummaryBlock(p.previousSummary.trim())
+      : null;
+  const summaryPrompt = twoTag
+    ? p.chunkSummaryPrompt?.trim() || DEFAULT_CHUNK_SUMMARY_PROMPT
+    : null;
+  const contract = twoTag ? OUTPUT_CONTRACT_WITH_SUMMARY : spec.contract;
+  const reminder = twoTag ? REMINDER_WITH_SUMMARY : spec.reminder;
+
   for (let attempt = 1; attempt <= TAG_RETRIES; attempt++) {
     attempts = attempt;
     const parts = [
-      attempt === 1 ? null : spec.reminder,
+      attempt === 1 ? null : reminder,
       p.systemPrompt,
       ctx,
-      spec.contract,
+      prevBlock,
+      summaryPrompt,
+      contract,
     ].filter((v): v is string => Boolean(v));
     const messages = [
       { role: "system", content: parts.join("\n\n") },
@@ -203,16 +233,19 @@ async function runTagged(p: TranslateParams, spec: TagSpec): Promise<TranslateOu
       raw = content;
       const extracted = extractTag(content, spec.tag);
       if (extracted !== null) {
-        return { translated: extracted, raw, attempts, error: null };
+        // Thiếu <summary> thì vẫn nhận bản dịch — không retry, bản dịch mới là thứ chính (§2.1).
+        const summary = twoTag ? normalizeChunkSummary(extractTag(content, "summary")) : null;
+        return { translated: extracted, summary, raw, attempts, error: null };
       }
     } catch (e) {
       const err = e as LlmError;
-      return { translated: null, raw: err.raw ?? raw, attempts, error: err.message };
+      return { translated: null, summary: null, raw: err.raw ?? raw, attempts, error: err.message };
     }
   }
 
   return {
     translated: null,
+    summary: null,
     raw,
     attempts,
     error: `LLM không trả thẻ <${spec.tag}> sau ${TAG_RETRIES} lần thử`,

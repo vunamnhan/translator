@@ -52,6 +52,46 @@ export const REMINDER = `NHẮC LẠI: Lần trước bạn quên thẻ. Bắt b
 export const SUMMARY_REMINDER = `NHẮC LẠI: Lần trước bạn quên thẻ. Bắt buộc bọc toàn bộ bản tóm tắt trong <summary></summary>.`;
 export const CONTEXT_REMINDER = `NHẮC LẠI: Lần trước bạn quên thẻ. Bắt buộc bọc toàn bộ nội dung trong <context></context>.`;
 
+/**
+ * CR v0.5 — prompt tóm tắt chunk mặc định. Preset ghi đè được (`chunkSummaryPrompt`
+ * trong Settings). Chỉ nói tóm tắt cái gì; luật thẻ do app nối qua contract.
+ */
+export const DEFAULT_CHUNK_SUMMARY_PROMPT = `Sau khi dịch, viết thêm phần tóm tắt ngắn của đoạn vừa dịch bằng tiếng Việt, 2–4 câu:
+- đoạn nói về gì, chủ thể / nhân vật nào đang xuất hiện;
+- đoạn kết thúc ở trạng thái nào (đang dở câu chuyện, đang liệt kê, vừa đặt câu hỏi…).
+Chỉ dùng để đoạn kế tiếp hiểu mạch. Không nhận xét, không lặp lại bản dịch.`;
+
+/** Contract khi bật `chunkSummary`: một cú gọi trả cả bản dịch lẫn tóm tắt (CR v0.5 §4.2). */
+export const OUTPUT_CONTRACT_WITH_SUMMARY = `QUY TẮC ĐẦU RA BẮT BUỘC:
+Trả về đúng hai thẻ, theo thứ tự:
+<translation>bản dịch</translation>
+<summary>tóm tắt ngắn của đoạn vừa dịch</summary>
+Không chào hỏi, không giải thích, không thêm bất kỳ nội dung nào ngoài hai thẻ.
+Văn bản nguồn nằm trong thẻ <source></source>.`;
+
+export const REMINDER_WITH_SUMMARY = `NHẮC LẠI: Lần trước bạn quên thẻ. Bắt buộc bọc bản dịch trong <translation></translation> và tóm tắt trong <summary></summary>.`;
+
+/** Tóm tắt chunk cắt cứng 1 000 ký tự sau trim; rỗng coi như không có. */
+export const MAX_CHUNK_SUMMARY = 1000;
+
+export function normalizeChunkSummary(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const text = raw.trim();
+  return text ? text.slice(0, MAX_CHUNK_SUMMARY) : null;
+}
+
+/** Khối tóm tắt đoạn ngay trước, bơm sau ngữ cảnh chung (CR v0.5 §4.1). */
+export function previousChunkSummaryBlock(summary: string): string {
+  return `<previous_chunk_summary>
+${summary}
+</previous_chunk_summary>
+Đây là tóm tắt đoạn ngay trước đoạn cần dịch, chỉ để hiểu mạch và giữ giọng, xưng hô nhất quán. Không dịch, không lặp lại nội dung này.`;
+}
+
+/** Câu warning của luồng chuỗi — route ghi vào chunk, UI so chuỗi nên để một chỗ. */
+export const WARN_NO_CHUNK_SUMMARY = "Model không trả tóm tắt chunk";
+export const WARN_NO_PREV_SUMMARY = "Không có tóm tắt đoạn trước";
+
 /** Block ngữ cảnh chung, dùng chung cho cả luồng dịch lẫn luồng tóm tắt section. */
 export function documentContextBlock(context: string): string {
   return `<document_context>
@@ -72,6 +112,12 @@ export interface Settings {
   summaryPrompt: string;
   /** Prompt tạo ngữ cảnh chung (CR v0.3). Rỗng = dùng `CONTEXT_PROMPT` của app. */
   contextPrompt: string;
+  /** Prompt tóm tắt chunk (CR v0.5). Rỗng = dùng `DEFAULT_CHUNK_SUMMARY_PROMPT` của app. */
+  chunkSummaryPrompt: string;
+  /** CR v0.5 — cùng cú gọi dịch xin thêm thẻ <summary> cho từng chunk. */
+  chunkSummary: boolean;
+  /** CR v0.5 — bơm tóm tắt chunk trước vào prompt; ép dịch 1-1. Cần `chunkSummary` bật. */
+  chainPrevSummary: boolean;
   /** Preset đang gắn (CR v0.3). null = "Tuỳ chỉnh". Preset không còn trên DB cũng coi như null. */
   presetId: string | null;
   summaryTokens: number;
@@ -95,6 +141,9 @@ export const DEFAULT_SETTINGS: Settings = {
   concurrency: 3,
   summaryPrompt: DEFAULT_SUMMARY_PROMPT,
   contextPrompt: "",
+  chunkSummaryPrompt: "",
+  chunkSummary: false,
+  chainPrevSummary: false,
   presetId: null,
   summaryTokens: 6000,
   contextMaxTokens: 80000,

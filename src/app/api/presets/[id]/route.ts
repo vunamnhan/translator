@@ -2,8 +2,8 @@ import { db } from "@/db";
 import { presets } from "@/db/schema";
 import { bad, isUniqueViolation, ok, readJson } from "@/lib/http";
 import {
-  normalizeContextPrompt,
   normalizeName,
+  normalizeOptionalPrompt,
   validatePresetInput,
   type PresetInput,
 } from "@/lib/presets";
@@ -29,7 +29,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
   if (body.translatePrompt !== undefined) patch.translatePrompt = body.translatePrompt as string;
   if (body.summaryPrompt !== undefined) patch.summaryPrompt = body.summaryPrompt as string;
   if (body.contextPrompt !== undefined) {
-    patch.contextPrompt = normalizeContextPrompt(body.contextPrompt);
+    patch.contextPrompt = normalizeOptionalPrompt(body.contextPrompt);
+  }
+  if (body.chunkSummaryPrompt !== undefined) {
+    patch.chunkSummaryPrompt = normalizeOptionalPrompt(body.chunkSummaryPrompt);
   }
 
   try {

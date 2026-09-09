@@ -81,6 +81,7 @@ describe("samePromptSet", () => {
     translatePrompt: "dịch",
     summaryPrompt: "tóm tắt",
     contextPrompt: null,
+    chunkSummaryPrompt: null,
     updatedAt: "2026-01-01T00:00:00.000Z",
   };
 
@@ -88,7 +89,7 @@ describe("samePromptSet", () => {
     expect(presetPromptSet(preset).contextPrompt).toBe("");
     expect(
       samePromptSet(
-        { translatePrompt: "dịch", summaryPrompt: "tóm tắt", contextPrompt: "" },
+        { translatePrompt: "dịch", summaryPrompt: "tóm tắt", contextPrompt: "", chunkSummaryPrompt: "" },
         presetPromptSet(preset)
       )
     ).toBe(true);
@@ -97,7 +98,12 @@ describe("samePromptSet", () => {
   it("bỏ qua khác biệt khoảng trắng đầu cuối", () => {
     expect(
       samePromptSet(
-        { translatePrompt: "dịch\n", summaryPrompt: "  tóm tắt", contextPrompt: "\n" },
+        {
+          translatePrompt: "dịch\n",
+          summaryPrompt: "  tóm tắt",
+          contextPrompt: "\n",
+          chunkSummaryPrompt: " ",
+        },
         presetPromptSet(preset)
       )
     ).toBe(true);
@@ -106,17 +112,47 @@ describe("samePromptSet", () => {
   it("khác nội dung thì báo khác", () => {
     expect(
       samePromptSet(
-        { translatePrompt: "dịch khác", summaryPrompt: "tóm tắt", contextPrompt: "" },
+        {
+          translatePrompt: "dịch khác",
+          summaryPrompt: "tóm tắt",
+          contextPrompt: "",
+          chunkSummaryPrompt: "",
+        },
         presetPromptSet(preset)
       )
     ).toBe(false);
   });
 });
 
+describe("chunkSummaryPrompt (CR v0.5)", () => {
+  it("nhận null / rỗng, chặn quá dài", () => {
+    expect(validatePresetInput({ ...full, chunkSummaryPrompt: null })).toBeNull();
+    expect(validatePresetInput({ ...full, chunkSummaryPrompt: "tóm tắt chunk" })).toBeNull();
+    expect(
+      validatePresetInput({ ...full, chunkSummaryPrompt: "x".repeat(MAX_PROMPT_CHARS + 1) })
+    ).toMatch(/Prompt tóm tắt chunk quá/);
+  });
+
+  it("đếm vào phần so 'đã sửa' của working copy", () => {
+    const base = {
+      translatePrompt: "dịch",
+      summaryPrompt: "tóm tắt",
+      contextPrompt: "",
+      chunkSummaryPrompt: "",
+    };
+    expect(samePromptSet(base, { ...base, chunkSummaryPrompt: "khác" })).toBe(false);
+  });
+});
+
 describe("contractWarning", () => {
   it("im lặng khi prompt không nhắc tới thẻ", () => {
     expect(
-      contractWarning({ translatePrompt: "dịch", summaryPrompt: "tóm", contextPrompt: "" })
+      contractWarning({
+        translatePrompt: "dịch",
+        summaryPrompt: "tóm",
+        contextPrompt: "",
+        chunkSummaryPrompt: "",
+      })
     ).toBeNull();
   });
 
@@ -125,6 +161,7 @@ describe("contractWarning", () => {
       translatePrompt: "Bọc trong <translation>",
       summaryPrompt: "tóm",
       contextPrompt: "<context> gì đó",
+      chunkSummaryPrompt: "",
     });
     expect(warn).toContain("<translation>");
     expect(warn).toContain("<context>");

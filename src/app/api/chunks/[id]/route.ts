@@ -1,5 +1,6 @@
 import { db } from "@/db";
 import { chunks } from "@/db/schema";
+import { normalizeChunkSummary } from "@/lib/defaults";
 import { bad, ok, readJson } from "@/lib/http";
 import { eq } from "drizzle-orm";
 
@@ -12,6 +13,8 @@ interface PatchBody {
   sourceOverride?: string | null;
   translated?: string | null;
   status?: "pending";
+  /** CR v0.5 — sửa tay tóm tắt chunk. Rỗng → null. */
+  summary?: string | null;
 }
 
 export async function PATCH(req: Request, { params }: Ctx) {
@@ -31,6 +34,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
       patch.status = "done";
       patch.error = null;
     }
+  }
+  if ("summary" in body) {
+    patch.summary = normalizeChunkSummary(body.summary);
   }
   if (body.status === "pending") {
     patch.status = "pending";

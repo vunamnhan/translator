@@ -87,6 +87,7 @@ export async function createPreset(input: {
   translatePrompt: string;
   summaryPrompt: string;
   contextPrompt: string;
+  chunkSummaryPrompt: string;
 }): Promise<PresetDTO> {
   const res = await send("/api/presets", {
     method: "POST",
@@ -105,6 +106,7 @@ export async function updatePreset(
     translatePrompt: string;
     summaryPrompt: string;
     contextPrompt: string;
+    chunkSummaryPrompt: string;
   }>
 ): Promise<PresetDTO> {
   const res = await send(`/api/presets/${id}`, {

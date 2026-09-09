@@ -23,6 +23,18 @@ import type { ChunkDTO, JobDTO, SectionDTO } from "@/lib/types";
 type Tab = "translate" | "summary";
 type Loop = "translate" | "summary";
 
+/** Kết quả một bước dịch. "broken" = server chặn vì chunk trước chưa xong (409). */
+type StepResult = "ok" | "error" | "broken";
+
+/** Chỗ chuỗi đứt (CR v0.5 §2.3). `fixed` = đã dịch lại chunk chặn, chỉ còn chờ Resume. */
+interface ChainBreak {
+  brokenIdx: number;
+  brokenId: string | null;
+  /** Chạy tiếp từ idx này khi bấm Resume / Tiếp tục bất chấp. */
+  resumeFromIdx: number;
+  fixed: boolean;
+}
+
 export default function JobView({ jobId }: { jobId: string }) {
   const router = useRouter();
   const { settings, loaded } = useSettings();
@@ -53,6 +65,7 @@ export default function JobView({ jobId }: { jobId: string }) {
     if (readMode) setListOpen(false);
   }, [readMode]);
   const [dismissed, setDismissed] = useState<Record<string, boolean>>({});
+  const [chainBreak, setChainBreak] = useState<ChainBreak | null>(null);
   // Key nào đã gọi thẻ nào — chỉ giữ trong bộ nhớ trang, không lưu DB (§8.1).
   const [keyUsed, setKeyUsed] = useState<Record<string, number>>({});
   const [cooling, setCooling] = useState(false);
@@ -70,6 +83,8 @@ export default function JobView({ jobId }: { jobId: string }) {
   /** Bộ đếm round-robin dùng chung cho cả 3 luồng, reset khi tải lại trang. */
   const keyCursor = useRef(0);
   const coolingWorkers = useRef(0);
+  /** Lượt chạy "Tiếp tục bất chấp": gửi force cho mọi chunk có prev chưa xong. */
+  const forceChain = useRef(false);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/jobs/${jobId}`);
@@ -110,8 +125,16 @@ export default function JobView({ jobId }: { jobId: string }) {
     return pick;
   }, []);
 
-  /** Pool chạy chung cho cả 2 vòng lặp. */
-  const runPool = useCallback(async (kind: Loop, ids: string[], one: (id: string) => Promise<void>) => {
+  /**
+   * Pool chạy chung cho cả 2 vòng lặp. `opts.pool` ép số worker (chuỗi = 1),
+   * `opts.stopOnError` dừng cả vòng ngay tại chunk hỏng thay vì chạy tiếp.
+   */
+  const runPool = useCallback(async (
+    kind: Loop,
+    ids: string[],
+    one: (id: string) => Promise<boolean>,
+    opts?: { pool?: number; stopOnError?: boolean }
+  ) => {
     if (runRef.current) {
       setNotice("Đang có một vòng lặp chạy — Pause trước đã.");
       return;
@@ -122,7 +145,7 @@ export default function JobView({ jobId }: { jobId: string }) {
     setLoop(kind);
 
     let cursor = 0;
-    const pool = Math.min(6, Math.max(1, settingsRef.current.concurrency));
+    const pool = opts?.pool ?? Math.min(6, Math.max(1, settingsRef.current.concurrency));
     const active = () => runRef.current === kind;
     coolingWorkers.current = 0;
     setCooling(false);
@@ -142,7 +165,11 @@ export default function JobView({ jobId }: { jobId: string }) {
             if (!carryOn) break;
           }
           first = false;
-          await one(ids[cursor++]);
+          const stepOk = await one(ids[cursor++]);
+          if (opts?.stopOnError && !stepOk) {
+            runRef.current = null;
+            break;
+          }
         }
       })
     );
@@ -168,7 +195,7 @@ export default function JobView({ jobId }: { jobId: string }) {
 
   /** 1 API call = 1 chunk, dùng đúng cấu hình trong Settings. Server không loop. */
   const callTranslate = useCallback(
-    async (id: string, pick: KeyPick): Promise<ChunkDTO | { error: string }> => {
+    async (id: string, pick: KeyPick): Promise<ChunkDTO | { error: string; brokenAt?: number }> => {
       const s = settingsRef.current;
       try {
         const res = await fetch(`/api/chunks/${id}/translate`, {
@@ -180,10 +207,19 @@ export default function JobView({ jobId }: { jobId: string }) {
             systemPrompt: s.systemPrompt,
             temperature: s.temperature,
             useContext: s.useContextForTranslation,
+            withSummary: s.chunkSummary,
+            usePrevSummary: s.chunkSummary && s.chainPrevSummary,
+            force: forceChain.current,
+            chunkSummaryPrompt: s.chunkSummaryPrompt,
           }),
         });
         const data = await res.json();
-        if (!res.ok) return { error: data.error ?? `HTTP ${res.status}` };
+        if (!res.ok) {
+          return {
+            error: data.error ?? `HTTP ${res.status}`,
+            brokenAt: typeof data.brokenAt === "number" ? data.brokenAt : undefined,
+          };
+        }
         return data as ChunkDTO;
       } catch (e) {
         return { error: (e as Error).message };
@@ -193,8 +229,11 @@ export default function JobView({ jobId }: { jobId: string }) {
   );
 
   const translateOne = useCallback(
-    async (id: string) => {
-      const keys = settingsRef.current.apiKeys;
+    async (id: string): Promise<StepResult> => {
+      const s = settingsRef.current;
+      const keys = s.apiKeys;
+      const chain = s.chunkSummary && s.chainPrevSummary;
+      const before = chunksRef.current.find((c) => c.id === id);
       patchChunk(id, { status: "translating", error: null });
 
       let pick = takeKey();
@@ -212,20 +251,63 @@ export default function JobView({ jobId }: { jobId: string }) {
         const withKey =
           row.error && label ? ({ ...row, error: `${label}${row.error}` } as ChunkDTO) : row;
         setChunks((prev) => prev.map((c) => (c.id === id ? withKey : c)));
-        return;
+        if (row.status !== "error") return "ok";
+        if (chain) setChainBreak({ brokenIdx: row.idx, brokenId: row.id, resumeFromIdx: row.idx + 1, fixed: false });
+        return "error";
       }
+
+      // 409 chuỗi đứt: server chưa đụng gì vào chunk, trả nó về đúng trạng thái cũ.
+      if (row.brokenAt !== undefined) {
+        patchChunk(id, {
+          status: before?.status ?? "pending",
+          error: before?.error ?? null,
+        });
+        const blocking = chunksRef.current.find((c) => c.idx === row.brokenAt);
+        setChainBreak({
+          brokenIdx: row.brokenAt,
+          brokenId: blocking?.id ?? null,
+          resumeFromIdx: before?.idx ?? row.brokenAt + 1,
+          fixed: false,
+        });
+        return "broken";
+      }
+
       patchChunk(id, { status: "error", error: `${label}${row.error}` });
+      if (chain && before) {
+        setChainBreak({ brokenIdx: before.idx, brokenId: id, resumeFromIdx: before.idx + 1, fixed: false });
+      }
+      return "error";
     },
     [callTranslate, patchChunk, takeKey]
   );
 
-  const start = useCallback(async () => {
-    if (needKey()) return;
-    const ids = chunksRef.current
-      .filter((c) => c.status === "pending" || c.status === "error")
-      .map((c) => c.id);
-    await runPool("translate", ids, translateOne);
-  }, [needKey, runPool, translateOne]);
+  /**
+   * Chuỗi bật → pool 1, theo idx tăng dần, dừng ngay khi đứt (§2.3).
+   * `fromIdx` để chạy tiếp sau chỗ đứt, `force` là lượt "Tiếp tục bất chấp".
+   */
+  const start = useCallback(
+    async (opts?: { fromIdx?: number; force?: boolean }) => {
+      if (needKey()) return;
+      const s = settingsRef.current;
+      const chain = s.chunkSummary && s.chainPrevSummary;
+      forceChain.current = chain && opts?.force === true;
+      setChainBreak(null);
+      const from = opts?.fromIdx;
+      const ids = chunksRef.current
+        .filter((c) => c.status === "pending" || c.status === "error")
+        .filter((c) => from === undefined || c.idx >= from)
+        .sort((a, b) => a.idx - b.idx)
+        .map((c) => c.id);
+      await runPool(
+        "translate",
+        ids,
+        async (id) => (await translateOne(id)) === "ok",
+        chain ? { pool: 1, stopOnError: true } : undefined
+      );
+      forceChain.current = false;
+    },
+    [needKey, runPool, translateOne]
+  );
 
   const retryErrors = useCallback(async () => {
     const errored = chunksRef.current.filter((c) => c.status === "error");
@@ -246,8 +328,8 @@ export default function JobView({ jobId }: { jobId: string }) {
   }, [start]);
 
   const retranslateOne = useCallback(
-    async (id: string) => {
-      if (needKey()) return;
+    async (id: string): Promise<StepResult | null> => {
+      if (needKey()) return null;
       // Khoá nút ngay, đừng chờ round-trip DB — nếu không user bấm thêm lần nữa.
       patchChunk(id, { status: "translating", error: null, warning: null });
       await fetch(`/api/chunks/${id}`, {
@@ -255,10 +337,32 @@ export default function JobView({ jobId }: { jobId: string }) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ status: "pending" }),
       });
-      await translateOne(id);
+      const res = await translateOne(id);
+      if (res !== "broken") return res;
+
+      // Dịch lẻ mà chuỗi đứt: hỏi rồi mới bỏ ngữ cảnh đoạn trước (§2.2).
+      const okForce = await ask({
+        title: "Chunk trước chưa dịch xong",
+        body: "Dịch chunk này không kèm ngữ cảnh đoạn trước?",
+        ok: "Dịch không kèm ngữ cảnh",
+      });
+      if (!okForce) return res;
+      setChainBreak(null);
+      forceChain.current = true;
+      const forced = await translateOne(id);
+      forceChain.current = false;
+      return forced;
     },
-    [needKey, patchChunk, translateOne]
+    [ask, needKey, patchChunk, translateOne]
   );
+
+  /** Nút "Dịch lại #k" trên banner đứt chuỗi — xong thì banner chỉ còn [Resume]. */
+  const fixChain = useCallback(async () => {
+    const brk = chainBreak;
+    if (!brk?.brokenId) return;
+    const res = await retranslateOne(brk.brokenId);
+    if (res === "ok") setChainBreak({ ...brk, fixed: true });
+  }, [chainBreak, retranslateOne]);
 
   const saveSource = useCallback(async (id: string, value: string) => {
     const res = await fetch(`/api/chunks/${id}`, {
@@ -276,6 +380,17 @@ export default function JobView({ jobId }: { jobId: string }) {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ translated: value }),
+    });
+    if (!res.ok) return;
+    const row: ChunkDTO = await res.json();
+    setChunks((prev) => prev.map((c) => (c.id === id ? row : c)));
+  }, []);
+
+  const saveChunkSummary = useCallback(async (id: string, value: string) => {
+    const res = await fetch(`/api/chunks/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ summary: value }),
     });
     if (!res.ok) return;
     const row: ChunkDTO = await res.json();
@@ -368,7 +483,7 @@ export default function JobView({ jobId }: { jobId: string }) {
   );
 
   const summarizeOne = useCallback(
-    async (id: string) => {
+    async (id: string): Promise<boolean> => {
       const keys = settingsRef.current.apiKeys;
       patchSection(id, { status: "summarizing", error: null });
 
@@ -386,9 +501,10 @@ export default function JobView({ jobId }: { jobId: string }) {
         const withKey =
           row.error && label ? ({ ...row, error: `${label}${row.error}` } as SectionDTO) : row;
         setSections((prev) => prev.map((x) => (x.id === id ? withKey : x)));
-        return;
+        return row.status !== "error";
       }
       patchSection(id, { status: "error", error: `${label}${row.error}` });
+      return false;
     },
     [callSummarize, patchSection, takeKey]
   );
@@ -588,6 +704,25 @@ export default function JobView({ jobId }: { jobId: string }) {
     void resection(settingsRef.current.summaryTokens, false);
   }, [summaryTokensDiffer, hasSummary, loop, resection]);
 
+  /**
+   * ⚠ "tóm tắt đoạn trước đã đổi": so `updatedAt` của prev với của chính chunk,
+   * không thêm cột nào (§2.2). Chỉ xét chunk từng dịch có kèm ngữ cảnh đoạn trước.
+   */
+  const staleContext = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    let prev: ChunkDTO | null = null;
+    for (const c of [...chunks].sort((a, b) => a.idx - b.idx)) {
+      if (c.status === "skipped") continue;
+      if (prev && c.prevSummaryUsed && c.status === "done") {
+        map[c.id] = new Date(prev.updatedAt).getTime() > new Date(c.updatedAt).getTime();
+      }
+      prev = c;
+    }
+    return map;
+  }, [chunks]);
+
+  const chainOn = settings.chunkSummary && settings.chainPrevSummary;
+
   const stats = useMemo(() => {
     const total = chunks.length;
     const done = chunks.filter((c) => c.status === "done").length;
@@ -722,6 +857,14 @@ export default function JobView({ jobId }: { jobId: string }) {
                 </span>
                 {stats.errors > 0 && <span className="text-danger-700">{stats.errors} lỗi</span>}
                 {stats.warnings > 0 && <span className="text-warn-fg">{stats.warnings} cảnh báo</span>}
+                {chainOn && (
+                  <span
+                    title="Chuỗi ngữ cảnh bật: dịch tuần tự 1-1, bỏ qua Concurrency"
+                    className="tag shrink-0 bg-accent-100 text-accent-800"
+                  >
+                    Chuỗi 1-1
+                  </span>
+                )}
                 {cooling && (
                   <span className="text-run-fg">đang nghỉ {settings.cooldownMs / 1000}s…</span>
                 )}
@@ -764,7 +907,7 @@ export default function JobView({ jobId }: { jobId: string }) {
               </button>
             ) : (
               <button
-                onClick={isTranslate ? start : startSummary}
+                onClick={() => void (isTranslate ? start() : startSummary())}
                 disabled={
                   !loaded ||
                   loop !== null ||
@@ -914,6 +1057,30 @@ export default function JobView({ jobId }: { jobId: string }) {
           </Banner>
         )}
 
+        {isTranslate && chainBreak && (
+          <Banner
+            tone={chainBreak.fixed ? "info" : "danger"}
+            action={chainBreak.fixed ? "Resume" : `Dịch lại #${chainBreak.brokenIdx}`}
+            onAction={() =>
+              void (chainBreak.fixed ? start({ fromIdx: chainBreak.resumeFromIdx }) : fixChain())
+            }
+            action2={chainBreak.fixed ? undefined : "Tiếp tục bất chấp"}
+            onAction2={() =>
+              void start({ fromIdx: chainBreak.resumeFromIdx, force: true })
+            }
+            note={
+              chainBreak.fixed
+                ? undefined
+                : "(tiếp tục = dịch không kèm tóm tắt đoạn trước cho tới khi Pause)"
+            }
+            onClose={() => setChainBreak(null)}
+          >
+            {chainBreak.fixed
+              ? `Đã dịch lại #${chainBreak.brokenIdx} — chạy tiếp từ #${chainBreak.resumeFromIdx}.`
+              : `Chuỗi đứt ở #${chainBreak.brokenIdx}`}
+          </Banner>
+        )}
+
         {notice && (
           <Banner tone="info" onClose={() => setNotice(null)}>
             {notice}
@@ -946,11 +1113,13 @@ export default function JobView({ jobId }: { jobId: string }) {
                 <ChunkBar
                   chunk={c}
                   keyIndex={keyUsed[c.id]}
+                  staleContext={staleContext[c.id]}
                   expanded={selectedId === c.id}
                   onToggle={(id) => setSelectedId((cur) => (cur === id ? null : id))}
                   onSaveSource={saveSource}
                   onSaveTranslated={saveTranslated}
-                  onRetranslate={retranslateOne}
+                  onSaveSummary={saveChunkSummary}
+                  onRetranslate={(id) => void retranslateOne(id)}
                 />
               </div>
             ))}

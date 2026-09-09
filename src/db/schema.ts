@@ -49,6 +49,10 @@ export const chunks = pgTable(
     rawResponse: text("raw_response"),
     attempts: integer("attempts").notNull().default(0),
     edited: boolean("edited").notNull().default(false),
+    /** CR v0.5 — tóm tắt ngắn của chunk, do chính cú gọi dịch trả về. Sửa tay được. */
+    summary: text("summary"),
+    /** CR v0.5 — lần dịch gần nhất có kèm khối <previous_chunk_summary> hay không. */
+    prevSummaryUsed: boolean("prev_summary_used").notNull().default(false),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("chunks_job_idx").on(t.jobId, t.idx), index("chunks_job").on(t.jobId)]
@@ -83,6 +87,8 @@ export const presets = pgTable("presets", {
   summaryPrompt: text("summary_prompt").notNull(),
   /** null / rỗng = dùng CONTEXT_PROMPT cố định của app. */
   contextPrompt: text("context_prompt"),
+  /** CR v0.5 — null / rỗng = dùng DEFAULT_CHUNK_SUMMARY_PROMPT của app. */
+  chunkSummaryPrompt: text("chunk_summary_prompt"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

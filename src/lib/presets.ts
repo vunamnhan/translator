@@ -13,14 +13,18 @@ export interface PresetDTO {
   summaryPrompt: string;
   /** null = dùng CONTEXT_PROMPT cố định của app. */
   contextPrompt: string | null;
+  /** CR v0.5 — null = dùng DEFAULT_CHUNK_SUMMARY_PROMPT của app. */
+  chunkSummaryPrompt: string | null;
   updatedAt: string;
 }
 
-/** Ba prompt của một preset, cũng là working copy trong Settings. */
+/** Bốn prompt của một preset, cũng là working copy trong Settings. */
 export interface PromptSet {
   translatePrompt: string;
   summaryPrompt: string;
   contextPrompt: string;
+  /** CR v0.5 — rỗng = dùng prompt tóm tắt chunk mặc định của app. */
+  chunkSummaryPrompt: string;
 }
 
 export interface PresetInput {
@@ -28,6 +32,7 @@ export interface PresetInput {
   translatePrompt?: unknown;
   summaryPrompt?: unknown;
   contextPrompt?: unknown;
+  chunkSummaryPrompt?: unknown;
 }
 
 export function normalizeName(raw: unknown): string {
@@ -35,11 +40,14 @@ export function normalizeName(raw: unknown): string {
 }
 
 /** Rỗng sau trim = null: '' và null cùng nghĩa "dùng prompt của app" (§3.1). */
-export function normalizeContextPrompt(raw: unknown): string | null {
+export function normalizeOptionalPrompt(raw: unknown): string | null {
   if (raw === null || raw === undefined) return null;
   if (typeof raw !== "string") return null;
   return raw.trim() ? raw : null;
 }
+
+/** Tên cũ từ v0.3, giữ lại vì luật của `contextPrompt` và `chunkSummaryPrompt` y hệt nhau. */
+export const normalizeContextPrompt = normalizeOptionalPrompt;
 
 function promptError(label: string, value: unknown): string | null {
   if (typeof value !== "string" || value.trim().length === 0) return `Thiếu ${label}`;
@@ -70,6 +78,12 @@ export function validatePresetInput(body: PresetInput, partial = false): string 
       return `Prompt ngữ cảnh chung quá ${MAX_PROMPT_CHARS} ký tự`;
     }
   }
+  if (has("chunkSummaryPrompt") && body.chunkSummaryPrompt !== null) {
+    if (typeof body.chunkSummaryPrompt !== "string") return "Prompt tóm tắt chunk không hợp lệ";
+    if (body.chunkSummaryPrompt.length > MAX_PROMPT_CHARS) {
+      return `Prompt tóm tắt chunk quá ${MAX_PROMPT_CHARS} ký tự`;
+    }
+  }
   return null;
 }
 
@@ -78,7 +92,8 @@ export function samePromptSet(a: PromptSet, b: PromptSet): boolean {
   return (
     a.translatePrompt.trim() === b.translatePrompt.trim() &&
     a.summaryPrompt.trim() === b.summaryPrompt.trim() &&
-    a.contextPrompt.trim() === b.contextPrompt.trim()
+    a.contextPrompt.trim() === b.contextPrompt.trim() &&
+    a.chunkSummaryPrompt.trim() === b.chunkSummaryPrompt.trim()
   );
 }
 
@@ -87,6 +102,7 @@ export function presetPromptSet(p: PresetDTO): PromptSet {
     translatePrompt: p.translatePrompt,
     summaryPrompt: p.summaryPrompt,
     contextPrompt: p.contextPrompt ?? "",
+    chunkSummaryPrompt: p.chunkSummaryPrompt ?? "",
   };
 }
 
@@ -97,7 +113,8 @@ const CONTRACT_TAGS = ["<translation>", "<summary>", "<context>"];
  * Chỉ cảnh báo, không chặn (§3.1).
  */
 export function contractWarning(set: PromptSet): string | null {
-  const all = `${set.translatePrompt}\n${set.summaryPrompt}\n${set.contextPrompt}`.toLowerCase();
+  const all =
+    `${set.translatePrompt}\n${set.summaryPrompt}\n${set.contextPrompt}\n${set.chunkSummaryPrompt}`.toLowerCase();
   const hit = CONTRACT_TAGS.filter((tag) => all.includes(tag));
   if (hit.length === 0) return null;
   return `Prompt có chứa ${hit.join(", ")} — app đã tự nối luật thẻ, viết thêm dễ đá nhau.`;

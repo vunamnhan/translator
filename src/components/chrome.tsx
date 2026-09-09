@@ -109,6 +109,7 @@ export function ProgressBar({
 
 const TONE: Record<string, string> = {
   warn: "bg-warn-bg text-warn-fg",
+  danger: "bg-danger-bg text-danger-fg",
   info: "bg-run-soft text-run-fg",
   idle: "bg-idle-bg text-idle-fg",
 };
@@ -119,13 +120,18 @@ export function Banner({
   note,
   action,
   onAction,
+  action2,
+  onAction2,
   onClose,
 }: {
-  tone?: "warn" | "info" | "idle";
+  tone?: "warn" | "info" | "idle" | "danger";
   children: React.ReactNode;
   note?: string;
   action?: string;
   onAction?: () => void;
+  /** Nút thứ hai — chỉ banner đứt chuỗi (CR v0.5) dùng tới. */
+  action2?: string;
+  onAction2?: () => void;
   onClose: () => void;
 }) {
   return (
@@ -136,6 +142,11 @@ export function Banner({
       {action && (
         <button onClick={onAction} className="btn btn-secondary btn-sm h-[30px] bg-white">
           {action}
+        </button>
+      )}
+      {action2 && (
+        <button onClick={onAction2} className="btn btn-secondary btn-sm h-[30px] bg-white">
+          {action2}
         </button>
       )}
       {note && <span className="opacity-75">{note}</span>}

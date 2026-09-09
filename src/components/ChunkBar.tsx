@@ -29,28 +29,38 @@ interface Props {
   chunk: ChunkDTO;
   /** Key thứ mấy đã gọi thẻ này trong lượt chạy hiện tại (0-based). Không lưu DB. */
   keyIndex?: number;
+  /** CR v0.5 — tóm tắt của chunk trước đổi sau khi chunk này dịch xong. */
+  staleContext?: boolean;
   expanded: boolean;
   onToggle: (id: string) => void;
   onSaveSource: (id: string, value: string) => void;
   onSaveTranslated: (id: string, value: string) => void;
+  onSaveSummary: (id: string, value: string) => void;
   onRetranslate: (id: string) => void;
 }
+
+const STALE_NOTE = "Tóm tắt đoạn trước đã đổi sau khi dịch";
 
 export default function ChunkBar({
   chunk,
   keyIndex,
+  staleContext = false,
   expanded,
   onToggle,
   onSaveSource,
   onSaveTranslated,
+  onSaveSummary,
   onRetranslate,
 }: Props) {
   const [src, setSrc] = useState(chunk.sourceOverride ?? chunk.source);
   const [dst, setDst] = useState(chunk.translated ?? "");
+  const [sum, setSum] = useState(chunk.summary ?? "");
   const [tab, setTab] = useState<"source" | "translated" | "raw">("source");
+  const [sumOpen, setSumOpen] = useState(false);
 
   useEffect(() => setSrc(chunk.sourceOverride ?? chunk.source), [chunk.sourceOverride, chunk.source]);
   useEffect(() => setDst(chunk.translated ?? ""), [chunk.translated]);
+  useEffect(() => setSum(chunk.summary ?? ""), [chunk.summary]);
 
   const busy = chunk.status === "translating";
   const code = errorCode(chunk.error);
@@ -64,6 +74,16 @@ export default function ChunkBar({
         {code && <ErrorCode code={code} title={chunk.error ?? undefined} />}
         {chunk.warning && (
           <span title={chunk.warning} className="text-xs text-warn-icon">
+            ⚠
+          </span>
+        )}
+        {chunk.prevSummaryUsed && (
+          <span title="Dịch có ngữ cảnh đoạn trước" className="text-xs text-accent">
+            ⛓
+          </span>
+        )}
+        {staleContext && (
+          <span title={STALE_NOTE} className="text-xs text-warn-icon">
             ⚠
           </span>
         )}
@@ -81,6 +101,7 @@ export default function ChunkBar({
         <div className={BAR_BODY}>
           {chunk.error && <ErrorBox message={chunk.error} code={code} hint={hint} />}
           {chunk.warning && <WarnBox>{chunk.warning}</WarnBox>}
+          {staleContext && <WarnBox>{STALE_NOTE} — dịch lại chunk này nếu muốn khớp mạch.</WarnBox>}
 
           <div className="flex flex-wrap items-center gap-1 border-b border-divider pb-1.5">
             <Tab active={tab === "source"} onClick={() => setTab("source")}>
@@ -149,6 +170,38 @@ export default function ChunkBar({
               }}
               className="textarea textarea-target h-[270px] rounded-[14px]"
             />
+          )}
+
+          {/* Tóm tắt chunk (CR v0.5) — front matter không có tóm tắt nên giấu luôn hàng này. */}
+          {chunk.status !== "skipped" && (
+            <div className="rounded-[14px] border border-divider px-2.5 py-1.5">
+              <button
+                onClick={() => setSumOpen((v) => !v)}
+                className="flex w-full min-w-0 items-center gap-2 text-left text-[12px]"
+              >
+                <span className="shrink-0 text-sand-600">{sumOpen ? "▾" : "▸"} Tóm tắt</span>
+                {!sumOpen && (
+                  <span
+                    className={`min-w-0 flex-1 truncate ${
+                      chunk.summary ? "text-sand-700" : "text-sand-500"
+                    }`}
+                  >
+                    {chunk.summary ? peek(chunk.summary) : "(chưa có)"}
+                  </span>
+                )}
+              </button>
+              {sumOpen && (
+                <textarea
+                  value={sum}
+                  placeholder="(chưa có) — bật “Tạo tóm tắt chunk” trong Settings, hoặc tự viết ở đây."
+                  onChange={(e) => setSum(e.target.value)}
+                  onBlur={() => {
+                    if (sum !== (chunk.summary ?? "")) onSaveSummary(chunk.id, sum);
+                  }}
+                  className="textarea mt-1.5 h-[104px] rounded-[12px] text-[12px]"
+                />
+              )}
+            </div>
           )}
         </div>
       )}

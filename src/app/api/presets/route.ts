@@ -2,8 +2,8 @@ import { db } from "@/db";
 import { presets } from "@/db/schema";
 import { bad, isUniqueViolation, ok, readJson } from "@/lib/http";
 import {
-  normalizeContextPrompt,
   normalizeName,
+  normalizeOptionalPrompt,
   validatePresetInput,
   type PresetInput,
 } from "@/lib/presets";
@@ -32,7 +32,8 @@ export async function POST(req: Request) {
         name: normalizeName(body.name),
         translatePrompt: body.translatePrompt as string,
         summaryPrompt: body.summaryPrompt as string,
-        contextPrompt: normalizeContextPrompt(body.contextPrompt),
+        contextPrompt: normalizeOptionalPrompt(body.contextPrompt),
+        chunkSummaryPrompt: normalizeOptionalPrompt(body.chunkSummaryPrompt),
       })
       .returning();
     return ok(preset, 201);

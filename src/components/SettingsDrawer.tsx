@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CONTEXT_PROMPT,
+  DEFAULT_CHUNK_SUMMARY_PROMPT,
   DEFAULT_SETTINGS,
   MAX_API_KEYS,
   normalizeApiKeys,
@@ -30,6 +31,7 @@ const PROMPT_KEYS: (keyof Settings)[] = [
   "systemPrompt",
   "summaryPrompt",
   "contextPrompt",
+  "chunkSummaryPrompt",
   "presetId",
 ];
 
@@ -39,6 +41,7 @@ function promptSetOf(s: Settings): PromptSet {
     translatePrompt: s.systemPrompt,
     summaryPrompt: s.summaryPrompt,
     contextPrompt: s.contextPrompt,
+    chunkSummaryPrompt: s.chunkSummaryPrompt,
   };
 }
 
@@ -73,6 +76,7 @@ export default function SettingsDrawer({
    */
   const [keyRows, setKeyRowsRaw] = useState<string[]>([]);
   const [showDefaultContext, setShowDefaultContext] = useState(false);
+  const [showDefaultChunkSummary, setShowDefaultChunkSummary] = useState(false);
 
   /** PresetBar ghi settings ngay khi ghi DB — cần draft mới nhất, không phải bản của render trước. */
   const draftRef = useRef(draft);
@@ -89,6 +93,7 @@ export default function SettingsDrawer({
       setSavedAt(null);
       setTab(initialTab);
       setShowDefaultContext(false);
+      setShowDefaultChunkSummary(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialTab]);
@@ -124,7 +129,7 @@ export default function SettingsDrawer({
     setSavedAt(new Date().toLocaleTimeString("vi-VN"));
   }, [draft, syncFrom, updateSettings]);
 
-  /** PresetBar nạp preset vào draft: 3 ô prompt + preset đang gắn. */
+  /** PresetBar nạp preset vào draft: 4 ô prompt + preset đang gắn. */
   const applyPreset = useCallback((patch: { presetId?: string | null; prompts?: PromptSet }) => {
     setDraft((d) => ({
       ...d,
@@ -134,6 +139,7 @@ export default function SettingsDrawer({
             systemPrompt: patch.prompts.translatePrompt,
             summaryPrompt: patch.prompts.summaryPrompt,
             contextPrompt: patch.prompts.contextPrompt,
+            chunkSummaryPrompt: patch.prompts.chunkSummaryPrompt,
           }
         : {}),
     }));
@@ -174,6 +180,12 @@ export default function SettingsDrawer({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, tryClose, save]);
+
+  /** Tắt "tạo tóm tắt chunk" thì chuỗi mất chỗ dựa, tắt luôn (§2.2). */
+  const setChunkSummary = (on: boolean) =>
+    setDraft((d) => ({ ...d, chunkSummary: on, chainPrevSummary: on && d.chainPrevSummary }));
+
+  const chainOn = draft.chunkSummary && draft.chainPrevSummary;
 
   if (!open) return null;
 
@@ -285,16 +297,26 @@ export default function SettingsDrawer({
                 </Field>
               </div>
 
-              <Field label={`Concurrency: ${draft.concurrency}`}>
-                <input
-                  type="range"
-                  min={2}
-                  max={6}
-                  value={draft.concurrency}
-                  onChange={(e) => set("concurrency", Number(e.target.value))}
-                  className="w-full accent-accent"
-                />
-              </Field>
+              {/* Chuỗi bật thì luồng dịch chạy 1-1; giá trị vẫn giữ nguyên cho lúc tắt chuỗi. */}
+              <div className={chainOn ? "opacity-50" : ""}>
+                <Field
+                  label={`Concurrency: ${draft.concurrency}`}
+                  action={
+                    chainOn ? (
+                      <span className="text-[11.5px] text-warn-fg">đang bị ép = 1 (chuỗi)</span>
+                    ) : undefined
+                  }
+                >
+                  <input
+                    type="range"
+                    min={2}
+                    max={6}
+                    value={draft.concurrency}
+                    onChange={(e) => set("concurrency", Number(e.target.value))}
+                    className="w-full accent-accent"
+                  />
+                </Field>
+              </div>
 
               <Field label="Cool down (giây)">
                 <input
@@ -312,6 +334,43 @@ export default function SettingsDrawer({
                     : "0 = tắt, worker chạy liên tục."}
                 </Note>
               </Field>
+
+              <label className="flex cursor-pointer items-start gap-2.5 text-[13px]">
+                <input
+                  type="checkbox"
+                  checked={draft.chunkSummary}
+                  onChange={(e) => setChunkSummary(e.target.checked)}
+                  className="mt-1 h-4 w-4 accent-accent"
+                />
+                <span>
+                  Tạo tóm tắt chunk
+                  <Note>
+                    Cùng cú gọi dịch, trả thêm thẻ &lt;summary&gt;, tốn thêm ~100 token output mỗi
+                    chunk.
+                  </Note>
+                </span>
+              </label>
+
+              <label
+                className={`flex items-start gap-2.5 text-[13px] ${
+                  draft.chunkSummary ? "cursor-pointer" : "cursor-not-allowed opacity-50"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={draft.chainPrevSummary}
+                  disabled={!draft.chunkSummary}
+                  onChange={(e) => set("chainPrevSummary", e.target.checked)}
+                  className="mt-1 h-4 w-4 accent-accent"
+                />
+                <span>
+                  Gửi kèm tóm tắt chunk trước
+                  <Note>
+                    Dịch tuần tự 1-1, bỏ qua Concurrency. Thời gian ≈ số chunk × (latency + cool
+                    down).
+                  </Note>
+                </span>
+              </label>
 
               <Field label="Chunk tokens (ước lượng chars/4)">
                 <input
@@ -452,6 +511,34 @@ export default function SettingsDrawer({
                 {showDefaultContext && (
                   <pre className="mt-2 max-h-[220px] overflow-auto whitespace-pre-wrap rounded-[18px] bg-paper p-3 text-[11.5px] leading-snug text-sand-700">
                     {CONTEXT_PROMPT}
+                  </pre>
+                )}
+              </Field>
+
+              <Field
+                label="Chunk summary prompt (tóm tắt chunk)"
+                action={
+                  <button
+                    onClick={() => setShowDefaultChunkSummary((v) => !v)}
+                    className="text-xs text-accent hover:underline"
+                  >
+                    {showDefaultChunkSummary ? "Ẩn mặc định" : "Xem mặc định"}
+                  </button>
+                }
+              >
+                <textarea
+                  value={draft.chunkSummaryPrompt}
+                  onChange={(e) => set("chunkSummaryPrompt", e.target.value)}
+                  placeholder="Để trống = dùng mặc định app."
+                  className="textarea h-[130px] rounded-[18px] bg-white"
+                />
+                <Note>
+                  Chỉ dùng khi bật “Tạo tóm tắt chunk” ở tab Chung. App tự nối contract hai thẻ
+                  &lt;translation&gt; + &lt;summary&gt;.
+                </Note>
+                {showDefaultChunkSummary && (
+                  <pre className="mt-2 max-h-[220px] overflow-auto whitespace-pre-wrap rounded-[18px] bg-paper p-3 text-[11.5px] leading-snug text-sand-700">
+                    {DEFAULT_CHUNK_SUMMARY_PROMPT}
                   </pre>
                 )}
               </Field>
