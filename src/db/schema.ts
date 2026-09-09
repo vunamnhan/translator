@@ -26,6 +26,8 @@ export const jobs = pgTable("jobs", {
   archivedAt: timestamp("archived_at", { withTimezone: true }),
   pinnedAt: timestamp("pinned_at", { withTimezone: true }),
   favorite: boolean("favorite").notNull().default(false),
+  /** CR v0.4 — 'auto' | 'heading' | 'blank' | 'marker' | 'manual'. Chỉ để hiện chip + cảnh báo Rechunk. */
+  chunkMode: text("chunk_mode").notNull().default("auto"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

@@ -1,4 +1,4 @@
-import type { ChunkStatus, SectionStatus } from "./defaults";
+import type { ChunkMode, ChunkStatus, SectionStatus } from "./defaults";
 
 export interface JobDTO {
   id: string;
@@ -16,6 +16,8 @@ export interface JobDTO {
   contextEdited: boolean;
   summaryTokens: number;
   contextMaxTokens: number;
+  /** CR v0.4 — quy tắc đã dùng lúc cắt. */
+  chunkMode: ChunkMode;
   createdAt: string;
   updatedAt: string;
 }

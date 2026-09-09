@@ -1,3 +1,5 @@
+import type { ChunkRuleKind } from "./chunker";
+
 export const DEFAULT_SYSTEM_PROMPT = `Bạn là dịch giả chuyên nghiệp. Dịch văn bản Markdown sau sang tiếng Việt.
 Yêu cầu:
 - Giữ nguyên cấu trúc Markdown: heading, list, bảng, link, hình, code block, inline code.
@@ -77,6 +79,10 @@ export interface Settings {
   useContextForTranslation: boolean;
   /** Worker nghỉ bao lâu sau mỗi call trước khi lấy việc tiếp. 0 = tắt (CR v0.2 §8.2). */
   cooldownMs: number;
+  /** CR v0.4 — quy tắc cắt dùng lần gần nhất, để `/new` lần sau mở đúng rule. */
+  chunkRule: ChunkRuleKind;
+  headingLevel: number;
+  chunkMarker: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -94,6 +100,9 @@ export const DEFAULT_SETTINGS: Settings = {
   contextMaxTokens: 80000,
   useContextForTranslation: true,
   cooldownMs: 5000,
+  chunkRule: "auto",
+  headingLevel: 2,
+  chunkMarker: "---",
 };
 
 export const MAX_API_KEYS = 5;
@@ -122,6 +131,40 @@ export function apiKeyLabel(key: string, index: number): string {
 export const SETTINGS_KEY = "tranzlator.settings";
 export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
 export const UNTRANSLATED_MARKER = "<!-- UNTRANSLATED -->";
+
+/** CR v0.4 — quy tắc ghi trên job. 'manual' = có sửa tay sau khi cắt. */
+export type ChunkMode = ChunkRuleKind | "manual";
+export const CHUNK_MODES: ChunkMode[] = ["auto", "heading", "blank", "marker", "manual"];
+
+/** Nhãn quy tắc cắt, hiện ở chip màn hình job và trong câu confirm Rechunk. */
+export function chunkModeLabel(mode: ChunkMode): string {
+  const map: Record<ChunkMode, string> = {
+    auto: "tự động",
+    heading: "heading",
+    blank: "dòng trống",
+    marker: "dấu ngắt",
+    manual: "tay",
+  };
+  return map[mode] ?? mode;
+}
+
+export const MAX_MARKER_LEN = 64;
+export const MAX_DRAFT_CHUNKS = 2000;
+
+export function clampHeadingLevel(v: unknown): number {
+  const n = typeof v === "number" && Number.isFinite(v) ? Math.round(v) : 2;
+  return Math.min(3, Math.max(1, n));
+}
+
+/** Dấu ngắt phải là một dòng đặc, 1..64 ký tự. Rỗng → về mặc định. */
+export function normalizeMarker(v: unknown): string {
+  const raw = typeof v === "string" ? v.trim().slice(0, MAX_MARKER_LEN) : "";
+  return raw.length > 0 ? raw : DEFAULT_SETTINGS.chunkMarker;
+}
+
+export function normalizeChunkRule(v: unknown): ChunkRuleKind {
+  return v === "heading" || v === "blank" || v === "marker" ? v : "auto";
+}
 
 export type ChunkStatus = "pending" | "translating" | "done" | "error" | "skipped";
 export type SectionStatus = "pending" | "summarizing" | "done" | "error";

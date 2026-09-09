@@ -15,7 +15,7 @@ import { useReadMode } from "@/lib/readMode";
 import TagEditor from "./TagEditor";
 import { useTags } from "@/lib/useTags";
 import { useSettings } from "@/lib/useSettings";
-import { apiKeyLabel } from "@/lib/defaults";
+import { apiKeyLabel, chunkModeLabel } from "@/lib/defaults";
 import { coolDown, isRateLimited, nextKey, pickKey, type KeyPick } from "@/lib/runner";
 import { assembleMarkdown, assembleSummary } from "@/lib/assemble";
 import type { ChunkDTO, JobDTO, SectionDTO } from "@/lib/types";
@@ -509,9 +509,14 @@ export default function JobView({ jobId }: { jobId: string }) {
   const rechunk = useCallback(
     async (chunkTokens: number, confirmFirst: boolean) => {
       if (confirmFirst) {
+        const mode = jobRef.current?.chunkMode ?? "auto";
         const ok = await ask({
           title: "Chunk lại tài liệu?",
-          body: "Chunk lại sẽ xoá toàn bộ bản dịch và tóm tắt section của job này.",
+          body:
+            "Chunk lại sẽ xoá toàn bộ bản dịch và tóm tắt section của job này." +
+            (mode === "auto"
+              ? ""
+              : ` Job này cắt theo quy tắc «${chunkModeLabel(mode)}»; cắt lại theo cỡ token sẽ bỏ bố cục đó.`),
           ok: "Chunk lại",
         });
         if (!ok) return;
@@ -566,11 +571,13 @@ export default function JobView({ jobId }: { jobId: string }) {
   // Đổi chunkTokens trong Settings: chưa dịch gì thì chunk lại luôn, có rồi thì hỏi.
   const tokensDiffer = Boolean(job && loaded && settings.chunkTokens !== job.chunkTokens);
   const hasTranslation = chunks.some((c) => c.status === "done");
+  // Job cắt tay / theo rule: chunk lại là mất bố cục, nên không bao giờ tự động (CR v0.4).
+  const ruleLocked = Boolean(job && job.chunkMode !== "auto");
 
   useEffect(() => {
-    if (!tokensDiffer || hasTranslation || loop) return;
+    if (!tokensDiffer || hasTranslation || loop || ruleLocked) return;
     void rechunk(settingsRef.current.chunkTokens, false);
-  }, [tokensDiffer, hasTranslation, loop, rechunk]);
+  }, [tokensDiffer, hasTranslation, loop, ruleLocked, rechunk]);
 
   // Tương tự cho summaryTokens: chưa tóm tắt gì thì gom lại luôn, có rồi thì hỏi.
   const summaryTokensDiffer = Boolean(job && loaded && settings.summaryTokens !== job.summaryTokens);
@@ -657,6 +664,16 @@ export default function JobView({ jobId }: { jobId: string }) {
             ←
           </Link>
           <JobTitle name={job.name} onRename={rename} />
+
+          {/* Job cắt theo quy tắc riêng (CR v0.4) — 'auto' là mặc định nên không hiện gì. */}
+          {job.chunkMode !== "auto" && (
+            <span
+              title="Quy tắc đã dùng lúc tạo job. Chunk lại sẽ bỏ bố cục này."
+              className="tag shrink-0 bg-sand-100 text-sand-700"
+            >
+              Cắt: {chunkModeLabel(job.chunkMode)}
+            </span>
+          )}
 
           <button
             onClick={() => patchJob({ favorite: !job.favorite }, "Lưu favorite thất bại")}
@@ -856,12 +873,16 @@ export default function JobView({ jobId }: { jobId: string }) {
           </div>
         )}
 
-        {tokensDiffer && hasTranslation && !dismissed.chunk && (
+        {tokensDiffer && (hasTranslation || ruleLocked) && !dismissed.chunk && (
           <Banner
             tone="warn"
             action={`Chunk lại theo ${settings.chunkTokens}`}
             onAction={() => rechunk(settings.chunkTokens, true)}
-            note="(mất toàn bộ bản dịch hiện có)"
+            note={
+              ruleLocked
+                ? `(bỏ bố cục cắt theo «${chunkModeLabel(job.chunkMode)}»)`
+                : "(mất toàn bộ bản dịch hiện có)"
+            }
             onClose={() => setDismissed((d) => ({ ...d, chunk: true }))}
           >
             Settings để chunk {settings.chunkTokens} token, job này đang chunk theo {job.chunkTokens}.

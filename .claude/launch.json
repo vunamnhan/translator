@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "tranzlator",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:clean"],
+      "port": 3000
+    }
+  ]
+}

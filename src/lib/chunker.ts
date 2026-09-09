@@ -110,3 +110,178 @@ function splitLongBlock(source: string, block: BlockRef, limit: number): number[
   }
   return cuts;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   CR v0.4 — cắt theo quy tắc do user chọn.
+   Ba rule dưới đây đi THEO DÒNG, không qua remark: điểm cắt là ranh giới dòng
+   nên chỉ cần offset + máy trạng thái fence / front matter. Không đếm token,
+   không gộp, không tách thêm — chunk to hay nhỏ là do văn bản.
+   ══════════════════════════════════════════════════════════════════════ */
+
+export type ChunkRuleKind = "auto" | "heading" | "blank" | "marker";
+
+export type ChunkRule =
+  | { kind: "auto"; chunkTokens: number }
+  | { kind: "heading"; maxLevel: number }
+  | { kind: "blank" }
+  | { kind: "marker"; marker: string };
+
+interface Line {
+  /** Offset đầu dòng. */
+  start: number;
+  /** Nội dung dòng, KHÔNG gồm `\n` / `\r\n` — chỉ để so khớp, cắt vẫn dùng offset. */
+  text: string;
+}
+
+function splitLines(source: string): Line[] {
+  const out: Line[] = [];
+  let start = 0;
+  for (let i = 0; i < source.length; i++) {
+    if (source[i] !== "\n") continue;
+    const end = i > start && source[i - 1] === "\r" ? i - 1 : i;
+    out.push({ start, text: source.slice(start, end) });
+    start = i + 1;
+  }
+  if (start < source.length) out.push({ start, text: source.slice(start) });
+  return out;
+}
+
+const FENCE_RE = /^ {0,3}(`{3,}|~{3,})(.*)$/;
+const HEADING_RE = /^ {0,3}(#{1,6})(\s|$)/;
+const FRONT_DELIMS = ["---", "+++"];
+
+/** Số dòng của front matter ở đầu file (gồm cả 2 dòng dấu), 0 nếu không có. */
+function frontMatterLines(lines: Line[]): number {
+  if (lines.length === 0) return 0;
+  const delim = lines[0].text;
+  if (!FRONT_DELIMS.includes(delim)) return 0;
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i].text === delim) return i + 1;
+  }
+  return 0;
+}
+
+/** Chunk 0 có phải front matter hợp lệ không — dùng chung cho UI và route tạo job. */
+export function isFrontMatter(text: string): boolean {
+  return frontMatterLines(splitLines(text)) > 0;
+}
+
+/** Trạng thái fence: mở bằng ``` / ~~~ thì mọi điểm cắt bên trong bị bỏ qua. */
+class FenceState {
+  private char: string | null = null;
+  private len = 0;
+
+  /** Trả về true nếu dòng này nằm trong (hoặc là mép của) một fence. */
+  feed(text: string): boolean {
+    const m = FENCE_RE.exec(text);
+    if (this.char === null) {
+      if (!m) return false;
+      this.char = m[1][0];
+      this.len = m[1].length;
+      return true;
+    }
+    // Đóng fence: cùng loại ký tự, dài không kém lúc mở, sau đó không có chữ.
+    if (m && m[1][0] === this.char && m[1].length >= this.len && m[2].trim() === "") {
+      this.char = null;
+      this.len = 0;
+    }
+    return true;
+  }
+}
+
+/**
+ * Cắt theo quy tắc. Invariant chung với `chunkMarkdown`:
+ * chunks.map(c => c.source).join("") === source
+ */
+export function chunkByRule(source: string, rule: ChunkRule): ChunkPiece[] {
+  if (rule.kind === "auto") return chunkMarkdown(source, rule.chunkTokens);
+  if (source.length === 0) return [];
+
+  const lines = splitLines(source);
+  const fmCount = frontMatterLines(lines);
+  const starts: { offset: number; skip: boolean }[] = [];
+
+  if (fmCount > 0) {
+    starts.push({ offset: 0, skip: true });
+    if (fmCount < lines.length) starts.push({ offset: lines[fmCount].start, skip: false });
+  } else {
+    starts.push({ offset: 0, skip: false });
+  }
+
+  const fence = new FenceState();
+  // Đã gặp chữ trong chunk đang mở chưa — để rule `blank` không đẻ ra chunk toàn dòng trống.
+  let sawContent = false;
+  let pendingBlank = false;
+
+  const cut = (offset: number) => {
+    if (offset <= starts[starts.length - 1].offset) return;
+    starts.push({ offset, skip: false });
+    sawContent = false;
+  };
+
+  for (let i = fmCount; i < lines.length; i++) {
+    const line = lines[i];
+    const inFence = fence.feed(line.text);
+    const blank = line.text.trim().length === 0;
+
+    if (inFence) {
+      pendingBlank = false;
+      sawContent = true;
+      continue;
+    }
+
+    if (rule.kind === "blank") {
+      if (blank) {
+        // Dòng trống thuộc về chunk phía trước; chunk mới mở ở dòng có chữ kế tiếp.
+        pendingBlank = sawContent;
+      } else {
+        if (pendingBlank) cut(line.start);
+        pendingBlank = false;
+        sawContent = true;
+      }
+      continue;
+    }
+
+    if (blank) continue;
+
+    if (rule.kind === "heading") {
+      const m = HEADING_RE.exec(line.text);
+      if (m && m[1].length <= rule.maxLevel) cut(line.start);
+    } else if (line.text.trim() === rule.marker) {
+      cut(line.start);
+    }
+    sawContent = true;
+  }
+
+  return starts.map((s, i) => ({
+    source: source.slice(s.offset, i + 1 < starts.length ? starts[i + 1].offset : source.length),
+    skip: s.skip,
+  }));
+}
+
+/* ── Cảnh báo cỡ chunk (CR v0.4 §2.4) — chỉ để hiện chip, không chặn tạo job. ── */
+
+export type ChunkFlag = "empty" | "short" | "large" | "huge" | "code-split";
+
+export const HUGE_TOKENS = 8000;
+const SHORT_TOKENS = 20;
+
+/** Fence lẻ → code block bị cắt đôi. Đếm theo dòng vì chunk có thể không parse được. */
+function fenceCount(text: string): number {
+  let n = 0;
+  for (const line of splitLines(text)) {
+    if (FENCE_RE.test(line.text)) n++;
+  }
+  return n;
+}
+
+export function chunkFlags(text: string, chunkTokens: number): ChunkFlag[] {
+  if (text.trim().length === 0) return ["empty"];
+  const flags: ChunkFlag[] = [];
+  const tokens = estimateTokens(text);
+  if (tokens > HUGE_TOKENS) flags.push("huge");
+  else if (tokens > chunkTokens) flags.push("large");
+  else if (tokens < SHORT_TOKENS && !isFrontMatter(text)) flags.push("short");
+  if (fenceCount(text) % 2 === 1) flags.push("code-split");
+  return flags;
+}

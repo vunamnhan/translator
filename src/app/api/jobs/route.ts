@@ -1,7 +1,13 @@
 import { db } from "@/db";
 import { chunks, jobs } from "@/db/schema";
-import { chunkMarkdown } from "@/lib/chunker";
-import { DEFAULT_SETTINGS, MAX_UPLOAD_BYTES } from "@/lib/defaults";
+import { chunkMarkdown, isFrontMatter, type ChunkPiece } from "@/lib/chunker";
+import {
+  CHUNK_MODES,
+  DEFAULT_SETTINGS,
+  MAX_DRAFT_CHUNKS,
+  MAX_UPLOAD_BYTES,
+  type ChunkMode,
+} from "@/lib/defaults";
 import { bad, ok, readJson } from "@/lib/http";
 import { clampSummaryTokens, clampContextMaxTokens, clampTokens } from "@/lib/validate";
 import { regenerateSections } from "@/lib/sectionStore";
@@ -108,22 +114,60 @@ interface CreateBody {
   chunkTokens?: number;
   summaryTokens?: number;
   contextMaxTokens?: number;
+  /** CR v0.4 — chunk đã duyệt ở màn hình tạo job. Có nó thì `source` bị bỏ qua. */
+  chunks?: unknown;
+  chunkMode?: unknown;
+}
+
+/**
+ * Chunk do user duyệt (CR v0.4 §2.3): bỏ chunk trắng, thêm `\n` vào cuối chunk
+ * thiếu để hai chunk không dính nhau lúc export. Đây là chỗ DUY NHẤT app sửa
+ * nội dung user nhập — nhờ vậy `source = join("")` vẫn đúng theo cách dựng.
+ */
+function piecesFromChunks(raw: string[]): ChunkPiece[] {
+  const kept = raw.filter((c) => c.trim().length > 0);
+  return kept.map((text, i) => ({
+    source: i === kept.length - 1 || text.endsWith("\n") ? text : text + "\n",
+    skip: i === 0 && isFrontMatter(text),
+  }));
 }
 
 export async function POST(req: Request) {
   const body = await readJson<CreateBody>(req);
   if (!body) return bad("Body không hợp lệ");
 
-  const source = body.source ?? "";
-  if (source.trim().length === 0) return bad("Source rỗng");
-  if (Buffer.byteLength(source, "utf8") > MAX_UPLOAD_BYTES) {
-    return bad("File vượt quá 2 MB", 413);
-  }
-
   const chunkTokens = clampTokens(body.chunkTokens);
   const summaryTokens = clampSummaryTokens(body.summaryTokens);
   const contextMaxTokens = clampContextMaxTokens(body.contextMaxTokens);
-  const pieces = chunkMarkdown(source, chunkTokens);
+
+  let chunkMode: ChunkMode = "auto";
+  if (body.chunkMode !== undefined) {
+    if (!CHUNK_MODES.includes(body.chunkMode as ChunkMode)) return bad("chunkMode không hợp lệ");
+    chunkMode = body.chunkMode as ChunkMode;
+  }
+
+  let pieces: ChunkPiece[];
+  if (body.chunks !== undefined) {
+    if (!Array.isArray(body.chunks) || body.chunks.some((c) => typeof c !== "string")) {
+      return bad("chunks phải là mảng string");
+    }
+    pieces = piecesFromChunks(body.chunks as string[]);
+    if (pieces.length === 0) return bad("Không còn chunk nào có nội dung");
+    if (pieces.length > MAX_DRAFT_CHUNKS) return bad(`Tối đa ${MAX_DRAFT_CHUNKS} chunk`);
+  } else {
+    // Không có `chunks` → đường cũ của v0, giữ nguyên cho script và test cũ.
+    const src = body.source ?? "";
+    if (src.trim().length === 0) return bad("Source rỗng");
+    if (Buffer.byteLength(src, "utf8") > MAX_UPLOAD_BYTES) {
+      return bad("File vượt quá 2 MB", 413);
+    }
+    pieces = chunkMarkdown(src, chunkTokens);
+  }
+
+  const source = pieces.map((p) => p.source).join("");
+  if (Buffer.byteLength(source, "utf8") > MAX_UPLOAD_BYTES) {
+    return bad("File vượt quá 2 MB", 413);
+  }
 
   const [job] = await db
     .insert(jobs)
@@ -136,6 +180,7 @@ export async function POST(req: Request) {
       chunkTokens,
       summaryTokens,
       contextMaxTokens,
+      chunkMode,
     })
     .returning();
 

@@ -1,6 +1,14 @@
 "use client";
 
-import { DEFAULT_SETTINGS, normalizeApiKeys, SETTINGS_KEY, type Settings } from "./defaults";
+import {
+  clampHeadingLevel,
+  DEFAULT_SETTINGS,
+  normalizeApiKeys,
+  normalizeChunkRule,
+  normalizeMarker,
+  SETTINGS_KEY,
+  type Settings,
+} from "./defaults";
 
 export interface SettingsState {
   settings: Settings;
@@ -22,6 +30,10 @@ function readStorage(): Settings {
     merged.apiKeys = normalizeApiKeys(
       parsed.apiKeys ?? (parsed.apiKey ? [parsed.apiKey] : [])
     );
+    // CR v0.4 — 3 khoá cắt chunk có thể là rác từ bản cũ / user sửa tay localStorage.
+    merged.chunkRule = normalizeChunkRule(merged.chunkRule);
+    merged.headingLevel = clampHeadingLevel(merged.headingLevel);
+    merged.chunkMarker = normalizeMarker(merged.chunkMarker);
     return merged;
   } catch {
     return DEFAULT_SETTINGS;

@@ -34,7 +34,8 @@ export async function POST(req: Request, { params }: Ctx) {
 
   const [updated] = await db
     .update(jobs)
-    .set({ chunkTokens, updatedAt: new Date() })
+    // Chunk lại là cắt theo cỡ token → bố cục theo rule cũ mất, mode về 'auto' (CR v0.4 §4.2).
+    .set({ chunkTokens, chunkMode: "auto", updatedAt: new Date() })
     .where(eq(jobs.id, id))
     .returning();
 

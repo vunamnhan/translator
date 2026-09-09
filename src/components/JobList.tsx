@@ -6,6 +6,7 @@ import JobRow from "./JobRow";
 import TagFilter from "./TagFilter";
 import { useConfirm } from "./ConfirmDialog";
 import { MAX_UPLOAD_BYTES } from "@/lib/defaults";
+import { writeDraft } from "@/lib/draft";
 import { useSettings } from "@/lib/useSettings";
 import { useTags } from "@/lib/useTags";
 import type { JobListItem, JobListResponse } from "@/lib/types";
@@ -17,7 +18,7 @@ type ArchiveMode = "hide" | "include" | "only";
 export default function JobList() {
   const router = useRouter();
   const params = useSearchParams();
-  const { settings, loaded } = useSettings();
+  const { settings } = useSettings();
   const { tags, reload: reloadTags } = useTags();
   const { ask, dialog } = useConfirm();
 
@@ -40,10 +41,7 @@ export default function JobList() {
   });
   const [archivedHits, setArchivedHits] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [paste, setPaste] = useState("");
-  const [showNew, setShowNew] = useState(false);
   const [dragging, setDragging] = useState(false);
   // Ô search gõ tới đâu hiện tới đó, 300ms sau mới đẩy lên URL.
   const [needle, setNeedle] = useState(q);
@@ -120,39 +118,29 @@ export default function JobList() {
     debounce.current = setTimeout(() => query({ q: v.slice(0, 100) }), 300);
   }
 
-  async function createJob(name: string, source: string) {
-    if (!loaded) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/jobs", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          name,
-          source,
-          systemPrompt: settings.systemPrompt,
-          model: settings.model,
-          endpoint: settings.endpoint,
-          chunkTokens: settings.chunkTokens,
-        }),
-      });
-      const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? "Tạo job thất bại");
-      router.push(`/job/${payload.job.id}`);
-    } catch (e) {
-      setError((e as Error).message);
-      setBusy(false);
-    }
-  }
-
+  /**
+   * Từ CR v0.4 trang Jobs không tạo job nữa: file kéo thả được nạp vào bản nháp
+   * rồi chuyển sang màn hình `/new` để cắt / sửa chunk trước khi tạo.
+   */
   async function takeFile(file: File | undefined) {
     if (!file) return;
     if (file.size > MAX_UPLOAD_BYTES) {
       setError("File vượt quá 2 MB");
       return;
     }
-    await createJob(file.name, await file.text());
+    writeDraft({
+      name: file.name,
+      rawSource: await file.text(),
+      rule: settings.chunkRule,
+      headingLevel: settings.headingLevel,
+      marker: settings.chunkMarker,
+      chunks: [],
+      editedManually: false,
+      selected: 0,
+      updatedAt: Date.now(),
+    });
+    // `resume=1`: nháp này vừa do chính thao tác kéo thả tạo ra, khỏi hỏi lại.
+    router.push("/new?resume=1");
   }
 
   const patchJob = useCallback(
@@ -277,7 +265,7 @@ export default function JobList() {
 
         <span className="flex-1" />
 
-        <button onClick={() => setShowNew((v) => !v)} className="btn btn-primary h-9 py-0">
+        <button onClick={() => router.push("/new")} className="btn btn-primary h-9 py-0">
           ＋ New<span className="hidden lg:inline">&nbsp;job</span>
         </button>
       </div>
@@ -303,57 +291,31 @@ export default function JobList() {
         </div>
       )}
 
-      {showNew && (
-        <div className="mt-4 grid animate-tz-pop grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-[18px] rounded-[26px] bg-white p-[22px] shadow-md">
-          <div>
-            <div className="mb-2 font-heading text-base">Upload file .md</div>
-            <label
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragging(true);
-              }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDragging(false);
-                void takeFile(e.dataTransfer.files?.[0]);
-              }}
-              className={`grid h-[118px] cursor-pointer place-items-center gap-1.5 rounded-[20px] border-[1.5px] border-dashed text-[13px] text-accent-700 transition-colors ${
-                dragging ? "border-accent bg-accent-200" : "border-accent-300 bg-accent-100"
-              }`}
-            >
-              <span>Kéo file vào đây hoặc bấm để chọn</span>
-              <span className="text-[11.5px] text-sand-600">.md · tối đa 2 MB</span>
-              <input
-                type="file"
-                accept=".md,.markdown,text/markdown"
-                disabled={busy}
-                onChange={(e) => void takeFile(e.target.files?.[0])}
-                className="hidden"
-              />
-            </label>
-          </div>
-
-          <div>
-            <div className="mb-2 font-heading text-base">Hoặc paste text</div>
-            <textarea
-              value={paste}
-              onChange={(e) => setPaste(e.target.value)}
-              placeholder="# Markdown here"
-              className="textarea h-[118px] resize-none rounded-[20px]"
-            />
-            <div className="mt-2.5 flex justify-end">
-              <button
-                onClick={() => createJob("pasted.md", paste)}
-                disabled={busy || paste.trim().length === 0}
-                className="btn btn-secondary h-[34px] py-0"
-              >
-                Tạo job từ text
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Kéo thả ở trang Jobs vẫn chạy, chỉ là đích đến giờ là màn hình tạo job. */}
+      <label
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          void takeFile(e.dataTransfer.files?.[0]);
+        }}
+        className={`mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-[20px] border-[1.5px] border-dashed px-4 py-3 text-[12.5px] text-accent-700 transition-colors ${
+          dragging ? "border-accent bg-accent-200" : "border-accent-300 bg-accent-100/60"
+        }`}
+      >
+        Kéo file .md vào đây để mở màn hình tạo job
+        <span className="text-[11.5px] text-sand-600">.md · .txt · tối đa 2 MB</span>
+        <input
+          type="file"
+          accept=".md,.markdown,.txt,text/markdown,text/plain"
+          onChange={(e) => void takeFile(e.target.files?.[0])}
+          className="hidden"
+        />
+      </label>
 
       {error && (
         <p className="mt-4 rounded-2xl bg-danger-soft px-3.5 py-2.5 text-[12.5px] text-danger-ink">
@@ -383,7 +345,7 @@ export default function JobList() {
                   Xoá bộ lọc
                 </button>
               ) : (
-                <button onClick={() => setShowNew(true)} className="btn btn-primary h-9 py-0">
+                <button onClick={() => router.push("/new")} className="btn btn-primary h-9 py-0">
                   ＋ New job
                 </button>
               )}
