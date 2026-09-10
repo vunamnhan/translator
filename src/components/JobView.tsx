@@ -12,6 +12,7 @@ import { useConfirm } from "./ConfirmDialog";
 import { Banner, ListPanel, ProgressBar, ReadingSizeControl, type FilterDef } from "./chrome";
 import Menu from "./Menu";
 import { useReadMode } from "@/lib/readMode";
+import { useViewPrefs } from "@/lib/viewPrefs";
 import TagEditor from "./TagEditor";
 import { useTags } from "@/lib/useTags";
 import { useSettings } from "@/lib/useSettings";
@@ -59,6 +60,7 @@ export default function JobView({ jobId }: { jobId: string }) {
      CSS cho cột hiện luôn nên state này bị kệ, không cần đo bề ngang màn hình. */
   const [listOpen, setListOpen] = useState(false);
   const { readMode } = useReadMode();
+  const { prefs } = useViewPrefs();
 
   // Vào chế độ đọc thì đóng luôn sheet danh sách — nút mở nó cũng vừa bị giấu.
   useEffect(() => {
@@ -791,9 +793,14 @@ export default function JobView({ jobId }: { jobId: string }) {
   const doneCount = isTranslate ? stats.done : summaryStats.done;
 
   return (
-    <main className="flex min-h-0 flex-1 flex-col">
-      {/* Toolbar — một thẻ nổi, gom tên job, tab, số liệu và mọi nút hành động. */}
-      <div className={`flex-none px-3 pt-3 lg:block lg:px-5 ${readMode ? "hidden" : ""}`}>
+    <main
+      className="flex min-h-0 flex-1 flex-col"
+      data-tz-toolbar={prefs.toolbar ? "on" : "off"}
+      data-tz-sidebar={prefs.sidebar ? "on" : "off"}
+    >
+      {/* Toolbar — một thẻ nổi, gom tên job, tab, số liệu và mọi nút hành động.
+          Class `job-toolbar` là chỗ bám của công tắc Toolbar ở top bar (desktop). */}
+      <div className={`job-toolbar flex-none px-3 pt-3 lg:block lg:px-5 ${readMode ? "hidden" : ""}`}>
         <div className="flex flex-wrap items-center gap-2.5 rounded-3xl bg-white px-3 py-2.5 shadow-sm lg:gap-3.5 lg:px-4 lg:py-3">
           <Link href="/" title="Về danh sách job" className="text-base text-sand-600">
             ←
@@ -973,9 +980,10 @@ export default function JobView({ jobId }: { jobId: string }) {
         </div>
       </div>
 
-      {/* Thanh tiến độ ôm cột trái; chỗ trống bên phải để cụm chỉnh cỡ chữ khung đọc. */}
+      {/* Thanh tiến độ ôm cột trái; chỗ trống bên phải để cụm chỉnh cỡ chữ khung đọc.
+          Tắt công tắc Toolbar là giấu luôn cả hàng này (xem `.job-progress`). */}
       <div
-        className={`flex-none items-center gap-3 px-3 pt-2.5 lg:flex lg:px-5 ${
+        className={`job-progress flex-none items-center gap-3 px-3 pt-2.5 lg:flex lg:px-5 ${
           readMode ? "hidden" : "flex"
         }`}
       >
@@ -1130,13 +1138,14 @@ export default function JobView({ jobId }: { jobId: string }) {
               chunks={chunks}
               selectedId={selectedId}
               onSelect={setSelectedId}
-              readOnly={readMode}
+              readOnly={readMode || !prefs.snap}
             />
           </div>
         </div>
       ) : (
         <SummaryView
           readMode={readMode}
+          snap={prefs.snap}
           listOpen={listOpen}
           onCloseList={() => setListOpen(false)}
           job={job}

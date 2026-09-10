@@ -90,7 +90,7 @@ export function ProgressBar({
   return (
     // Chỉ chiếm bề ngang cột trái — tiến độ nói về danh sách thẻ, không phải khung đọc.
     // Mobile không có cột trái nên nó tự trải hết bề ngang.
-    <div className="flex w-[var(--pane-w)] max-w-full items-center gap-2.5">
+    <div className="progress-hug flex w-[var(--pane-w)] max-w-full items-center gap-2.5">
       <div className="flex h-[3px] flex-1 overflow-hidden rounded-pill bg-white shadow-sm">
         <div style={{ width: pct(done) }} className="bg-accent-500 transition-[width] duration-500" />
         <div

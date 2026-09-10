@@ -45,14 +45,15 @@ Từ trái sang phải:
 
 1. **Tranzlator** — tên app, đậm, bấm về trang danh sách job.
 2. **Jobs** — link về trang danh sách job (trùng chức năng với logo, có thể bỏ một).
-3. *(khoảng trống đẩy các mục sau sang phải)*
-4. **Chip preset** — tên bộ prompt đang dùng (`Truyện`) hoặc `Tuỳ chỉnh`, thêm `*` khi working copy khác preset. Bấm mở Settings thẳng vào tab Prompt. Chỉ hiện từ 1024px.
-5. **Chip trạng thái key** — bấm vào đều mở Settings:
+3. **Cụm ba công tắc bố cục** — chỉ hiện ở màn hình job và chỉ từ 1024px trở lên, dạng ba pill trong một khay xám, sáng xanh khi đang bật: **Toolbar** (ẩn thanh công cụ của job **và** hàng thanh tiến độ kèm cụm chỉnh cỡ chữ, để lấy tối đa chỗ đọc), **Snap** (bấm một đoạn trong khung đọc thì chọn, cuộn tới và mở thẻ tương ứng bên trái; tắt thì khung đọc thành chỉ-đọc), **Sidebar** (ẩn cột danh sách thẻ, khung đọc và thanh tiến độ trải hết bề ngang). Cả ba lưu trong localStorage nên mở lại vẫn giữ. Ở khổ mobile chỗ này là nút 📖 chế độ đọc.
+4. *(khoảng trống đẩy các mục sau sang phải)*
+5. **Chip preset** — tên bộ prompt đang dùng (`Truyện`) hoặc `Tuỳ chỉnh`, thêm `*` khi working copy khác preset. Bấm mở Settings thẳng vào tab Prompt. Chỉ hiện từ 1024px.
+6. **Chip trạng thái key** — bấm vào đều mở Settings:
    - Xanh lá: `● có key` (1 key) hoặc `● 3 key` (nhiều key)
    - Đỏ: `○ chưa có key — nhập ngay`
-6. **Tên model đang dùng** — chữ nhỏ xám, ví dụ `gpt-4o-mini`. Ẩn trên màn hình hẹp.
-7. **Settings** — nút viền, mở ngăn Settings.
-8. **Đăng xuất** — link chữ xám, chỉ hiện khi auth bật.
+7. **Tên model đang dùng** — chữ nhỏ xám, ví dụ `gpt-4o-mini`. Ẩn trên màn hình hẹp.
+8. **Settings** — nút viền, mở ngăn Settings.
+9. **Đăng xuất** — link chữ xám, chỉ hiện khi auth bật.
 
 ---
 
@@ -220,7 +221,7 @@ Dưới vùng nội dung là **hàng gấp mở "Tóm tắt"** (CR v0.5): đóng
 
 Hai dấu hiệu mới trên thẻ chunk (CR v0.5): **⛓** = lần dịch gần nhất có kèm tóm tắt đoạn trước; **⚠** kèm tooltip "Tóm tắt đoạn trước đã đổi sau khi dịch" khi tóm tắt của chunk liền trước bị sửa / dịch lại sau chunk này.
 
-Nút hành động: **Dịch lại** (xanh). Khi đang dịch: spinner + "Đang dịch…", vô hiệu. Ẩn với chunk `skipped`.
+Nút hành động: **Run** (xanh) — dịch lại chunk này. Ba trạng thái: bình thường "Run"; đang gọi AI thì spinner + "Đang dịch…"; đang lưu một ô vừa rời (Nguồn / Bản dịch / Tóm tắt) thì spinner + "Đang lưu…". Hai trạng thái sau đều vô hiệu hoá nút, nên bấm Run ngay sau khi sửa text sẽ ăn một nhịp lưu trước, bấm lại lần nữa mới chạy. Ẩn với chunk `skipped`.
 
 Tab mặc định khi mở thẻ: **Nguồn**.
 

@@ -27,6 +27,8 @@ interface Props {
   onFilter: (key: string) => void;
   /** Chế độ đọc (mobile) — giấu chrome, khoá chọn thẻ trong khung đọc. */
   readMode: boolean;
+  /** Công tắc Snap ở top bar: tắt thì khung đọc thành chỉ-đọc (CR view toggles). */
+  snap: boolean;
   /** Sheet danh sách ở mobile — state nằm trên JobView để hai tab dùng chung. */
   listOpen: boolean;
   onCloseList: () => void;
@@ -41,6 +43,7 @@ interface Props {
 /** Bố cục y hệt tab Translate: danh sách bên trái, khung đọc bên phải. */
 export default function SummaryView({
   readMode,
+  snap,
   listOpen,
   onCloseList,
   job,
@@ -155,7 +158,7 @@ export default function SummaryView({
           sections={sections}
           selectedId={selectedId}
           onSelect={onSelect}
-          readOnly={readMode}
+          readOnly={readMode || !snap}
         />
       </div>
     </div>

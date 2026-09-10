@@ -8,6 +8,7 @@ import { ReadingSizeControl } from "./chrome";
 import { useSettings } from "@/lib/useSettings";
 import type { Settings } from "@/lib/defaults";
 import { useReadMode } from "@/lib/readMode";
+import { useViewPrefs } from "@/lib/viewPrefs";
 import { presetPromptSet, samePromptSet } from "@/lib/presets";
 import { getPreset, loadPresets, usePresetState } from "@/lib/presetStore";
 
@@ -18,6 +19,7 @@ export default function AppHeader({ authEnabled }: { authEnabled: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const { readMode, toggle: toggleRead } = useReadMode();
+  const { prefs, toggle: toggleView } = useViewPrefs();
 
   if (pathname === "/login") return null;
 
@@ -75,6 +77,34 @@ export default function AppHeader({ authEnabled }: { authEnabled: boolean }) {
           Jobs
         </Link>
 
+        {/* Ba công tắc bố cục — desktop mới có cột trái với toolbar rộng để mà giấu.
+            Mobile đã có chế độ đọc làm đúng việc này bằng một nút. */}
+        {pathname.startsWith("/job/") && (
+          <div className="hidden shrink-0 items-center gap-1 rounded-pill bg-sand-100 p-[3px] lg:flex">
+            <ViewToggle
+              on={prefs.toolbar}
+              onClick={() => toggleView("toolbar")}
+              title="Ẩn / hiện thanh công cụ của job (tên, tag, tab, nút) để lấy chỗ đọc"
+            >
+              Toolbar
+            </ViewToggle>
+            <ViewToggle
+              on={prefs.snap}
+              onClick={() => toggleView("snap")}
+              title="Bấm một đoạn trong khung đọc thì chọn, cuộn tới và mở thẻ tương ứng bên trái"
+            >
+              Snap
+            </ViewToggle>
+            <ViewToggle
+              on={prefs.sidebar}
+              onClick={() => toggleView("sidebar")}
+              title="Ẩn / hiện cột danh sách thẻ bên trái"
+            >
+              Sidebar
+            </ViewToggle>
+          </div>
+        )}
+
         <span className="flex-1" />
 
         <PresetChip presetId={settings.presetId} settings={settings} onClick={() => openTab("prompt")} />
@@ -117,6 +147,32 @@ export default function AppHeader({ authEnabled }: { authEnabled: boolean }) {
         updateSettings={update}
       />
     </>
+  );
+}
+
+/** Một công tắc bố cục: sáng = đang bật, mờ = đang tắt. */
+function ViewToggle({
+  on,
+  onClick,
+  title,
+  children,
+}: {
+  on: boolean;
+  onClick: () => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      aria-pressed={on}
+      className={`whitespace-nowrap rounded-pill px-2.5 py-[3px] text-[11.5px] ${
+        on ? "bg-accent text-white" : "text-sand-600 hover:text-ink"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 

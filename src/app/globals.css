@@ -251,6 +251,19 @@
     .action-dock > .btn-primary { @apply flex-none; min-width: 0; }
     .reading-pane { @apply rounded-3xl px-[30px] pt-[34px] shadow-md; }
 
+    /**
+     * Ba công tắc bố cục của màn job (store `viewPrefs`). Nút nằm ở top bar,
+     * thứ bị giấu nằm trong JobView — nối nhau bằng data-* trên <main> chứ
+     * không truyền prop xuyên cây. Chỉ có nghĩa từ 1024px: dưới mốc đó cột trái
+     * vốn là sheet và toolbar đã có chế độ đọc lo, nên hai luật này nằm trong
+     * media query, không rò xuống mobile.
+     */
+    [data-tz-toolbar="off"] .job-toolbar,
+    [data-tz-toolbar="off"] .job-progress { display: none; }
+    [data-tz-sidebar="off"] .pane-list { display: none; }
+    /* Không còn cột trái để ôm thì thanh tiến độ trải hết bề ngang. */
+    [data-tz-sidebar="off"] .progress-hug { width: 100%; }
+
     .sheet-wrap { @apply flex-row justify-end; }
     .sheet { @apply h-full max-h-none w-[452px] rounded-none; animation: tz-slide 0.22s ease-out; padding-bottom: 0; }
     .sheet-wrap-center { @apply items-center justify-center p-6; }

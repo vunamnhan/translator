@@ -43,11 +43,11 @@ export default function SummaryPreview({
   );
 
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedId || readOnly) return;
     boxRef.current
       ?.querySelector(`[data-section="${selectedId}"]`)
       ?.scrollIntoView({ block: "center", behavior: "smooth" });
-  }, [selectedId]);
+  }, [selectedId, readOnly]);
 
   const anyDone = rendered.some((r) => r.html);
 

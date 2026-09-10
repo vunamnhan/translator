@@ -33,9 +33,10 @@ interface Props {
   staleContext?: boolean;
   expanded: boolean;
   onToggle: (id: string) => void;
-  onSaveSource: (id: string, value: string) => void;
-  onSaveTranslated: (id: string, value: string) => void;
-  onSaveSummary: (id: string, value: string) => void;
+  /** Ba hàm lưu đều async: thẻ chờ chúng xong để hiện "Đang lưu…" trên nút Run. */
+  onSaveSource: (id: string, value: string) => Promise<void>;
+  onSaveTranslated: (id: string, value: string) => Promise<void>;
+  onSaveSummary: (id: string, value: string) => Promise<void>;
   onRetranslate: (id: string) => void;
 }
 
@@ -57,10 +58,22 @@ export default function ChunkBar({
   const [sum, setSum] = useState(chunk.summary ?? "");
   const [tab, setTab] = useState<"source" | "translated" | "raw">("source");
   const [sumOpen, setSumOpen] = useState(false);
+  /** Đếm chứ không phải boolean: rời ô này rồi rời ô kia là hai lượt lưu chồng nhau. */
+  const [saving, setSaving] = useState(0);
 
   useEffect(() => setSrc(chunk.sourceOverride ?? chunk.source), [chunk.sourceOverride, chunk.source]);
   useEffect(() => setDst(chunk.translated ?? ""), [chunk.translated]);
   useEffect(() => setSum(chunk.summary ?? ""), [chunk.summary]);
+
+  /** Mọi cú lưu lúc blur đều đi qua đây để nút Run báo được trạng thái. */
+  const save = async (fn: (id: string, value: string) => Promise<void>, value: string) => {
+    setSaving((n) => n + 1);
+    try {
+      await fn(chunk.id, value);
+    } finally {
+      setSaving((n) => n - 1);
+    }
+  };
 
   const busy = chunk.status === "translating";
   const code = errorCode(chunk.error);
@@ -135,12 +148,12 @@ export default function ChunkBar({
             {chunk.status !== "skipped" && (
               <button
                 onClick={() => onRetranslate(chunk.id)}
-                disabled={busy}
-                title="Dịch lại chunk này"
+                disabled={busy || saving > 0}
+                title={saving > 0 ? "Đang lưu thay đổi…" : "Dịch lại chunk này"}
                 className="btn btn-primary btn-sm h-7"
               >
-                {busy && <Spinner />}
-                {busy ? "Đang dịch…" : "Dịch lại"}
+                {(busy || saving > 0) && <Spinner />}
+                {busy ? "Đang dịch…" : saving > 0 ? "Đang lưu…" : "Run"}
               </button>
             )}
           </div>
@@ -155,7 +168,7 @@ export default function ChunkBar({
               value={src}
               onChange={(e) => setSrc(e.target.value)}
               onBlur={() => {
-                if (src !== (chunk.sourceOverride ?? chunk.source)) onSaveSource(chunk.id, src);
+                if (src !== (chunk.sourceOverride ?? chunk.source)) void save(onSaveSource, src);
               }}
               className="textarea h-[270px] rounded-[14px]"
             />
@@ -166,7 +179,7 @@ export default function ChunkBar({
               placeholder={chunk.status === "skipped" ? "(không dịch — front matter)" : "chưa dịch"}
               onChange={(e) => setDst(e.target.value)}
               onBlur={() => {
-                if (dst !== (chunk.translated ?? "")) onSaveTranslated(chunk.id, dst);
+                if (dst !== (chunk.translated ?? "")) void save(onSaveTranslated, dst);
               }}
               className="textarea textarea-target h-[270px] rounded-[14px]"
             />
@@ -196,7 +209,7 @@ export default function ChunkBar({
                   placeholder="(chưa có) — bật “Tạo tóm tắt chunk” trong Settings, hoặc tự viết ở đây."
                   onChange={(e) => setSum(e.target.value)}
                   onBlur={() => {
-                    if (sum !== (chunk.summary ?? "")) onSaveSummary(chunk.id, sum);
+                    if (sum !== (chunk.summary ?? "")) void save(onSaveSummary, sum);
                   }}
                   className="textarea mt-1.5 h-[104px] rounded-[12px] text-[12px]"
                 />

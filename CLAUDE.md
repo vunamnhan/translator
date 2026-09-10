@@ -19,7 +19,7 @@ Next.js 15 App Router + TypeScript, Tailwind, Postgres + Drizzle (`postgres-js`)
 - Chỗ **duy nhất** app sửa nội dung user nhập: thêm `\n` vào cuối chunk thiếu, lúc tạo job (`piecesFromChunks` trong `src/app/api/jobs/route.ts`). Ngoài chỗ đó không trim, không chuẩn hoá gì hết.
 - Job đã tạo là **cố định bố cục**: không chèn / xoá / tách / gộp chunk nữa. `chunk_mode ≠ auto` thì đổi `chunkTokens` trong Settings **không** tự chunk lại, chỉ hiện banner.
 - Chỉ light mode. Design không có palette tối nên đừng thêm lại `dark:`.
-- Responsive chỉ có **một mốc 1024px** và làm **hoàn toàn bằng CSS**: cùng một cây DOM ở mọi khổ, không `useMediaQuery`, không render hai nhánh markup. Class đổi bố cục (`.pane-list`, `.action-dock`, `.sheet`) nằm ở `globals.css` — sửa ở đó, đừng rải `lg:` mới vào component.
+- Responsive chỉ có **một mốc 1024px** và làm **hoàn toàn bằng CSS**: cùng một cây DOM ở mọi khổ, không `useMediaQuery`, không render hai nhánh markup. Class đổi bố cục (`.pane-list`, `.action-dock`, `.sheet`, `.job-toolbar`, `.job-progress`) nằm ở `globals.css` — sửa ở đó, đừng rải `lg:` mới vào component. Ba công tắc Toolbar / Snap / Sidebar cũng theo luật đó: chúng chỉ là `data-tz-toolbar` / `data-tz-sidebar` trên `<main>`, còn việc giấu nằm trong `@media (min-width: 1024px)` nên không rò xuống mobile.
 
 ## Bản đồ file
 | File | Việc |
@@ -47,6 +47,7 @@ Next.js 15 App Router + TypeScript, Tailwind, Postgres + Drizzle (`postgres-js`)
 | `src/lib/modelHistory.ts` | Lịch sử model đã dùng cho gợi ý ở ô Model (localStorage riêng, không nằm trong settings) |
 | `src/lib/readingSize.ts` | Cỡ chữ khung đọc, lưu localStorage, dùng chung 2 tab |
 | `src/lib/readMode.ts` | Chế độ đọc của mobile: nút ở `AppHeader`, thứ bị giấu ở `JobView` nên phải là store. Cố ý không lưu localStorage |
+| `src/lib/viewPrefs.ts` | Ba công tắc bố cục desktop (Toolbar giấu toolbar + hàng thanh tiến độ / Snap / Sidebar). Nút ở `AppHeader`, thứ bị giấu ở `JobView`; nối nhau bằng `data-tz-*` trên `<main>` + CSS trong mốc 1024px, không truyền prop xuyên cây. Có lưu localStorage |
 | `src/components/JobList.tsx` | Trang Jobs: search + lọc tag + favorite + archive + phân trang, state nằm trên URL query |
 | `src/components/chrome.tsx` | Thanh tiến độ, banner, panel danh sách trái, khung đọc (`ReadingPane`). Panel danh sách dưới 1024px là sheet đáy — state `listOpen` ở `JobView`, CSS quyết định nó có nghĩa hay không |
 | `src/app/globals.css` + `tailwind.config.ts` | Token của design. Đổi màu/bo/shadow ở globals, đừng rải hex trong component |

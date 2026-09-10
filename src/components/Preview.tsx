@@ -9,7 +9,10 @@ interface Props {
   chunks: ChunkDTO[];
   selectedId: string | null;
   onSelect: (id: string) => void;
-  /** Chế độ đọc: chỉ còn bài, bấm vào đoạn không chọn/tô màu nữa. */
+  /**
+   * Khung đọc thành chỉ-đọc: bấm vào đoạn không chọn / không tô màu / không cuộn.
+   * Bật khi ở chế độ đọc của mobile, hoặc khi tắt công tắc Snap ở top bar.
+   */
   readOnly?: boolean;
 }
 
@@ -30,11 +33,11 @@ export default function Preview({ chunks, selectedId, onSelect, readOnly = false
   );
 
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedId || readOnly) return;
     boxRef.current
       ?.querySelector(`[data-chunk="${selectedId}"]`)
       ?.scrollIntoView({ block: "center", behavior: "smooth" });
-  }, [selectedId]);
+  }, [selectedId, readOnly]);
 
   const anyDone = rendered.some((r) => r.html);
 
