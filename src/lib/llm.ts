@@ -11,6 +11,8 @@ import {
   REMINDER_WITH_SUMMARY,
   SUMMARY_CONTRACT,
   SUMMARY_REMINDER,
+  WRITER_CONTRACT,
+  WRITER_REMINDER,
 } from "./defaults";
 import { extractTag } from "./postprocess";
 
@@ -183,11 +185,19 @@ interface TagSpec {
   tag: string;
   contract: string;
   reminder: string;
+  /** CR v0.6 — user message đi thẳng, không bọc <source>. Chỉ Assistant Writer dùng. */
+  rawUser?: boolean;
 }
 
 const TRANSLATE_SPEC: TagSpec = { tag: "translation", contract: OUTPUT_CONTRACT, reminder: REMINDER };
 const SUMMARY_SPEC: TagSpec = { tag: "summary", contract: SUMMARY_CONTRACT, reminder: SUMMARY_REMINDER };
 const CONTEXT_SPEC: TagSpec = { tag: "context", contract: CONTEXT_CONTRACT, reminder: CONTEXT_REMINDER };
+const WRITER_SPEC: TagSpec = {
+  tag: "output",
+  contract: WRITER_CONTRACT,
+  reminder: WRITER_REMINDER,
+  rawUser: true,
+};
 
 /**
  * Gọi LLM, retry khi model quên thẻ output.
@@ -225,7 +235,7 @@ async function runTagged(p: TranslateParams, spec: TagSpec): Promise<TranslateOu
     ].filter((v): v is string => Boolean(v));
     const messages = [
       { role: "system", content: parts.join("\n\n") },
-      { role: "user", content: `<source>\n${p.source}\n</source>` },
+      { role: "user", content: spec.rawUser ? p.source : `<source>\n${p.source}\n</source>` },
     ];
 
     try {
@@ -265,6 +275,41 @@ export function summarize(p: TranslateParams): Promise<TranslateOutcome> {
 /** Tạo ngữ cảnh chung cho cả tài liệu. */
 export function buildContext(p: TranslateParams): Promise<TranslateOutcome> {
   return runTagged(p, CONTEXT_SPEC);
+}
+
+export interface WriterParams {
+  endpoint: string;
+  apiKey: string;
+  model: string;
+  temperature: number;
+  /** Prompt đã điền placeholder ở front-end. Server không biết mẫu là gì (CR v0.6 §5.5). */
+  prompt: string;
+}
+
+export interface WriterOutcome {
+  output: string | null;
+  raw: string | null;
+  attempts: number;
+  error: string | null;
+}
+
+/**
+ * CR v0.6 — một cú gọi Assistant Writer. System message chỉ có `WRITER_CONTRACT`
+ * (thêm reminder khi model quên thẻ); prompt đã điền là user message thô.
+ */
+export async function writeText(p: WriterParams): Promise<WriterOutcome> {
+  const out = await runTagged(
+    {
+      endpoint: p.endpoint,
+      apiKey: p.apiKey,
+      model: p.model,
+      temperature: p.temperature,
+      systemPrompt: "",
+      source: p.prompt,
+    },
+    WRITER_SPEC
+  );
+  return { output: out.translated, raw: out.raw, attempts: out.attempts, error: out.error };
 }
 
 function sleep(ms: number) {

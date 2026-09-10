@@ -217,3 +217,14 @@ export function normalizeChunkRule(v: unknown): ChunkRuleKind {
 
 export type ChunkStatus = "pending" | "translating" | "done" | "error" | "skipped";
 export type SectionStatus = "pending" | "summarizing" | "done" | "error";
+
+/**
+ * CR v0.6 — Assistant Writer. System message của luồng này **chỉ có** contract:
+ * prompt đã điền đi thẳng vào user message, không bọc <source> như luồng dịch.
+ */
+export const WRITER_CONTRACT = `QUY TẮC ĐẦU RA BẮT BUỘC:
+Chỉ trả về kết quả, bọc trong thẻ <output></output>.
+Không chào hỏi, không giải thích, không thêm bất kỳ nội dung nào ngoài thẻ.
+Kết quả viết bằng Markdown nếu có cấu trúc (heading, list, bảng).`;
+
+export const WRITER_REMINDER = `NHẮC LẠI: Lần trước bạn quên thẻ. Bắt buộc bọc toàn bộ kết quả trong <output></output>.`;

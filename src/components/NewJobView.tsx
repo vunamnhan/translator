@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import DraftChunkBar, { FLAG_LABEL } from "./DraftChunkBar";
 import { ListPanel, type FilterDef } from "./chrome";
 import { useConfirm } from "./ConfirmDialog";
+import WriterDialog from "./WriterDialog";
 import { Spinner } from "./bar";
 import { useSettings } from "@/lib/useSettings";
 import {
@@ -78,6 +79,8 @@ export default function NewJobView() {
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [tooBig, setTooBig] = useState(false);
   const [listOpen, setListOpen] = useState(false);
+  // CR v0.6 — Assistant Writer, chỉ gắn ở bước nhập văn bản.
+  const [writerOpen, setWriterOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
 
@@ -400,6 +403,13 @@ export default function NewJobView() {
                 {raw.length.toLocaleString("vi-VN")} ký tự ·{" "}
                 {estimateTokens(raw).toLocaleString("vi-VN")} token
               </span>
+              <button
+                onClick={() => setWriterOpen(true)}
+                title="Viết / biến đổi văn bản bằng LLM theo mẫu prompt"
+                className="btn btn-secondary h-9 shrink-0 py-0"
+              >
+                ✎ Assistant Writer
+              </button>
               {/* Kéo thả là đường chính (thả thẳng vào ô nhập), nút này cho máy không kéo được. */}
               <label
                 title="Chọn file .md / .txt"
@@ -673,6 +683,16 @@ export default function NewJobView() {
           </div>
         </>
       )}
+
+      {/* Popup độc lập: chỉ nhận 5 props, không biết gì về màn hình này (CR v0.6 §7.1).
+          Ghi thẳng vào `raw` nên nháp localStorage của v0.4 tự lưu theo. */}
+      <WriterDialog
+        open={writerOpen}
+        onClose={() => setWriterOpen(false)}
+        getText={() => raw}
+        onReplace={(next) => setRaw(next)}
+        onAppend={(added) => setRaw((prev) => prev + added)}
+      />
 
       {dialog}
     </main>

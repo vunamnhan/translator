@@ -272,6 +272,8 @@
       width: min(1152px, 100%);
       animation: tz-pop 0.18s ease-out;
     }
+    /* Assistant Writer hẹp hơn Export: toàn ô nhập, rộng quá thì dòng chữ dài loằng ngoằng. */
+    .sheet-wrap-center > .sheet-writer { width: min(720px, 100%); }
   }
 
   @media (max-width: 1023px) {

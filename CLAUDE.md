@@ -1,6 +1,6 @@
 # Tranzlator — context cho Claude
 
-Tool nội bộ dịch + tóm tắt Markdown bằng LLM (bring-your-own-key). Spec gốc: `document/REQUIREMENTS.md`, delta v0.1 (Tóm tắt): `document/CR-v0.1-summary.md`, delta v0.2 (tag/search/paging/archive/pin/favorite + nhiều key + cool down): `document/CR-v0.2-jobs-list.md`, delta v0.3 (preset bộ prompt lưu DB): `document/CR-v0.3-presets.md`, delta v0.4 (màn hình tạo job: cắt chunk theo rule + sửa chunk trước khi tạo): `document/CR-v0.4-new-job-chunk-editor.md`, delta v0.5 (tóm tắt chunk + chuỗi ngữ cảnh đoạn trước, dịch 1-1): `document/CR-v0.5-chunk-summary-chain.md` — đọc trước khi sửa logic. Giao diện hiện tại mô tả ở `document/UI-SPEC-current.md`, design gốc ở `document/UI Tranzlator/Tranzlator.dc.html`.
+Tool nội bộ dịch + tóm tắt Markdown bằng LLM (bring-your-own-key). Spec gốc: `document/REQUIREMENTS.md`, delta v0.1 (Tóm tắt): `document/CR-v0.1-summary.md`, delta v0.2 (tag/search/paging/archive/pin/favorite + nhiều key + cool down): `document/CR-v0.2-jobs-list.md`, delta v0.3 (preset bộ prompt lưu DB): `document/CR-v0.3-presets.md`, delta v0.4 (màn hình tạo job: cắt chunk theo rule + sửa chunk trước khi tạo): `document/CR-v0.4-new-job-chunk-editor.md`, delta v0.5 (tóm tắt chunk + chuỗi ngữ cảnh đoạn trước, dịch 1-1): `document/CR-v0.5-chunk-summary-chain.md`, delta v0.6 (Assistant Writer: prompt mẫu `{{placeholder}}`, popup độc lập, gắn trang New): `document/CR-v0.6-assistant-writer.md` — đọc trước khi sửa logic. Giao diện hiện tại mô tả ở `document/UI-SPEC-current.md`, design gốc ở `document/UI Tranzlator/Tranzlator.dc.html`.
 
 ## Stack
 Next.js 15 App Router + TypeScript, Tailwind, Postgres + Drizzle (`postgres-js`), remark/mdast để parse MD. Deploy Vercel.
@@ -13,6 +13,8 @@ Next.js 15 App Router + TypeScript, Tailwind, Postgres + Drizzle (`postgres-js`)
 - Ngữ cảnh chung (`jobs.context`) bơm vào system prompt **sau** prompt user, **trước** output contract — xem `documentContextBlock` trong `src/lib/defaults.ts`.
 - Preset (v0.3) là **hai tầng**: preset trên DB chỉ để nạp xuống / cất lên, thứ thực sự gửi đi vẫn là working copy trong Settings. Route dịch / tóm tắt không biết preset là gì, vẫn nhận prompt trong body — đừng "tối ưu" bằng cách cho server đọc preset theo id.
 - Xoay key + cool down nằm ở front-end. Server vẫn nhận đúng 1 key qua `x-llm-key` mỗi request, không biết gì về vòng xoay.
+- Assistant Writer (v0.6) cũng **hai tầng** như preset: mẫu trên DB chỉ để nạp xuống / cất lên, thứ gửi đi là working copy trong popup. Điền `{{placeholder}}` chạy ở front-end; `POST /api/writer/run` chỉ nhận prompt cuối nên gắn popup chỗ khác không phải sửa server. Thay một lượt, **không đệ quy**.
+- `WriterDialog` là **component độc lập**: đúng 5 props (`open`, `onClose`, `getText`, `onReplace`, `onAppend`), không import gì từ trang New. Muốn gắn màn job / chunk editor thì render nó ở đó, đừng nhét logic của nơi gắn vào trong popup.
 - Tóm tắt chunk (v0.5) đi **chung một cú gọi** với bản dịch (contract hai thẻ), không có route riêng. Tắt `chunkSummary` thì system message phải ra **đúng byte như v0.2** — mọi mảnh mới chỉ được nối khi cờ bật.
 - Chuỗi ngữ cảnh (v0.5) vẫn là vòng lặp front-end: chuỗi bật thì `runPool` ép pool = 1 và dừng ngay chỗ đứt. Server chỉ biết đúng một chunk mỗi request; nó tra chunk liền trước rồi hoặc bơm khối hoặc trả `409 { brokenAt }`, không tự dịch tiếp, không tự dịch lại dây chuyền.
 - Cắt chunk theo rule (v0.4) chạy **hoàn toàn ở front-end**. Server không biết rule là gì, chỉ nhận `chunks[]` đã duyệt rồi ghép `source = chunks.join("")`. Đừng thêm route xem trước.
@@ -42,6 +44,9 @@ Next.js 15 App Router + TypeScript, Tailwind, Postgres + Drizzle (`postgres-js`)
 | `src/lib/runner.ts` | Xoay key round-robin, nhận diện 429, cool down cắt được giữa chừng |
 | `src/lib/presets.ts` | Luật thuần của preset: validate, so working copy với preset, cảnh báo contract. Route và UI dùng chung |
 | `src/lib/presetStore.ts` | Store danh sách preset (useSyncExternalStore) + CRUD. Chip top bar và tab Prompt dùng chung một danh sách |
+| `src/lib/writerPrompts.ts` | Luật thuần của Assistant Writer (v0.6): parse `{{placeholder}}`, điền một lượt, validate, so working copy với record. Route và popup dùng chung |
+| `src/lib/writerStore.ts` | Store danh sách mẫu writer (useSyncExternalStore) + CRUD, kèm working copy trong **sessionStorage** (`tranzlator.writer`) — đóng trình duyệt là mất, cố ý |
+| `src/components/WriterDialog.tsx` | Popup Assistant Writer: chọn mẫu, sinh ô nhập theo placeholder, chế độ Sửa mẫu, chạy / huỷ (AbortController), dán kết quả (Thay thế / Chèn cuối / Copy) |
 | `src/components/PresetBar.tsx` | Thanh preset đầu tab Prompt: dropdown, nhãn "đã sửa", lưu / đổi tên / xoá |
 | `src/lib/tags.ts` | Chuẩn hoá tag (trim, gộp trùng không phân biệt hoa thường, 32 ký tự, 20 tag) |
 | `src/lib/modelHistory.ts` | Lịch sử model đã dùng cho gợi ý ở ô Model (localStorage riêng, không nằm trong settings) |
@@ -57,7 +62,7 @@ Next.js 15 App Router + TypeScript, Tailwind, Postgres + Drizzle (`postgres-js`)
 
 Chạy `npm run build` rồi quay lại `npm run dev` sẽ vỡ `.next` (`Cannot find module './xxx.js'`) — dùng `npm run dev:clean`.
 
-`npm run dev` (cần `DATABASE_URL`), `npm test`. Schema init: chạy lần lượt `drizzle/0000_init.sql`, `drizzle/0001_summary.sql` (delta CR v0.1: cột context/summary trên `jobs` + bảng `sections`), `drizzle/0002_jobs_list.sql` (delta CR v0.2: tags/archived_at/pinned_at/favorite + index), `drizzle/0003_presets.sql` (delta CR v0.3: bảng `presets` + seed 3 preset mẫu), `drizzle/0004_chunk_mode.sql` (delta CR v0.4: cột `chunk_mode` trên `jobs`), `drizzle/0005_chunk_summary.sql` (delta CR v0.5: `chunks.summary` + `chunks.prev_summary_used` + `presets.chunk_summary_prompt`). 0001–0005 idempotent nên DB cũ chạy thẳng được; seed dùng `WHERE NOT EXISTS` nên chạy lại không nhân đôi và không ghi đè preset user đã sửa.
+`npm run dev` (cần `DATABASE_URL`), `npm test`. Schema init: chạy lần lượt `drizzle/0000_init.sql`, `drizzle/0001_summary.sql` (delta CR v0.1: cột context/summary trên `jobs` + bảng `sections`), `drizzle/0002_jobs_list.sql` (delta CR v0.2: tags/archived_at/pinned_at/favorite + index), `drizzle/0003_presets.sql` (delta CR v0.3: bảng `presets` + seed 3 preset mẫu), `drizzle/0004_chunk_mode.sql` (delta CR v0.4: cột `chunk_mode` trên `jobs`), `drizzle/0005_chunk_summary.sql` (delta CR v0.5: `chunks.summary` + `chunks.prev_summary_used` + `presets.chunk_summary_prompt`), `drizzle/0006_writer_prompts.sql` (delta CR v0.6: bảng `writer_prompts` + seed 4 mẫu writer). 0001–0006 idempotent nên DB cũ chạy thẳng được; seed dùng `WHERE NOT EXISTS` nên chạy lại không nhân đôi và không ghi đè preset user đã sửa.
 
 Drizzle 0.44 **bọc lỗi query** lại: mã Postgres (ví dụ `23505` trùng unique) nằm ở `error.cause`, kiểm `error.code` là hụt và route trả 500 thay vì 409 — dùng `isUniqueViolation` trong `src/lib/http.ts`.
 

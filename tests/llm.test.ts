@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { assertEndpointAllowed, buildContext, normalizeEndpoint, summarize, translate } from "@/lib/llm";
+import {
+  assertEndpointAllowed,
+  buildContext,
+  normalizeEndpoint,
+  summarize,
+  translate,
+  writeText,
+} from "@/lib/llm";
+import { WRITER_CONTRACT } from "@/lib/defaults";
 
 function jsonRes(content: string, status = 200) {
   return new Response(JSON.stringify({ choices: [{ message: { content } }] }), {
@@ -268,5 +276,48 @@ describe("tóm tắt chunk trong cùng cú gọi (CR v0.5)", () => {
     expect(second).toContain("<translation>");
     expect(second).toContain("<summary>");
     expect(out.error).toMatch(/translation/);
+  });
+});
+
+describe("Assistant Writer (CR v0.6)", () => {
+  const writerParams = {
+    endpoint: "https://api.example.com/v1",
+    apiKey: "sk-test",
+    model: "m",
+    temperature: 0.7,
+    prompt: "Dựa vào văn bản sau:\n\n# Tài liệu\n\nHãy viết outline.",
+  };
+
+  it("system chỉ có WRITER_CONTRACT, user là prompt thô không bọc <source>", async () => {
+    const fetchMock = vi.fn(async (_url: string, _init: RequestInit) =>
+      jsonRes("<output>## Outline</output>")
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const out = await writeText(writerParams);
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.messages[0].content).toBe(WRITER_CONTRACT);
+    expect(body.messages[1].content).toBe(writerParams.prompt);
+    expect(body.messages[1].content).not.toContain("<source>");
+    expect(out.output).toBe("## Outline");
+    expect(out.attempts).toBe(1);
+    expect(out.error).toBeNull();
+  });
+
+  it("quên thẻ → retry 3 lần, lần sau có reminder, rồi báo lỗi <output>", async () => {
+    const fetchMock = vi.fn(async () => jsonRes("quên thẻ"));
+    vi.stubGlobal("fetch", fetchMock);
+    const out = await writeText(writerParams);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(systemAt(fetchMock, 1)).toContain("NHẮC LẠI");
+    expect(out.output).toBeNull();
+    expect(out.error).toMatch(/<output>/);
+  });
+
+  it("lỗi HTTP → trả error, không ném", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("nope", { status: 401 })));
+    const out = await writeText(writerParams);
+    expect(out.output).toBeNull();
+    expect(out.error).toMatch(/401/);
   });
 });

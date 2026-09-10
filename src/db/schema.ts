@@ -4,6 +4,8 @@ import {
   text,
   integer,
   boolean,
+  real,
+  jsonb,
   timestamp,
   uniqueIndex,
   index,
@@ -93,7 +95,22 @@ export const presets = pgTable("presets", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** CR v0.6 — mẫu prompt của Assistant Writer. Không dính gì tới jobs / presets. */
+export const writerPrompts = pgTable("writer_prompts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  /** Có `{{placeholder}}`; app điền ở front-end, server không parse. */
+  template: text("template").notNull(),
+  /** Giá trị mặc định của từng placeholder. Key `text` bị bỏ khi lưu. */
+  fields: jsonb("fields").$type<Record<string, string>>().notNull().default({}),
+  /** null = dùng temperature trong Settings. */
+  temperature: real("temperature"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type Job = typeof jobs.$inferSelect;
 export type Chunk = typeof chunks.$inferSelect;
 export type Section = typeof sections.$inferSelect;
 export type Preset = typeof presets.$inferSelect;
+export type WriterPrompt = typeof writerPrompts.$inferSelect;
