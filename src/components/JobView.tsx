@@ -210,7 +210,9 @@ export default function JobView({ jobId }: { jobId: string }) {
             temperature: s.temperature,
             useContext: s.useContextForTranslation,
             withSummary: s.chunkSummary,
-            usePrevSummary: s.chunkSummary && s.chainPrevSummary,
+            chainMode: s.chainMode,
+            contextWindowChunks: s.contextWindowChunks,
+            contextTokens: s.contextTokens,
             force: forceChain.current,
             chunkSummaryPrompt: s.chunkSummaryPrompt,
           }),
@@ -234,7 +236,7 @@ export default function JobView({ jobId }: { jobId: string }) {
     async (id: string): Promise<StepResult> => {
       const s = settingsRef.current;
       const keys = s.apiKeys;
-      const chain = s.chunkSummary && s.chainPrevSummary;
+      const chain = s.chainMode !== "off";
       const before = chunksRef.current.find((c) => c.id === id);
       patchChunk(id, { status: "translating", error: null });
 
@@ -291,7 +293,7 @@ export default function JobView({ jobId }: { jobId: string }) {
     async (opts?: { fromIdx?: number; force?: boolean }) => {
       if (needKey()) return;
       const s = settingsRef.current;
-      const chain = s.chunkSummary && s.chainPrevSummary;
+      const chain = s.chainMode !== "off";
       forceChain.current = chain && opts?.force === true;
       setChainBreak(null);
       const from = opts?.fromIdx;
@@ -723,7 +725,11 @@ export default function JobView({ jobId }: { jobId: string }) {
     return map;
   }, [chunks]);
 
-  const chainOn = settings.chunkSummary && settings.chainPrevSummary;
+  const chainOn = settings.chainMode !== "off";
+  const chainLabel =
+    settings.chainMode === "window"
+      ? `Cửa sổ ${settings.contextWindowChunks} + tóm tắt`
+      : "Chuỗi 1-1";
 
   const stats = useMemo(() => {
     const total = chunks.length;
@@ -866,10 +872,14 @@ export default function JobView({ jobId }: { jobId: string }) {
                 {stats.warnings > 0 && <span className="text-warn-fg">{stats.warnings} cảnh báo</span>}
                 {chainOn && (
                   <span
-                    title="Chuỗi ngữ cảnh bật: dịch tuần tự 1-1, bỏ qua Concurrency"
+                    title={
+                      settings.chainMode === "window"
+                        ? `Dịch tuần tự 1-1, mỗi chunk gửi kèm tóm tắt các đoạn đã dịch cộng nguyên văn ${settings.contextWindowChunks} đoạn gần nhất, tối đa ${settings.contextTokens} token`
+                        : "Dịch tuần tự 1-1, mỗi chunk gửi kèm tóm tắt đoạn liền trước"
+                    }
                     className="tag shrink-0 bg-accent-100 text-accent-800"
                   >
-                    Chuỗi 1-1
+                    {chainLabel}
                   </span>
                 )}
                 {cooling && (

@@ -73,6 +73,9 @@ export default function WriterDialog({ open, onClose, getText, onReplace, onAppe
 
   const abortRef = useRef<AbortController | null>(null);
   const keyCursor = useRef(0);
+  // Bản draft mới nhất, để lúc đóng ghi ngay chứ không mất phần debounce đang chờ.
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
 
   // Nạp working copy từ sessionStorage mỗi lần mở: đóng / mở lại trong cùng phiên
   // thì mẫu, giá trị, kết quả còn nguyên (§3.6).
@@ -110,13 +113,15 @@ export default function WriterDialog({ open, onClose, getText, onReplace, onAppe
     return () => clearInterval(t);
   }, [running]);
 
-  // Đóng popup giữa chừng thì cắt luôn request đang chạy.
+  // Đóng popup: cắt request đang chạy và ghi ngay working copy — đóng trong vòng
+  // 300 ms sau khi gõ thì cleanup của effect trên đã huỷ lần ghi đang chờ.
   useEffect(() => {
     if (open) return;
     abortRef.current?.abort();
     abortRef.current = null;
     setRunning(false);
-  }, [open]);
+    if (hydrated) writeWriterDraft(draftRef.current);
+  }, [open, hydrated]);
 
   const patch = useCallback((p: Partial<WriterDraft>) => setDraft((d) => ({ ...d, ...p })), []);
 
@@ -232,6 +237,10 @@ export default function WriterDialog({ open, onClose, getText, onReplace, onAppe
 
   const saveDefaults = async () => {
     if (!current) return;
+    if (editMode && draft.template.trim().length === 0) {
+      setNote("Template đang trống — gõ nội dung mẫu rồi mới lưu được.");
+      return;
+    }
     try {
       const fields = pruneFields(draft.values, parsed.names);
       const updated = await updateWriterPrompt(current.id, {
@@ -250,7 +259,15 @@ export default function WriterDialog({ open, onClose, getText, onReplace, onAppe
     }
   };
 
-  const saveAsNew = () =>
+  const saveAsNew = () => {
+    // Mẫu là template chứ không phải cái tên: chưa gõ gì mà hỏi tên trước thì
+    // người dùng đặt tên xong mới ăn 400 "Thiếu template" — chỉ đường luôn cho nhanh.
+    if (draft.template.trim().length === 0) {
+      setEditMode(true);
+      setTab("fill");
+      setNote("Chưa có nội dung mẫu — gõ template ở ô Template rồi lưu thành mẫu mới.");
+      return;
+    }
     askName({
       title: "Lưu thành mẫu mới",
       ok: "Tạo mẫu",
@@ -266,6 +283,7 @@ export default function WriterDialog({ open, onClose, getText, onReplace, onAppe
         setNote(`Đã tạo mẫu «${created.name}».`);
       },
     });
+  };
 
   const rename = () => {
     if (!current) return;

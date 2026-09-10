@@ -88,9 +88,23 @@ ${summary}
 Đây là tóm tắt đoạn ngay trước đoạn cần dịch, chỉ để hiểu mạch và giữ giọng, xưng hô nhất quán. Không dịch, không lặp lại nội dung này.`;
 }
 
+/**
+ * CR v0.7 — ba câu cấm cuối khối `<translated_so_far>`. Cố ý không cho preset ghi
+ * đè: rủi ro lớn nhất của cửa sổ trượt là model nhìn thấy vài nghìn token văn xuôi
+ * của chính nó rồi kể tiếp thay vì dịch đúng đoạn trong <source>.
+ */
+export const TRANSLATED_SO_FAR_NOTE = `Đây là phần đã dịch trước đoạn cần dịch, xếp theo thứ tự: tóm tắt các đoạn xa trước, nguyên văn mấy đoạn gần nhất sau.
+Dùng khối này để giữ mạch, giọng văn, cách xưng hô và cách dịch tên riêng cho nhất quán.
+KHÔNG dịch lại, KHÔNG viết tiếp, KHÔNG lặp lại bất kỳ nội dung nào trong khối này. Chỉ dịch đúng phần nằm trong <source>.`;
+
 /** Câu warning của luồng chuỗi — route ghi vào chunk, UI so chuỗi nên để một chỗ. */
 export const WARN_NO_CHUNK_SUMMARY = "Model không trả tóm tắt chunk";
 export const WARN_NO_PREV_SUMMARY = "Không có tóm tắt đoạn trước";
+
+/** CR v0.7 — khối ngữ cảnh vượt trần token nên phải bỏ bớt tóm tắt xa nhất. */
+export function warnContextTrimmed(dropped: number): string {
+  return `Ngữ cảnh bị cắt: bỏ ${dropped} tóm tắt xa nhất`;
+}
 
 /** Block ngữ cảnh chung, dùng chung cho cả luồng dịch lẫn luồng tóm tắt section. */
 export function documentContextBlock(context: string): string {
@@ -98,6 +112,19 @@ export function documentContextBlock(context: string): string {
 ${context}
 </document_context>
 Dùng ngữ cảnh trên để hiểu tài liệu và giữ thuật ngữ nhất quán. Chỉ xử lý nội dung trong <source>.`;
+}
+
+/** CR v0.7 — ba nấc ngữ cảnh mạch. */
+export type ChainMode = "off" | "prev" | "window";
+
+/**
+ * `prev` dựa hẳn vào tóm tắt chunk nên tắt `chunkSummary` là nó mất chỗ dựa;
+ * `window` vẫn chạy được bằng phần nguyên văn. Dùng chung cho store và route.
+ */
+export function normalizeChainMode(raw: unknown, chunkSummary: boolean): ChainMode {
+  if (raw === "window") return "window";
+  if (raw === "prev") return chunkSummary ? "prev" : "off";
+  return "off";
 }
 
 export interface Settings {
@@ -116,8 +143,16 @@ export interface Settings {
   chunkSummaryPrompt: string;
   /** CR v0.5 — cùng cú gọi dịch xin thêm thẻ <summary> cho từng chunk. */
   chunkSummary: boolean;
-  /** CR v0.5 — bơm tóm tắt chunk trước vào prompt; ép dịch 1-1. Cần `chunkSummary` bật. */
-  chainPrevSummary: boolean;
+  /**
+   * CR v0.7 — ngữ cảnh mạch khi dịch, thay boolean `chainPrevSummary` của v0.5.
+   * `prev` cần `chunkSummary` bật; `window` thì không, thiếu tóm tắt chỉ mất phần xa.
+   * Khác `off` là ép dịch 1-1.
+   */
+  chainMode: ChainMode;
+  /** Số đoạn gần nhất gửi nguyên văn ở chế độ `window`. 0 = chỉ tóm tắt. */
+  contextWindowChunks: number;
+  /** Trần token cho cả khối ngữ cảnh mạch. */
+  contextTokens: number;
   /** Preset đang gắn (CR v0.3). null = "Tuỳ chỉnh". Preset không còn trên DB cũng coi như null. */
   presetId: string | null;
   summaryTokens: number;
@@ -143,7 +178,9 @@ export const DEFAULT_SETTINGS: Settings = {
   contextPrompt: "",
   chunkSummaryPrompt: "",
   chunkSummary: false,
-  chainPrevSummary: false,
+  chainMode: "off",
+  contextWindowChunks: 3,
+  contextTokens: 6000,
   presetId: null,
   summaryTokens: 6000,
   contextMaxTokens: 80000,

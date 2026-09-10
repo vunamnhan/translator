@@ -28,3 +28,19 @@ export function clampCooldown(v: unknown): number {
   const n = typeof v === "number" && Number.isFinite(v) ? v : DEFAULT_SETTINGS.cooldownMs;
   return Math.min(60000, Math.max(0, Math.round(n / 500) * 500));
 }
+
+/** CR v0.7 — cửa sổ nguyên văn: 0..20 đoạn. 0 = chỉ gửi tóm tắt. */
+export function clampWindowChunks(v: unknown): number {
+  const n =
+    typeof v === "number" && Number.isFinite(v)
+      ? Math.round(v)
+      : DEFAULT_SETTINGS.contextWindowChunks;
+  return Math.min(20, Math.max(0, n));
+}
+
+/** CR v0.7 — trần token của cả khối ngữ cảnh mạch. */
+export function clampContextTokens(v: unknown): number {
+  const n =
+    typeof v === "number" && Number.isFinite(v) ? Math.round(v) : DEFAULT_SETTINGS.contextTokens;
+  return Math.min(100000, Math.max(500, n));
+}

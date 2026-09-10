@@ -184,19 +184,19 @@ describe("tóm tắt chunk trong cùng cú gọi (CR v0.5)", () => {
     await translate({ ...params, documentContext: "ngữ cảnh" });
     const base = systemOf(off);
 
-    // Truyền kèm prompt tóm tắt và tóm tắt đoạn trước nhưng KHÔNG bật cờ → bỏ qua sạch.
+    // Prompt tóm tắt chunk luôn được gửi kèm trong body, nhưng không bật cờ thì bỏ qua sạch.
     const stillOff = vi.fn(async () => jsonRes("<translation>ok</translation>"));
     vi.stubGlobal("fetch", stillOff);
     const out = await translate({
       ...params,
       documentContext: "ngữ cảnh",
       chunkSummaryPrompt: "tóm tắt kiểu này",
-      previousSummary: "đoạn trước kể chuyện A",
     });
 
     expect(systemOf(stillOff)).toBe(base);
     expect(base).not.toContain("<summary>");
     expect(base).not.toContain("<previous_chunk_summary>");
+    expect(base).not.toContain("<translated_so_far>");
     expect(out.summary).toBeNull();
   });
 
@@ -319,5 +319,39 @@ describe("Assistant Writer (CR v0.6)", () => {
     const out = await writeText(writerParams);
     expect(out.output).toBeNull();
     expect(out.error).toMatch(/401/);
+  });
+});
+
+describe("khối ngữ cảnh mạch (CR v0.7)", () => {
+  it("bơm contextBlock kể cả khi không tạo tóm tắt chunk", async () => {
+    const fetchMock = vi.fn(async () => jsonRes("<translation>ok</translation>"));
+    vi.stubGlobal("fetch", fetchMock);
+    await translate({
+      ...params,
+      documentContext: "ngữ cảnh chung",
+      contextBlock: "<translated_so_far>\n<recent>\n#3:\nđoạn đã dịch\n</recent>\n</translated_so_far>",
+    });
+
+    const system = systemOf(fetchMock);
+    const at = (needle: string) => system.indexOf(needle);
+    expect(system).toContain("đoạn đã dịch");
+    expect(at("<document_context>")).toBeLessThan(at("<translated_so_far>"));
+    expect(at("<translated_so_far>")).toBeLessThan(at("QUY TẮC ĐẦU RA"));
+    // Nấc window không dùng contract hai thẻ nếu không bật tạo tóm tắt.
+    expect(system).not.toContain("Trả về đúng hai thẻ");
+  });
+
+  it("contextBlock rỗng → không bơm gì", async () => {
+    const fetchMock = vi.fn(async () => jsonRes("<translation>ok</translation>"));
+    vi.stubGlobal("fetch", fetchMock);
+    await translate({ ...params, contextBlock: "   " });
+    expect(systemOf(fetchMock)).not.toContain("<translated_so_far>");
+  });
+
+  it("luồng tóm tắt section không đụng tới khối này", async () => {
+    const fetchMock = vi.fn(async () => jsonRes("<summary>ý chính</summary>"));
+    vi.stubGlobal("fetch", fetchMock);
+    await summarize({ ...params, contextBlock: "<translated_so_far>x</translated_so_far>" });
+    expect(systemOf(fetchMock)).not.toContain("<translated_so_far>");
   });
 });

@@ -140,7 +140,7 @@ Một dòng, các mục bọc xuống dòng khi hẹp:
 - **Tên job** — bấm vào để đổi tên tại chỗ. Khi hover hiện bút chì ✎. Khi sửa: ô input viền xanh, gợi ý "Enter lưu · Esc huỷ", đang lưu thì "đang lưu…"
 - **Bộ chuyển tab** dạng segmented control 2 nút: **Translate** | **Summary**. Tab active nền xanh chữ trắng.
 - **Thống kê** (chữ xám, đổi theo tab):
-  - Tab Translate: `12/40 xong` · `3 lỗi` (đỏ) · `2 cảnh báo` (vàng) · chip `Chuỗi 1-1` (CR v0.5, chỉ khi bật gửi kèm tóm tắt chunk trước)
+  - Tab Translate: `12/40 xong` · `3 lỗi` (đỏ) · `2 cảnh báo` (vàng) · chip ngữ cảnh mạch khi bật: `Chuỗi 1-1` (nấc tóm tắt đoạn trước) hoặc `Cửa sổ 3 + tóm tắt` (nấc cửa sổ trượt), tooltip nói rõ khối đang gửi gồm gì
   - Tab Summary: `4/9 section` · `1 lỗi` (đỏ)
 - **Chip model · host** — font mono nền xám, ví dụ `gpt-4o-mini · api.openai.com`. Hover hiện tooltip URL đầy đủ sẽ gọi.
 - **Cụm nút bên phải** (đổi theo tab, xem 5.5 và 5.6)
@@ -219,7 +219,7 @@ Thẻ chunk mở rộng có 3 tab nhỏ:
 
 Dưới vùng nội dung là **hàng gấp mở "Tóm tắt"** (CR v0.5): đóng thì hiện một dòng đầu của tóm tắt chunk, hoặc chữ mờ "(chưa có)"; mở ra là textarea nhỏ, blur tự lưu. Chunk `skipped` không có hàng này.
 
-Hai dấu hiệu mới trên thẻ chunk (CR v0.5): **⛓** = lần dịch gần nhất có kèm tóm tắt đoạn trước; **⚠** kèm tooltip "Tóm tắt đoạn trước đã đổi sau khi dịch" khi tóm tắt của chunk liền trước bị sửa / dịch lại sau chunk này.
+Hai dấu hiệu mới trên thẻ chunk (CR v0.5): **⛓** = lần dịch gần nhất có kèm ngữ cảnh mạch; **⚠** kèm tooltip "Tóm tắt đoạn trước đã đổi sau khi dịch" khi tóm tắt của chunk liền trước bị sửa / dịch lại sau chunk này.
 
 Nút hành động: **Run** (xanh) — dịch lại chunk này. Ba trạng thái: bình thường "Run"; đang gọi AI thì spinner + "Đang dịch…"; đang lưu một ô vừa rời (Nguồn / Bản dịch / Tóm tắt) thì spinner + "Đang lưu…". Hai trạng thái sau đều vô hiệu hoá nút, nên bấm Run ngay sau khi sửa text sẽ ăn một nhịp lưu trước, bấm lại lần nữa mới chạy. Ẩn với chunk `skipped`.
 
@@ -314,7 +314,12 @@ Trượt từ **phải**, rộng tối đa 448px, nền phủ đen 30%. Bấm ng
 6. **Concurrency: 3** — thanh trượt 2 đến 6.
 7. **Cool down (giây)** — ô số, mặc định 5, từ 0 đến 60, bước 0.5. `0` = tắt. Dưới ô hiện ước lượng "≈ 3 call / 5s với concurrency 3. Mỗi worker nghỉ sau khi xong một call."
 8. Checkbox **Tạo tóm tắt chunk** (CR v0.5, mặc định tắt). Chú: "Cùng cú gọi dịch, trả thêm thẻ `<summary>`, tốn thêm ~100 token output mỗi chunk."
-9. Checkbox **Gửi kèm tóm tắt chunk trước** (CR v0.5, mặc định tắt, mờ + vô hiệu khi checkbox trên tắt). Chú: "Dịch tuần tự 1-1, bỏ qua Concurrency. Thời gian ≈ số chunk × (latency + cool down)." Bật nó thì ô **Concurrency** ở trên mờ đi và hiện chữ "đang bị ép = 1 (chuỗi)".
+9. Cụm **Ngữ cảnh mạch khi dịch** (CR v0.7, thay checkbox "Gửi kèm tóm tắt chunk trước" của v0.5) — ba nấc radio:
+   - **Tắt** (mặc định) — mỗi chunk dịch độc lập, chạy song song theo Concurrency.
+   - **Tóm tắt đoạn liền trước** — mờ + vô hiệu khi chưa bật "Tạo tóm tắt chunk".
+   - **Cửa sổ trượt** — hiện thêm hai ô số trong khay xám: **Đoạn nguyên văn gần nhất** (0..20, mặc định 3) và **Trần ngữ cảnh (token)** (500..100000, mặc định 6000). Chọn nấc này mà chưa bật "Tạo tóm tắt chunk" thì hiện dải vàng nhắc khối sẽ không có phần xa.
+
+   Hai nấc sau đều làm ô **Concurrency** ở trên mờ đi kèm chữ "đang bị ép = 1 (chuỗi)". Chú dưới cụm nhắc dịch 1-1, và riêng nấc cửa sổ nhắc thêm chuyện tốn token và chuyện xoay nhiều key làm hỏng prompt cache.
 10. **Chunk tokens (ước lượng chars/4)** — ô số, mặc định 1500. Chú: "Đổi số này thì trang job sẽ nhắc chunk lại (chunk lại là mất bản dịch cũ)."
 11. Đường kẻ, tiêu đề nhỏ **Tóm tắt**
 12. Checkbox **Dùng ngữ cảnh chung khi dịch** (mặc định bật) + mô tả 2 dòng.

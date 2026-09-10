@@ -7,11 +7,12 @@ import {
   DEFAULT_SETTINGS,
   MAX_API_KEYS,
   normalizeApiKeys,
+  type ChainMode,
   type Settings,
 } from "@/lib/defaults";
 import { forgetModel, matchModels, readModels, rememberModel } from "@/lib/modelHistory";
 import { contractWarning, type PromptSet } from "@/lib/presets";
-import { clampCooldown } from "@/lib/validate";
+import { clampContextTokens, clampCooldown, clampWindowChunks } from "@/lib/validate";
 import { useConfirm } from "./ConfirmDialog";
 import PresetBar from "./PresetBar";
 
@@ -181,11 +182,18 @@ export default function SettingsDrawer({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, tryClose, save]);
 
-  /** Tắt "tạo tóm tắt chunk" thì chuỗi mất chỗ dựa, tắt luôn (§2.2). */
+  /**
+   * Tắt "tạo tóm tắt chunk" thì nấc `prev` mất chỗ dựa nên rơi về `off`;
+   * `window` vẫn chạy được bằng phần nguyên văn nên giữ nguyên (CR v0.7 §2.1).
+   */
   const setChunkSummary = (on: boolean) =>
-    setDraft((d) => ({ ...d, chunkSummary: on, chainPrevSummary: on && d.chainPrevSummary }));
+    setDraft((d) => ({
+      ...d,
+      chunkSummary: on,
+      chainMode: !on && d.chainMode === "prev" ? "off" : d.chainMode,
+    }));
 
-  const chainOn = draft.chunkSummary && draft.chainPrevSummary;
+  const chainOn = draft.chainMode !== "off";
 
   if (!open) return null;
 
@@ -351,26 +359,88 @@ export default function SettingsDrawer({
                 </span>
               </label>
 
-              <label
-                className={`flex items-start gap-2.5 text-[13px] ${
-                  draft.chunkSummary ? "cursor-pointer" : "cursor-not-allowed opacity-50"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={draft.chainPrevSummary}
-                  disabled={!draft.chunkSummary}
-                  onChange={(e) => set("chainPrevSummary", e.target.checked)}
-                  className="mt-1 h-4 w-4 accent-accent"
-                />
-                <span>
-                  Gửi kèm tóm tắt chunk trước
+              <Field label="Ngữ cảnh mạch khi dịch">
+                <div className="flex flex-col gap-1.5">
+                  <ChainRadio
+                    value="off"
+                    current={draft.chainMode}
+                    onPick={(v) => set("chainMode", v)}
+                    label="Tắt"
+                    note="Mỗi chunk dịch độc lập, chạy song song theo Concurrency."
+                  />
+                  <ChainRadio
+                    value="prev"
+                    current={draft.chainMode}
+                    onPick={(v) => set("chainMode", v)}
+                    disabled={!draft.chunkSummary}
+                    label="Tóm tắt đoạn liền trước"
+                    note={
+                      draft.chunkSummary
+                        ? "Bơm tóm tắt đúng một đoạn ngay trước. Rẻ nhất trong ba nấc."
+                        : "Cần bật “Tạo tóm tắt chunk” ở trên."
+                    }
+                  />
+                  <ChainRadio
+                    value="window"
+                    current={draft.chainMode}
+                    onPick={(v) => set("chainMode", v)}
+                    label="Cửa sổ trượt"
+                    note="Tóm tắt mọi đoạn đã dịch, cộng nguyên văn mấy đoạn gần nhất."
+                  />
+                </div>
+
+                {draft.chainMode === "window" && (
+                  <div className="mt-2.5 grid grid-cols-2 gap-3 rounded-2xl bg-paper p-3">
+                    <Field label="Đoạn nguyên văn gần nhất">
+                      <input
+                        type="number"
+                        min={0}
+                        max={20}
+                        value={draft.contextWindowChunks}
+                        onChange={(e) =>
+                          set("contextWindowChunks", clampWindowChunks(Number(e.target.value)))
+                        }
+                        className="input"
+                      />
+                    </Field>
+                    <Field label="Trần ngữ cảnh (token)">
+                      <input
+                        type="number"
+                        min={500}
+                        max={100000}
+                        step={500}
+                        value={draft.contextTokens}
+                        onChange={(e) =>
+                          set("contextTokens", clampContextTokens(Number(e.target.value)))
+                        }
+                        className="input"
+                      />
+                    </Field>
+                  </div>
+                )}
+
+                {draft.chainMode === "window" && !draft.chunkSummary && (
+                  <p className="m-0 mt-2 rounded-2xl bg-warn-bg px-3.5 py-2.5 text-xs text-warn-fg">
+                    Chưa bật “Tạo tóm tắt chunk” → khối chỉ có {draft.contextWindowChunks} đoạn gần
+                    nhất, không có phần xa.
+                  </p>
+                )}
+
+                {chainOn && (
                   <Note>
                     Dịch tuần tự 1-1, bỏ qua Concurrency. Thời gian ≈ số chunk × (latency + cool
                     down).
+                    {draft.chainMode === "window" && (
+                      <>
+                        {" "}
+                        Mỗi chunk gửi kèm tối đa {draft.contextTokens} token ngữ cảnh nên tốn token
+                        hơn hẳn — và xoay nhiều key làm hỏng prompt cache của provider, job chạy
+                        nấc này nên để đúng một key.
+                      </>
+                    )}
                   </Note>
-                </span>
-              </label>
+                )}
+              </Field>
 
               <Field label="Chunk tokens (ước lượng chars/4)">
                 <input
@@ -649,6 +719,44 @@ function ModelInput({ value, onChange }: { value: string; onChange: (v: string) 
         </div>
       )}
     </div>
+  );
+}
+
+/** Một nấc của cụm "Ngữ cảnh mạch khi dịch" (CR v0.7 §6.1). */
+function ChainRadio({
+  value,
+  current,
+  onPick,
+  label,
+  note,
+  disabled = false,
+}: {
+  value: ChainMode;
+  current: ChainMode;
+  onPick: (v: ChainMode) => void;
+  label: string;
+  note: string;
+  disabled?: boolean;
+}) {
+  return (
+    <label
+      className={`flex items-start gap-2.5 text-[13px] ${
+        disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+      }`}
+    >
+      <input
+        type="radio"
+        name="chainMode"
+        checked={current === value}
+        disabled={disabled}
+        onChange={() => onPick(value)}
+        className="mt-1 h-4 w-4 accent-accent"
+      />
+      <span>
+        {label}
+        <Note>{note}</Note>
+      </span>
+    </label>
   );
 }
 

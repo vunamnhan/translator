@@ -49,17 +49,33 @@ describe("settingsStore", () => {
     expect(mod.getSnapshot().settings.apiKeys).toEqual(["sk-cu"]);
   });
 
-  it("chuỗi không đứng một mình: tắt chunkSummary thì chainPrevSummary tắt theo", async () => {
+  it("chuyển chainPrevSummary của v0.5 sang chainMode ba nấc", async () => {
+    const { mod, storage } = await freshStore(
+      JSON.stringify({ chunkSummary: true, chainPrevSummary: true })
+    );
+    expect(mod.getSnapshot().settings.chainMode).toBe("prev");
+
+    // Khoá cũ biến mất khỏi bản lưu ngay lần ghi kế.
+    mod.setSettings({ model: "x" });
+    expect(JSON.parse(storage.getItem(SETTINGS_KEY)!).chainPrevSummary).toBeUndefined();
+  });
+
+  it("nấc prev cần chunkSummary, nấc window thì không", async () => {
     const { mod } = await freshStore(
       JSON.stringify({ chunkSummary: false, chainPrevSummary: true })
     );
-    expect(mod.getSnapshot().settings.chainPrevSummary).toBe(false);
+    expect(mod.getSnapshot().settings.chainMode).toBe("off");
 
-    mod.setSettings({ chunkSummary: true, chainPrevSummary: true });
-    expect(mod.getSnapshot().settings.chainPrevSummary).toBe(true);
+    mod.setSettings({ chunkSummary: true, chainMode: "prev" });
+    expect(mod.getSnapshot().settings.chainMode).toBe("prev");
 
     mod.setSettings({ chunkSummary: false });
-    expect(mod.getSnapshot().settings.chainPrevSummary).toBe(false);
+    expect(mod.getSnapshot().settings.chainMode).toBe("off");
+
+    mod.setSettings({ chainMode: "window" });
+    expect(mod.getSnapshot().settings.chainMode).toBe("window");
+    mod.setSettings({ chunkSummary: false });
+    expect(mod.getSnapshot().settings.chainMode).toBe("window");
   });
 
   it("thiếu key trong bản lưu cũ thì lấy mặc định", async () => {

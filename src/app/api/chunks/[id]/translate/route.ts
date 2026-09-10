@@ -1,11 +1,17 @@
 import { db } from "@/db";
 import { chunks, jobs } from "@/db/schema";
-import { WARN_NO_CHUNK_SUMMARY, WARN_NO_PREV_SUMMARY } from "@/lib/defaults";
+import { pickContext, renderContextBlock } from "@/lib/contextWindow";
+import {
+  normalizeChainMode,
+  WARN_NO_CHUNK_SUMMARY,
+  WARN_NO_PREV_SUMMARY,
+  warnContextTrimmed,
+} from "@/lib/defaults";
 import { bad, ok, readJson } from "@/lib/http";
 import { assertEndpointAllowed, LlmError, translate } from "@/lib/llm";
 import { postProcess } from "@/lib/postprocess";
-import { clampTemperature } from "@/lib/validate";
-import { and, desc, eq, lt, ne } from "drizzle-orm";
+import { clampContextTokens, clampTemperature, clampWindowChunks } from "@/lib/validate";
+import { and, asc, desc, eq, lt, ne } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -23,8 +29,14 @@ interface Body {
   useContext?: boolean;
   /** CR v0.5 — xin thêm thẻ <summary> trong cùng cú gọi (settings.chunkSummary). */
   withSummary?: boolean;
-  /** CR v0.5 — bơm tóm tắt chunk trước (settings.chainPrevSummary). Cần `withSummary`. */
+  /** CR v0.5 — client cũ: true nghĩa là `chainMode: "prev"`. */
   usePrevSummary?: boolean;
+  /** CR v0.7 — ngữ cảnh mạch: "off" | "prev" | "window". */
+  chainMode?: string;
+  /** CR v0.7 — số đoạn gần nhất gửi nguyên văn ở chế độ window. */
+  contextWindowChunks?: number;
+  /** CR v0.7 — trần token cho cả khối ngữ cảnh mạch. */
+  contextTokens?: number;
   /** CR v0.5 — bỏ qua kiểm tra chunk trước chưa dịch xong ("Tiếp tục bất chấp"). */
   force?: boolean;
   /** Working copy prompt tóm tắt chunk. Rỗng → mặc định app. */
@@ -54,15 +66,23 @@ export async function POST(req: Request, { params }: Ctx) {
 
   const source = chunk.sourceOverride ?? chunk.source;
   const withSummary = body.withSummary === true;
-  const useChain = withSummary && body.usePrevSummary === true;
+  // Client cũ (v0.5) chỉ biết `usePrevSummary`; nó tương đương nấc "prev".
+  const chainMode = normalizeChainMode(
+    body.chainMode ?? (body.usePrevSummary === true ? "prev" : "off"),
+    withSummary
+  );
 
   /**
-   * Chuỗi bật: lấy chunk liền trước theo idx, bỏ qua front matter. Chunk trước chưa
-   * dịch xong thì trả 409 và KHÔNG đụng vào status — client chưa mất gì để hoàn lại.
+   * Ngữ cảnh mạch bật: lấy chunk liền trước theo idx, bỏ qua front matter. Chunk
+   * trước chưa dịch xong thì trả 409 và KHÔNG đụng vào status — client chưa mất
+   * gì để hoàn lại. Luật này áp cho cả "prev" lẫn "window" (CR v0.7 §2.4).
    */
   let previousSummary: string | null = null;
+  let contextBlock: string | null = null;
   let chainWarning: string | null = null;
-  if (useChain) {
+  let trimWarning: string | null = null;
+
+  if (chainMode !== "off") {
     const [prev] = await db
       .select()
       .from(chunks)
@@ -72,20 +92,41 @@ export async function POST(req: Request, { params }: Ctx) {
       .orderBy(desc(chunks.idx))
       .limit(1);
 
-    if (prev) {
-      if (prev.status !== "done") {
-        if (!body.force) {
-          return NextResponse.json(
-            { error: `Chuỗi đứt: chunk #${prev.idx} chưa dịch xong`, brokenAt: prev.idx },
-            { status: 409 }
-          );
-        }
-        chainWarning = WARN_NO_PREV_SUMMARY;
-      } else if (prev.summary) {
-        previousSummary = prev.summary;
-      } else {
-        chainWarning = WARN_NO_PREV_SUMMARY;
+    if (prev && prev.status !== "done" && !body.force) {
+      return NextResponse.json(
+        { error: `Chuỗi đứt: chunk #${prev.idx} chưa dịch xong`, brokenAt: prev.idx },
+        { status: 409 }
+      );
+    }
+
+    if (chainMode === "prev") {
+      if (prev) {
+        if (prev.status === "done" && prev.summary) previousSummary = prev.summary;
+        else chainWarning = WARN_NO_PREV_SUMMARY;
       }
+    } else {
+      // Cửa sổ trượt: dựng khối từ DB, client không gửi nội dung đoạn nào lên.
+      const before = await db
+        .select({
+          idx: chunks.idx,
+          status: chunks.status,
+          translated: chunks.translated,
+          summary: chunks.summary,
+        })
+        .from(chunks)
+        .where(
+          and(eq(chunks.jobId, chunk.jobId), lt(chunks.idx, chunk.idx), ne(chunks.status, "skipped"))
+        )
+        .orderBy(asc(chunks.idx));
+
+      const pick = pickContext(before, {
+        windowChunks: clampWindowChunks(body.contextWindowChunks),
+        contextTokens: clampContextTokens(body.contextTokens),
+      });
+      const block = renderContextBlock(pick);
+      if (block) contextBlock = block;
+      if (pick.droppedSummaries > 0) trimWarning = warnContextTrimmed(pick.droppedSummaries);
+      if (prev && prev.status !== "done") chainWarning = WARN_NO_PREV_SUMMARY;
     }
   }
 
@@ -111,6 +152,7 @@ export async function POST(req: Request, { params }: Ctx) {
     withSummary,
     chunkSummaryPrompt: body.chunkSummaryPrompt,
     previousSummary,
+    contextBlock,
   });
 
   if (outcome.translated === null) {
@@ -133,6 +175,7 @@ export async function POST(req: Request, { params }: Ctx) {
     [
       processed.warning,
       chainWarning,
+      trimWarning,
       withSummary && outcome.summary === null ? WARN_NO_CHUNK_SUMMARY : null,
     ]
       .filter((w): w is string => Boolean(w))
@@ -150,7 +193,8 @@ export async function POST(req: Request, { params }: Ctx) {
       edited: false,
       // Tắt chunkSummary thì giữ nguyên tóm tắt cũ, không ghi đè bằng null (§2.1).
       ...(withSummary ? { summary: outcome.summary } : {}),
-      prevSummaryUsed: previousSummary !== null,
+      // v0.7 đổi nghĩa: "lần dịch này có kèm khối ngữ cảnh mạch", khối nào cũng tính.
+      prevSummaryUsed: previousSummary !== null || contextBlock !== null,
       updatedAt: new Date(),
     })
     .where(eq(chunks.id, id))

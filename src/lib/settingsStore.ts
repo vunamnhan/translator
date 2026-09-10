@@ -4,11 +4,13 @@ import {
   clampHeadingLevel,
   DEFAULT_SETTINGS,
   normalizeApiKeys,
+  normalizeChainMode,
   normalizeChunkRule,
   normalizeMarker,
   SETTINGS_KEY,
   type Settings,
 } from "./defaults";
+import { clampContextTokens, clampWindowChunks } from "./validate";
 
 export interface SettingsState {
   settings: Settings;
@@ -24,7 +26,10 @@ function readStorage(): Settings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return DEFAULT_SETTINGS;
-    const parsed = JSON.parse(raw) as Partial<Settings> & { apiKey?: string };
+    const parsed = JSON.parse(raw) as Partial<Settings> & {
+      apiKey?: string;
+      chainPrevSummary?: boolean;
+    };
     const merged: Settings = { ...DEFAULT_SETTINGS, ...parsed };
     // v0.1 lưu 1 key ở `apiKey`; v0.2 dùng mảng `apiKeys` — chuyển sang khi load lần đầu.
     merged.apiKeys = normalizeApiKeys(
@@ -34,8 +39,14 @@ function readStorage(): Settings {
     merged.chunkRule = normalizeChunkRule(merged.chunkRule);
     merged.headingLevel = clampHeadingLevel(merged.headingLevel);
     merged.chunkMarker = normalizeMarker(merged.chunkMarker);
-    // CR v0.5 — chuỗi không đứng một mình được: tóm tắt chunk tắt thì chuỗi cũng tắt.
-    merged.chainPrevSummary = merged.chunkSummary && merged.chainPrevSummary;
+    // CR v0.7 — v0.5 lưu boolean `chainPrevSummary`, giờ là ba nấc. true → "prev".
+    merged.chainMode = normalizeChainMode(
+      parsed.chainMode ?? (parsed.chainPrevSummary ? "prev" : "off"),
+      merged.chunkSummary
+    );
+    delete (merged as Partial<Settings> & { chainPrevSummary?: boolean }).chainPrevSummary;
+    merged.contextWindowChunks = clampWindowChunks(merged.contextWindowChunks);
+    merged.contextTokens = clampContextTokens(merged.contextTokens);
     return merged;
   } catch {
     return DEFAULT_SETTINGS;
@@ -78,7 +89,7 @@ export function getServerSnapshot(): SettingsState {
 export function setSettings(patch: Partial<Settings>) {
   const settings = { ...state.settings, ...patch };
   if (patch.apiKeys) settings.apiKeys = normalizeApiKeys(patch.apiKeys);
-  settings.chainPrevSummary = settings.chunkSummary && settings.chainPrevSummary;
+  settings.chainMode = normalizeChainMode(settings.chainMode, settings.chunkSummary);
   state = { settings, loaded: true };
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
