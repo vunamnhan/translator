@@ -6,7 +6,6 @@ import {
   normalizeChunkSummary,
   OUTPUT_CONTRACT,
   OUTPUT_CONTRACT_WITH_SUMMARY,
-  previousChunkSummaryBlock,
   REMINDER,
   REMINDER_WITH_SUMMARY,
   SUMMARY_CONTRACT,
@@ -81,13 +80,6 @@ export interface TranslateParams {
   withSummary?: boolean;
   /** Prompt tóm tắt chunk (working copy). Rỗng → mặc định app. Chỉ dùng khi `withSummary`. */
   chunkSummaryPrompt?: string | null;
-  /** Tóm tắt chunk liền trước (v0.5, nấc `prev`). Rỗng/null → không bơm khối nào. */
-  previousSummary?: string | null;
-  /**
-   * Khối `<translated_so_far>` đã dựng sẵn (v0.7, nấc `window`). Route dựng từ DB
-   * rồi đưa xuống nguyên chuỗi — `llm.ts` không biết luật chọn cửa sổ là gì.
-   */
-  contextBlock?: string | null;
 }
 
 export interface TranslateOutcome {
@@ -206,10 +198,13 @@ const WRITER_SPEC: TagSpec = {
 
 /**
  * Gọi LLM, retry khi model quên thẻ output.
- * Thứ tự system message: prompt user → ngữ cảnh chung → ngữ cảnh mạch (khối cửa
- * sổ trượt v0.7 hoặc tóm tắt đoạn trước v0.5) → prompt tóm tắt chunk → output
- * contract. Mấy mảnh giữa chỉ có khi được bật; tắt hết thì chuỗi ghép ra đúng
- * byte như v0.2.
+ * Thứ tự system message: prompt user → ngữ cảnh chung → prompt tóm tắt chunk →
+ * output contract.
+ *
+ * Từ CR v0.7 luồng dịch tới đây là prompt đã điền xong placeholder ở route, nên
+ * `documentContext` chỉ còn luồng tóm tắt section và tạo ngữ cảnh chung dùng.
+ * App chỉ còn tự nối đúng output contract — parser dựa vào thẻ nên chỗ đó không
+ * giao cho người dùng.
  *
  * Chỉ luồng dịch mới xin hai thẻ — tóm tắt section và ngữ cảnh chung không đụng vào.
  */
@@ -219,13 +214,6 @@ async function runTagged(p: TranslateParams, spec: TagSpec): Promise<TranslateOu
   const ctx = p.documentContext?.trim() ? documentContextBlock(p.documentContext.trim()) : null;
 
   const twoTag = spec === TRANSLATE_SPEC && p.withSummary === true;
-  // Hai khối ngữ cảnh mạch không bao giờ cùng lúc: nấc `window` đã có đoạn liền
-  // trước nằm nguyên văn trong cửa sổ rồi. Route quyết định, chỗ này chỉ bơm.
-  const soFar = spec === TRANSLATE_SPEC && p.contextBlock?.trim() ? p.contextBlock.trim() : null;
-  const prevBlock =
-    spec === TRANSLATE_SPEC && p.previousSummary?.trim()
-      ? previousChunkSummaryBlock(p.previousSummary.trim())
-      : null;
   const summaryPrompt = twoTag
     ? p.chunkSummaryPrompt?.trim() || DEFAULT_CHUNK_SUMMARY_PROMPT
     : null;
@@ -238,8 +226,6 @@ async function runTagged(p: TranslateParams, spec: TagSpec): Promise<TranslateOu
       attempt === 1 ? null : reminder,
       p.systemPrompt,
       ctx,
-      soFar,
-      prevBlock,
       summaryPrompt,
       contract,
     ].filter((v): v is string => Boolean(v));

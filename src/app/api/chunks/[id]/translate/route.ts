@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { chunks, jobs } from "@/db/schema";
-import { pickContext, renderContextBlock } from "@/lib/contextWindow";
+import { pickContext, renderContextBody } from "@/lib/contextWindow";
+import { fillPrompt, hasVar, type PromptValues } from "@/lib/promptVars";
 import {
   normalizeChainMode,
   WARN_NO_CHUNK_SUMMARY,
@@ -73,15 +74,18 @@ export async function POST(req: Request, { params }: Ctx) {
   );
 
   /**
+   * Giá trị cho placeholder trong prompt dịch. Biến nào rỗng thì cả đoạn văn chứa
+   * nó biến mất khỏi prompt — xem `fillPrompt`.
+   */
+  const vars: PromptValues = { chunk_source: source };
+  let chainWarning: string | null = null;
+  let trimWarning: string | null = null;
+
+  /**
    * Ngữ cảnh mạch bật: lấy chunk liền trước theo idx, bỏ qua front matter. Chunk
    * trước chưa dịch xong thì trả 409 và KHÔNG đụng vào status — client chưa mất
    * gì để hoàn lại. Luật này áp cho cả "prev" lẫn "window" (CR v0.7 §2.4).
    */
-  let previousSummary: string | null = null;
-  let contextBlock: string | null = null;
-  let chainWarning: string | null = null;
-  let trimWarning: string | null = null;
-
   if (chainMode !== "off") {
     const [prev] = await db
       .select()
@@ -99,11 +103,17 @@ export async function POST(req: Request, { params }: Ctx) {
       );
     }
 
-    if (chainMode === "prev") {
-      if (prev) {
-        if (prev.status === "done" && prev.summary) previousSummary = prev.summary;
-        else chainWarning = WARN_NO_PREV_SUMMARY;
+    if (prev) {
+      // Ba biến về đoạn liền trước dùng được ở cả hai nấc.
+      vars.previous_chunk_source = prev.sourceOverride ?? prev.source;
+      if (prev.status === "done") {
+        vars.previous_chunk_summary = prev.summary;
+        vars.previous_chunk_content = prev.translated;
       }
+    }
+
+    if (chainMode === "prev") {
+      if (prev && !(prev.status === "done" && prev.summary)) chainWarning = WARN_NO_PREV_SUMMARY;
     } else {
       // Cửa sổ trượt: dựng khối từ DB, client không gửi nội dung đoạn nào lên.
       const before = await db
@@ -123,18 +133,27 @@ export async function POST(req: Request, { params }: Ctx) {
         windowChunks: clampWindowChunks(body.contextWindowChunks),
         contextTokens: clampContextTokens(body.contextTokens),
       });
-      const block = renderContextBlock(pick);
-      if (block) contextBlock = block;
+      vars.sliding_window_context = renderContextBody(pick);
       if (pick.droppedSummaries > 0) trimWarning = warnContextTrimmed(pick.droppedSummaries);
       if (prev && prev.status !== "done") chainWarning = WARN_NO_PREV_SUMMARY;
     }
   }
 
-  let documentContext: string | null = null;
-  if (body.useContext !== false) {
-    const [job] = await db.select().from(jobs).where(eq(jobs.id, chunk.jobId));
-    documentContext = job?.context ?? null;
+  // Chỉ chạm vào bảng jobs khi prompt thật sự nhắc tới — cột `source` có thể vài MB.
+  const wantsContext = body.useContext !== false && hasVar(body.systemPrompt, "general_context");
+  const wantsFullSource = hasVar(body.systemPrompt, "full_source");
+  if (wantsContext || wantsFullSource) {
+    const [job] = wantsFullSource
+      ? await db
+          .select({ context: jobs.context, source: jobs.source })
+          .from(jobs)
+          .where(eq(jobs.id, chunk.jobId))
+      : await db.select({ context: jobs.context }).from(jobs).where(eq(jobs.id, chunk.jobId));
+    if (wantsContext) vars.general_context = job?.context ?? null;
+    if (wantsFullSource) vars.full_source = (job as { source?: string })?.source ?? null;
   }
+
+  const systemPrompt = fillPrompt(body.systemPrompt, vars);
 
   await db
     .update(chunks)
@@ -145,14 +164,11 @@ export async function POST(req: Request, { params }: Ctx) {
     endpoint: body.endpoint,
     apiKey,
     model: body.model,
-    systemPrompt: body.systemPrompt,
+    systemPrompt,
     temperature: clampTemperature(body.temperature),
     source,
-    documentContext,
     withSummary,
     chunkSummaryPrompt: body.chunkSummaryPrompt,
-    previousSummary,
-    contextBlock,
   });
 
   if (outcome.translated === null) {
@@ -193,8 +209,12 @@ export async function POST(req: Request, { params }: Ctx) {
       edited: false,
       // Tắt chunkSummary thì giữ nguyên tóm tắt cũ, không ghi đè bằng null (§2.1).
       ...(withSummary ? { summary: outcome.summary } : {}),
-      // v0.7 đổi nghĩa: "lần dịch này có kèm khối ngữ cảnh mạch", khối nào cũng tính.
-      prevSummaryUsed: previousSummary !== null || contextBlock !== null,
+      // v0.7 đổi nghĩa: "lần dịch này có kèm ngữ cảnh mạch", biến nào có giá trị cũng tính.
+      prevSummaryUsed: Boolean(
+        vars.sliding_window_context?.trim() ||
+          vars.previous_chunk_summary?.trim() ||
+          vars.previous_chunk_content?.trim()
+      ),
       updatedAt: new Date(),
     })
     .where(eq(chunks.id, id))

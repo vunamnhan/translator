@@ -12,6 +12,7 @@ import {
 } from "@/lib/defaults";
 import { forgetModel, matchModels, readModels, rememberModel } from "@/lib/modelHistory";
 import { contractWarning, type PromptSet } from "@/lib/presets";
+import { PROMPT_VARS } from "@/lib/promptVars";
 import { clampContextTokens, clampCooldown, clampWindowChunks } from "@/lib/validate";
 import { useConfirm } from "./ConfirmDialog";
 import PresetBar from "./PresetBar";
@@ -535,7 +536,11 @@ export default function SettingsDrawer({
                   onChange={(e) => set("systemPrompt", e.target.value)}
                   className="textarea h-[230px] rounded-[18px] bg-white"
                 />
-                <Note>Nối thêm: bắt buộc thẻ &lt;translation&gt;.</Note>
+                <Note>
+                  App chỉ nối thêm đúng một thứ: luật thẻ &lt;translation&gt;. Mọi khối ngữ cảnh đều
+                  do placeholder quyết định — không đặt vào prompt thì không gửi.
+                </Note>
+                <PromptVarHelp />
               </Field>
 
               <Field
@@ -717,6 +722,62 @@ function ModelInput({ value, onChange }: { value: string; onChange: (v: string) 
             </div>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Bảng biến dùng được trong prompt dịch (CR v0.7 §6.2). Gập lại mặc định — nó là
+ * thứ tra cứu, mở sẵn thì đẩy ba ô prompt còn lại trôi khỏi màn hình. Bấm một
+ * dòng là chép tên biến vào clipboard để dán thẳng vào ô prompt.
+ */
+function PromptVarHelp() {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const copy = async (name: string) => {
+    try {
+      await navigator.clipboard.writeText(`{{${name}}}`);
+      setCopied(name);
+      setTimeout(() => setCopied((c) => (c === name ? null : c)), 1500);
+    } catch {
+      // Trình duyệt chặn clipboard → người dùng tự gõ, tên biến đang hiện sẵn.
+    }
+  };
+
+  return (
+    <div className="mt-2 rounded-2xl bg-paper p-3">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-1.5 text-left text-[11.5px] text-accent-800"
+      >
+        <span>{open ? "▾" : "▸"}</span>
+        Biến dùng được trong prompt ({PROMPT_VARS.length})
+      </button>
+
+      {open && (
+        <>
+          <p className="m-0 mt-2 text-[11.5px] leading-snug text-sand-700">
+            Đặt các biến này vào prompt, app sẽ thay bằng nội dung thật. Biến rỗng thì{" "}
+            <strong>cả đoạn văn</strong> chứa nó biến mất, nên hãy để thẻ và câu hướng dẫn chung một
+            đoạn với biến. Bấm để chép.
+          </p>
+          <div className="mt-2 flex flex-col gap-1">
+            {PROMPT_VARS.map((v) => (
+              <button
+                key={v.name}
+                onClick={() => void copy(v.name)}
+                title={v.needs ? `Cần: ${v.needs}` : "Luôn có giá trị"}
+                className="flex flex-wrap items-baseline gap-x-2 rounded-[10px] px-1.5 py-1 text-left hover:bg-accent-100"
+              >
+                <code className="font-mono text-[11.5px] text-accent-800">{`{{${v.name}}}`}</code>
+                <span className="text-[11px] leading-snug text-sand-600">{v.hint}</span>
+                {copied === v.name && <span className="text-[11px] text-accent">đã chép</span>}
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

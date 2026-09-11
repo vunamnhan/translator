@@ -224,24 +224,26 @@ describe("tóm tắt chunk trong cùng cú gọi (CR v0.5)", () => {
     expect(system).not.toContain("Sau khi dịch, viết thêm phần tóm tắt");
   });
 
-  it("thứ tự: prompt dịch → ngữ cảnh chung → đoạn trước → prompt tóm tắt → contract", async () => {
+  it("thứ tự: prompt dịch → prompt tóm tắt chunk → contract", async () => {
     const fetchMock = vi.fn(async () => jsonRes("<translation>a</translation><summary>b</summary>"));
     vi.stubGlobal("fetch", fetchMock);
-    await translate({
-      ...params,
-      withSummary: true,
-      documentContext: "ngữ cảnh chung",
-      previousSummary: "đoạn trước kể chuyện A",
-      chunkSummaryPrompt: "PROMPT_TOM_TAT",
-    });
+    await translate({ ...params, withSummary: true, chunkSummaryPrompt: "PROMPT_TOM_TAT" });
 
     const system = systemOf(fetchMock);
     const at = (needle: string) => system.indexOf(needle);
-    expect(at(params.systemPrompt)).toBeLessThan(at("<document_context>"));
-    expect(at("<document_context>")).toBeLessThan(at("<previous_chunk_summary>"));
-    expect(at("<previous_chunk_summary>")).toBeLessThan(at("PROMPT_TOM_TAT"));
+    expect(at(params.systemPrompt)).toBeLessThan(at("PROMPT_TOM_TAT"));
     expect(at("PROMPT_TOM_TAT")).toBeLessThan(at("QUY TẮC ĐẦU RA"));
-    expect(system).toContain("đoạn trước kể chuyện A");
+  });
+
+  it("luồng dịch không tự nối khối ngữ cảnh nào nữa (CR v0.7)", async () => {
+    const fetchMock = vi.fn(async () => jsonRes("<translation>ok</translation>"));
+    vi.stubGlobal("fetch", fetchMock);
+    // Prompt tới `llm.ts` là bản đã điền placeholder ở route.
+    await translate({ ...params, systemPrompt: "dịch đi\n\n<document_context>\nX\n</document_context>" });
+
+    const system = systemOf(fetchMock);
+    expect(system).toContain("<document_context>\nX\n</document_context>");
+    expect(system.match(/<document_context>/g)).toHaveLength(1);
   });
 
   it("thiếu <summary> → vẫn nhận bản dịch, không gọi lại", async () => {
@@ -319,39 +321,5 @@ describe("Assistant Writer (CR v0.6)", () => {
     const out = await writeText(writerParams);
     expect(out.output).toBeNull();
     expect(out.error).toMatch(/401/);
-  });
-});
-
-describe("khối ngữ cảnh mạch (CR v0.7)", () => {
-  it("bơm contextBlock kể cả khi không tạo tóm tắt chunk", async () => {
-    const fetchMock = vi.fn(async () => jsonRes("<translation>ok</translation>"));
-    vi.stubGlobal("fetch", fetchMock);
-    await translate({
-      ...params,
-      documentContext: "ngữ cảnh chung",
-      contextBlock: "<translated_so_far>\n<recent>\n#3:\nđoạn đã dịch\n</recent>\n</translated_so_far>",
-    });
-
-    const system = systemOf(fetchMock);
-    const at = (needle: string) => system.indexOf(needle);
-    expect(system).toContain("đoạn đã dịch");
-    expect(at("<document_context>")).toBeLessThan(at("<translated_so_far>"));
-    expect(at("<translated_so_far>")).toBeLessThan(at("QUY TẮC ĐẦU RA"));
-    // Nấc window không dùng contract hai thẻ nếu không bật tạo tóm tắt.
-    expect(system).not.toContain("Trả về đúng hai thẻ");
-  });
-
-  it("contextBlock rỗng → không bơm gì", async () => {
-    const fetchMock = vi.fn(async () => jsonRes("<translation>ok</translation>"));
-    vi.stubGlobal("fetch", fetchMock);
-    await translate({ ...params, contextBlock: "   " });
-    expect(systemOf(fetchMock)).not.toContain("<translated_so_far>");
-  });
-
-  it("luồng tóm tắt section không đụng tới khối này", async () => {
-    const fetchMock = vi.fn(async () => jsonRes("<summary>ý chính</summary>"));
-    vi.stubGlobal("fetch", fetchMock);
-    await summarize({ ...params, contextBlock: "<translated_so_far>x</translated_so_far>" });
-    expect(systemOf(fetchMock)).not.toContain("<translated_so_far>");
   });
 });

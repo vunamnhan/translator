@@ -1,13 +1,12 @@
 /**
  * CR v0.7 — chọn và dựng khối ngữ cảnh mạch cho một cú dịch.
  *
- * Luật thuần, không đụng DB, không gọi mạng: route dùng để dựng khối gửi đi,
+ * Luật thuần, không đụng DB, không gọi mạng: route dùng để dựng nội dung gửi đi,
  * UI dùng đúng hàm này để ước lượng "sẽ gửi kèm khoảng bao nhiêu token".
  * Một luật, hai nơi đọc — đừng chép thuật toán ra thành hai bản.
  */
 
 import { estimateTokens } from "./chunker";
-import { TRANSLATED_SO_FAR_NOTE } from "./defaults";
 
 /** Chunk đứng trước chunk đang dịch. Chỉ cần đúng bốn cột này. */
 export interface ContextPiece {
@@ -103,8 +102,12 @@ export function pickContext(prev: ContextPiece[], opts: ContextOptions): Context
   };
 }
 
-/** Khối `<translated_so_far>`. Không có gì để bơm thì trả chuỗi rỗng, không trả thẻ rỗng. */
-export function renderContextBlock(pick: ContextPick): string {
+/**
+ * Nội dung cho `{{sliding_window_context}}`. Chỉ có phần dữ liệu — thẻ bao ngoài
+ * và câu hướng dẫn nằm trong prompt dịch của người dùng (CR v0.7 §4).
+ * Không có gì để bơm thì trả chuỗi rỗng, và đoạn chứa placeholder sẽ tự biến mất.
+ */
+export function renderContextBody(pick: ContextPick): string {
   if (pick.summaries.length === 0 && pick.verbatim.length === 0) return "";
 
   const parts: string[] = [];
@@ -117,5 +120,5 @@ export function renderContextBlock(pick: ContextPick): string {
     parts.push(`<recent>\n${blocks}\n</recent>`);
   }
 
-  return `<translated_so_far>\n${parts.join("\n")}\n</translated_so_far>\n${TRANSLATED_SO_FAR_NOTE}`;
+  return parts.join("\n");
 }

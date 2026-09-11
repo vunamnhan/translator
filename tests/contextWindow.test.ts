@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   pickContext,
-  renderContextBlock,
+  renderContextBody,
   type ContextPiece,
 } from "../src/lib/contextWindow";
 
@@ -17,7 +17,7 @@ describe("pickContext", () => {
     const pick = pickContext([], big);
     expect(pick.summaries).toEqual([]);
     expect(pick.verbatim).toEqual([]);
-    expect(renderContextBlock(pick)).toBe("");
+    expect(renderContextBody(pick)).toBe("");
   });
 
   it("cửa sổ lấy đúng N đoạn cuối, phần còn lại xuống tóm tắt", () => {
@@ -88,27 +88,28 @@ describe("pickContext", () => {
   });
 });
 
-describe("renderContextBlock", () => {
+describe("renderContextBody", () => {
   const prev = [done(0, 40), done(1, 40), done(2, 40)];
 
   it("dựng đủ hai phần theo thứ tự idx tăng dần", () => {
-    const block = renderContextBlock(pickContext(prev, { windowChunks: 1, contextTokens: 100000 }));
+    const block = renderContextBody(pickContext(prev, { windowChunks: 1, contextTokens: 100000 }));
 
-    expect(block).toContain("<translated_so_far>");
     expect(block).toContain("<summaries>\n#0: tóm tắt 0\n#1: tóm tắt 1\n</summaries>");
     expect(block).toContain("<recent>\n#2:\n");
     expect(block.indexOf("<summaries>")).toBeLessThan(block.indexOf("<recent>"));
-    expect(block).toContain("KHÔNG dịch lại");
+    // Thẻ bao ngoài và câu hướng dẫn là việc của prompt người dùng, không phải của lib.
+    expect(block).not.toContain("<translated_so_far>");
+    expect(block).not.toContain("KHÔNG dịch lại");
   });
 
   it("thiếu một phần thì bỏ hẳn thẻ con, không để thẻ rỗng", () => {
-    const onlyRecent = renderContextBlock(
+    const onlyRecent = renderContextBody(
       pickContext([done(0, 40, null)], { windowChunks: 3, contextTokens: 100000 })
     );
     expect(onlyRecent).toContain("<recent>");
     expect(onlyRecent).not.toContain("<summaries>");
 
-    const onlySummaries = renderContextBlock(
+    const onlySummaries = renderContextBody(
       pickContext(prev, { windowChunks: 0, contextTokens: 100000 })
     );
     expect(onlySummaries).toContain("<summaries>");

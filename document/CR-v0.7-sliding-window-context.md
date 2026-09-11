@@ -13,6 +13,7 @@ Bổ sung cho `REQUIREMENTS.md` (v0) và các CR v0.1–v0.6. Mục đích: v0.5
 | 3 | Khối `<translated_so_far>` (tóm tắt xa + nguyên văn gần) thay `<previous_chunk_summary>` ở chế độ `window` | Contract, `llm.ts` |
 | 4 | Ngân sách token cho cả khối, vượt thì cắt từ đầu xa nhất, có warning khi bị cắt | API, UI |
 | 5 | Hai setting `contextWindowChunks`, `contextTokens` | Settings |
+| 6 | **Placeholder trong prompt dịch** (`{{general_context}}`, `{{sliding_window_context}}`…): app thôi tự nối khối ngữ cảnh, chỉ còn tự nối output contract | `promptVars.ts`, prompt mặc định, Settings |
 
 Ngoài phạm vi: gộp các tóm tắt bị cắt thành một khối tổng hợp (lần sau, xem 2.3); dịch lại dây chuyền khi đoạn xa đổi; áp cửa sổ cho luồng tóm tắt section hoặc cho Assistant Writer (v0.6); đưa khối ngữ cảnh vào `raw_response` hay export; đổi cách tính `jobs.context`.
 
@@ -86,45 +87,77 @@ Không đổi bảng nào, không có migration. Nguyên liệu lấy từ `chun
 
 ## 4. Prompt và contract
 
-### 4.1 Thứ tự system message
+### 4.1 App thôi tự nối khối ngữ cảnh
 
+Tới v0.6, app tự chèn `<document_context>`, `<previous_chunk_summary>` và câu hướng dẫn kèm theo vào system prompt. Câu chữ đó nằm trong code, người dùng không sửa được, mà nó lại là thứ quyết định model hiểu khối ngữ cảnh để làm gì.
+
+Từ v0.7 đảo lại: **prompt dịch là của người dùng, app chỉ điền chỗ trống**. Người dùng đặt `{{ten_bien}}` ở đâu thì khối nằm ở đó, viết câu hướng dẫn quanh nó thế nào là tuỳ. Thứ **duy nhất** app còn tự nối là output contract, vì parser dựa vào thẻ `<translation>` — chỗ đó mà hỏng thì cả app hỏng.
+
+Thứ tự system message rút còn:
 ```
 [reminder nếu retry]
-prompt dịch (preset)
-<document_context>…</document_context>                (v0.1, nếu có)
-<translated_so_far>…</translated_so_far>              (MỚI, chainMode = window)
-<previous_chunk_summary>…</previous_chunk_summary>    (v0.5, chainMode = prev)
-prompt tóm tắt chunk (preset)                          (v0.5, nếu chunkSummary)
-output contract                                        (một thẻ hoặc hai thẻ)
+prompt dịch (preset) — đã điền placeholder
+prompt tóm tắt chunk (preset)   (v0.5, nếu chunkSummary)
+output contract                 (một thẻ hoặc hai thẻ)
 ```
+Luồng tóm tắt section và tạo ngữ cảnh chung **không đổi**: hai luồng đó vẫn được app nối `<document_context>` như cũ.
 
-`chainMode = off` → chuỗi ghép ra **đúng byte như v0.2**, giữ nguyên tiêu chí 1 của v0.5.
+### 4.2 Bảng biến
 
-### 4.2 Khối `<translated_so_far>`
+Cú pháp `{{ten}}` giống hệt placeholder của Assistant Writer (v0.6) để chỉ phải nhớ một kiểu.
+
+| Biến | Nội dung | Có giá trị khi |
+|---|---|---|
+| `{{chunk_source}}` | Nội dung chunk đang dịch (bản gốc) | luôn luôn |
+| `{{general_context}}` | Ngữ cảnh chung của job | bật "Dùng ngữ cảnh chung khi dịch" và job đã có ngữ cảnh chung |
+| `{{sliding_window_context}}` | Tóm tắt các đoạn xa + nguyên văn mấy đoạn gần nhất | nấc `window` |
+| `{{previous_chunk_summary}}` | Tóm tắt đoạn liền trước | nấc khác `off`, đoạn trước đã có tóm tắt |
+| `{{previous_chunk_content}}` | Nguyên văn **bản dịch** đoạn liền trước | nấc khác `off`, đoạn trước đã dịch xong |
+| `{{previous_chunk_source}}` | Nguyên văn **bản gốc** đoạn liền trước | nấc khác `off` |
+| `{{full_source}}` | Toàn bộ văn bản gốc của job | luôn luôn |
+
+- `{{chunk_source}}` trùng với thứ đã nằm trong `<source>` ở user message. Đặt vào là gửi hai lần — quyền của người dùng, nhưng có ghi chú nhắc.
+- `{{full_source}}` chỉ query khi prompt thật sự nhắc tới: cột `jobs.source` có thể vài MB, không lôi ra cho mỗi cú gọi.
+- Nội dung của `{{sliding_window_context}}` chỉ gồm phần dữ liệu (`<summaries>` và `<recent>`), **không** có thẻ bao ngoài, **không** có câu hướng dẫn. Hai thứ đó người dùng tự viết.
+
+### 4.3 Luật điền
+
+- Thay **một lượt, không đệ quy**: giá trị chứa `{{x}}` không bị quét lại.
+- Biến rỗng → **bỏ cả đoạn văn** chứa nó, đoạn = khối dòng liền nhau ngăn bằng dòng trống. Nhờ vậy người dùng gói thẻ, biến và câu hướng dẫn chung một đoạn; không có ngữ cảnh thì cả cụm biến mất chứ không để lại thẻ rỗng lơ lửng.
+- Đoạn có nhiều biến chỉ bị bỏ khi **mọi** biến trong đó đều rỗng.
+- Placeholder lạ (`{{gi_do}}`) **giữ nguyên chữ**: đó là văn bản của người dùng, app không có quyền xoá.
+- Cách xuống dòng của các đoạn còn lại giữ nguyên, chỉ cắt khoảng trắng thừa ở cuối chuỗi.
+
+### 4.4 Prompt dịch mặc định
+
+`DEFAULT_SYSTEM_PROMPT` mang sẵn ba khối kèm biến, mỗi khối một đoạn văn, nên bật tính năng lên là chạy đúng như v0.6 mà vẫn sửa được từng chữ:
 
 ```
+Bạn là dịch giả chuyên nghiệp. Dịch văn bản Markdown sau sang tiếng Việt.
+Yêu cầu:
+- …
+
+<document_context>
+{{general_context}}
+</document_context>
+Dùng ngữ cảnh trên để hiểu tài liệu và giữ thuật ngữ nhất quán. Chỉ xử lý nội dung trong <source>.
+
 <translated_so_far>
-<summaries>
-#0: {summary}
-#1: {summary}
-…
-</summaries>
-<recent>
-#38:
-{nguyên văn bản dịch}
-
-#39:
-{nguyên văn bản dịch}
-</recent>
+{{sliding_window_context}}
 </translated_so_far>
 Đây là phần đã dịch trước đoạn cần dịch, xếp theo thứ tự: tóm tắt các đoạn xa trước, nguyên văn mấy đoạn gần nhất sau.
 Dùng khối này để giữ mạch, giọng văn, cách xưng hô và cách dịch tên riêng cho nhất quán.
 KHÔNG dịch lại, KHÔNG viết tiếp, KHÔNG lặp lại bất kỳ nội dung nào trong khối này. Chỉ dịch đúng phần nằm trong <source>.
+
+<previous_chunk_summary>
+{{previous_chunk_summary}}
+</previous_chunk_summary>
+Đây là tóm tắt đoạn ngay trước đoạn cần dịch, chỉ để hiểu mạch và giữ giọng, xưng hô nhất quán. Không dịch, không lặp lại nội dung này.
 ```
 
-- Thiếu một trong hai phần thì bỏ hẳn thẻ con đó, không để thẻ rỗng. Câu ghi chú cố ý **không nhắc tên thẻ con**, để khối chỉ có một phần không sinh ra chữ thừa nói về phần không tồn tại.
-- Ba câu cấm ở cuối là phần bắt buộc, không cho preset ghi đè: rủi ro lớn nhất của cách này là model nhìn thấy 5 nghìn token văn xuôi của chính nó rồi kể tiếp thay vì dịch.
-- Output contract vẫn nằm **cuối cùng**. Context càng dài model càng bám hai đầu, chỉ dẫn đặt giữa là chìm.
+Ba câu cấm ở khối giữa vẫn là thứ quan trọng nhất về chất lượng, nhưng giờ nó là **mặc định gợi ý**, không phải luật cứng: nhìn thấy vài nghìn token văn xuôi của chính mình mà không bị cấm thì model rất dễ kể tiếp thay vì dịch.
+
+Preset đã lưu trên DB từ trước **không** có placeholder. App không tự sửa prompt của ai; Settings hiện cảnh báo (§6.2) để người dùng tự thêm biến hoặc bấm "Về mặc định" rồi lưu lại vào preset.
 
 ## 5. API (delta)
 
@@ -152,26 +185,34 @@ Ngữ cảnh mạch khi dịch
 ( ) Tắt
 ( ) Tóm tắt đoạn liền trước          ← mờ khi chưa bật Tạo tóm tắt chunk
 (•) Cửa sổ trượt
-     Đoạn nguyên văn gần nhất  [ 3 ]
+     Cửa sổ                    [ 3 ]
      Trần ngữ cảnh (token)     [ 6000 ]
 ```
 - Hai ô con chỉ hiện ở nấc `window`.
 - Chú dưới cụm: "Dịch tuần tự 1-1, bỏ qua Concurrency. Mỗi chunk gửi kèm tối đa 6000 token ngữ cảnh, nên tốn token hơn hẳn — và nhiều key làm hỏng prompt cache, job này nên để một key."
 - Ô Concurrency vẫn mờ kèm chữ "đang bị ép = 1 (chuỗi)" khi nấc khác `off`.
 
-### 6.2 Header job
+### 6.2 Settings — tab Prompt
+
+Dưới ô **System prompt (dịch)**:
+- Chú thích đổi lại: app chỉ nối thêm đúng luật thẻ `<translation>`, mọi khối ngữ cảnh đều do placeholder quyết định — không đặt vào prompt thì không gửi.
+- **Bảng biến**, gập lại mặc định: một dòng "Biến dùng được trong prompt (7)" bấm để xổ. Mở ra là danh sách bấm được, mỗi dòng một tên biến (font mono) kèm một câu mô tả; bấm vào là chép `{{ten}}` vào clipboard và hiện chữ "đã chép" khoảng 1,5 giây. Đầu danh sách nhắc luật "biến rỗng thì cả đoạn văn chứa nó biến mất".
+
+Cố ý **không** cảnh báo khi prompt thiếu biến: prompt là của người dùng, bỏ biến đi có thể là chủ ý. Bảng help nói rõ biến nào cần điều kiện gì là đủ.
+
+### 6.3 Header job
 
 Chip đổi theo nấc: `Chuỗi 1-1` cho `prev`, `Cửa sổ 3 + tóm tắt` cho `window`. Tooltip nói rõ khối đang gửi gồm gì.
 
-### 6.3 Thẻ chunk
+### 6.4 Thẻ chunk
 
 - Chip `⛓` giữ nguyên, tooltip đổi thành "Dịch có kèm ngữ cảnh mạch".
 - Warning "Ngữ cảnh bị cắt: bỏ N tóm tắt xa nhất" hiện chung chỗ warning hiện có.
 - Hàng gấp mở "Tóm tắt" của v0.5 không đổi.
 
-### 6.4 Ghi chú cho designer
+### 6.5 Ghi chú cho designer
 
-Không màn hình mới. Đổi một checkbox thành cụm radio ba nấc kèm hai ô số, đổi chữ trên một chip, thêm một câu warning. Hết.
+Không màn hình mới. Đổi một checkbox thành cụm radio ba nấc kèm hai ô số, thêm một bảng biến gập được (bấm-để-chép) dưới ô prompt dịch, đổi chữ trên một chip, thêm một câu warning.
 
 ## 7. Cấu hình (delta Settings, localStorage)
 
@@ -185,19 +226,21 @@ Chuyển bản cũ khi đọc localStorage, cùng chỗ đã chuyển `apiKey` �
 
 ## 8. Tiêu chí hoàn thành
 
-1. `chainMode = "off"`: request body và system message **y hệt v0.2** (so raw), không có khối nào.
-2. `chainMode = "prev"`: hành vi y hệt v0.5, khối `<previous_chunk_summary>`, không có `<translated_so_far>`.
-3. `chainMode = "window"`, cửa sổ 3, đã dịch xong 10 đoạn: khối có `<summaries>` chứa đúng tóm tắt đoạn 0–6 theo idx tăng dần và `<recent>` chứa nguyên văn đoạn 7, 8, 9. Không có `<previous_chunk_summary>`.
+1. Prompt dịch không có biến nào: system message = đúng prompt đó + prompt tóm tắt chunk (nếu bật) + output contract, không có khối ngữ cảnh nào bị chèn thêm.
+2. `chainMode = "prev"`, prompt mặc định: đoạn `<previous_chunk_summary>` được điền, đoạn `<translated_so_far>` biến mất cả thẻ lẫn câu hướng dẫn.
+3. `chainMode = "window"`, cửa sổ 3, đã dịch xong 10 đoạn: `{{sliding_window_context}}` được thay bằng `<summaries>` chứa đúng tóm tắt đoạn 0–6 theo idx tăng dần và `<recent>` chứa nguyên văn đoạn 7, 8, 9.
 4. Đoạn 4 chưa dịch (các đoạn khác xong): nó bị bỏ khỏi khối, không có chỗ trống, không warning, đoạn 5 vẫn nằm đúng thứ tự sau đoạn 3.
 5. Front matter (`skipped`) không bao giờ xuất hiện trong khối, và không tính vào cửa sổ.
 6. `contextTokens` để 1000 với job dài: khối cắt còn ≤ 1000 token ước lượng, giữ đủ phần nguyên văn gần nhất, chunk có warning "Ngữ cảnh bị cắt: bỏ N tóm tắt xa nhất" với N đúng.
 7. Một đoạn trong cửa sổ dài hơn cả ngân sách: nó rơi khỏi `<recent>`, tóm tắt của chính nó vào `<summaries>`, không có khối nào vượt trần.
-8. `chunkSummary` tắt, `chainMode = "window"`: khối chỉ có `<recent>`, không có thẻ `<summaries>` rỗng; Settings hiện chú vàng.
+8. `chunkSummary` tắt, `chainMode = "window"`: nội dung biến chỉ có `<recent>`, không có thẻ `<summaries>` rỗng; Settings hiện chú vàng.
+8b. Bỏ `{{sliding_window_context}}` khỏi prompt trong lúc nấc cửa sổ đang bật: cú dịch kế **không** có khối ngữ cảnh nào — app không tự chèn bù, cũng không cằn nhằn.
+8c. Prompt có `{{khong_biet}}`: giữ nguyên chữ trong system message, không bị xoá, không báo lỗi.
 9. Tắt `chunkSummary` khi đang ở `prev` → về `off`; đang ở `window` → giữ `window`.
 10. Đoạn liền trước đang `pending`, `chainMode = "window"`, không `force` → `409 { brokenAt }`, status chunk không đổi, không có request tới LLM.
 11. `force: true` → dịch được, khối dựng từ phần đã có, warning "Không có tóm tắt đoạn trước".
 12. Bật `window` → vòng lặp chạy đúng một request tại một thời điểm, theo idx tăng dần; chip header ghi `Cửa sổ 3 + tóm tắt`.
 13. Bản lưu cũ có `chainPrevSummary: true` → load lên thành `chainMode: "prev"`, khoá cũ biến mất khỏi localStorage sau lần lưu kế.
-14. `pickContext` có test riêng cho: cửa sổ đủ chỗ, cửa sổ bị cắt, tóm tắt bị bỏ, danh sách trước rỗng, một đoạn quá khổ.
+14. `pickContext` có test riêng cho: cửa sổ đủ chỗ, cửa sổ bị cắt, tóm tắt bị bỏ, danh sách trước rỗng, một đoạn quá khổ. `fillPrompt` có test cho: biến rỗng bỏ cả đoạn, đoạn nhiều biến, placeholder lạ, không đệ quy, giữ cách xuống dòng.
 15. `npm test` pass; export bản dịch và export tóm tắt không chứa khối ngữ cảnh.
 16. Không có API key trong khối ngữ cảnh, `raw_response` hay log.

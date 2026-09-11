@@ -614,6 +614,33 @@ export default function JobView({ jobId }: { jobId: string }) {
     [patchJob, reloadTags]
   );
 
+  /** Đưa job về trạng thái vừa tạo để chạy lại một lượt sạch từ đầu. */
+  const resetJob = useCallback(async () => {
+    const okToReset = await ask({
+      title: "Reset toàn bộ job?",
+      body:
+        "Xoá toàn bộ bản dịch, tóm tắt chunk và tóm tắt section; mọi thẻ về pending để chạy lại từ đầu. " +
+        "Giữ nguyên văn bản gốc, phần nguồn đã sửa tay, bố cục chunk và ngữ cảnh chung.",
+      ok: "Reset toàn bộ",
+    });
+    if (!okToReset) return;
+
+    pause();
+    const res = await fetch(`/api/jobs/${jobId}/reset`, { method: "POST" });
+    if (!res.ok) {
+      setNotice("Reset thất bại");
+      return;
+    }
+    const data: { job: JobDTO; chunks: ChunkDTO[]; sections: SectionDTO[] } = await res.json();
+    setJob(data.job);
+    setChunks(data.chunks);
+    setSections(data.sections ?? []);
+    // Dấu vết của lượt chạy cũ chỉ nằm trong bộ nhớ trang, xoá nốt cho khớp.
+    setChainBreak(null);
+    setKeyUsed({});
+    setNotice(`Đã reset: ${data.chunks.filter((c) => c.status === "pending").length} chunk chờ dịch.`);
+  }, [ask, jobId, pause]);
+
   const removeJob = useCallback(async () => {
     if (!jobRef.current) return;
     const okToDelete = await ask({
@@ -983,6 +1010,7 @@ export default function JobView({ jobId }: { jobId: string }) {
                   onClick: () =>
                     patchJob({ archived: !archived }, "Lưu trạng thái archive thất bại"),
                 },
+                { label: "Reset toàn bộ…", onClick: () => void resetJob(), danger: true },
                 { label: "Xoá job", onClick: removeJob, danger: true },
               ]}
             />

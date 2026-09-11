@@ -287,7 +287,9 @@ Ngay sau tên job:
 - **📌** — toggle ghim, **ẩn khi job đang archived** (muốn ghim phải Unarchive trước; API trả 400 nếu cố ghim job archived).
 - **Chip tag + ô thêm tag** — gõ để lọc gợi ý từ toàn bộ tag đã dùng, Enter thêm, Backspace ở ô trống xoá tag cuối, × trên chip để xoá. Lưu ngay mỗi lần thay đổi. Tối đa 20 tag / job, 32 ký tự / tag, `API` và `api` coi là một.
 
-Cuối hàng nút hành động có menu **⋯**: **Archive / Unarchive** và **Xoá job**.
+Cuối hàng nút hành động có menu **⋯**: **Archive / Unarchive**, **Reset toàn bộ…** (đỏ) và **Xoá job** (đỏ).
+
+**Reset toàn bộ** đưa job về trạng thái vừa tạo để chạy lại một lượt sạch: xoá bản dịch, tóm tắt chunk, tóm tắt section, lỗi và raw response, mọi thẻ về `pending`. Giữ nguyên văn bản gốc, phần nguồn đã sửa tay, bố cục chunk, danh sách section và **ngữ cảnh chung** (thứ đó tốn tiền tạo và hay được sửa tay; muốn bỏ thì tạo lại ở tab Summary). Hỏi xác nhận trước, và dừng vòng lặp đang chạy nếu có.
 
 Job archived: dải xám ngay dưới header — "Job này đang ở archive — không hiện ở danh sách mặc định." + nút **Unarchive**. Không khoá bất kỳ chức năng nào.
 
@@ -317,7 +319,7 @@ Trượt từ **phải**, rộng tối đa 448px, nền phủ đen 30%. Bấm ng
 9. Cụm **Ngữ cảnh mạch khi dịch** (CR v0.7, thay checkbox "Gửi kèm tóm tắt chunk trước" của v0.5) — ba nấc radio:
    - **Tắt** (mặc định) — mỗi chunk dịch độc lập, chạy song song theo Concurrency.
    - **Tóm tắt đoạn liền trước** — mờ + vô hiệu khi chưa bật "Tạo tóm tắt chunk".
-   - **Cửa sổ trượt** — hiện thêm hai ô số trong khay xám: **Đoạn nguyên văn gần nhất** (0..20, mặc định 3) và **Trần ngữ cảnh (token)** (500..100000, mặc định 6000). Chọn nấc này mà chưa bật "Tạo tóm tắt chunk" thì hiện dải vàng nhắc khối sẽ không có phần xa.
+   - **Cửa sổ trượt** — hiện thêm hai ô số trong khay xám: **Cửa sổ** (0..20, mặc định 3 — số đoạn gần nhất gửi nguyên văn) và **Trần ngữ cảnh (token)** (500..100000, mặc định 6000). Chọn nấc này mà chưa bật "Tạo tóm tắt chunk" thì hiện dải vàng nhắc khối sẽ không có phần xa.
 
    Hai nấc sau đều làm ô **Concurrency** ở trên mờ đi kèm chữ "đang bị ép = 1 (chuỗi)". Chú dưới cụm nhắc dịch 1-1, và riêng nấc cửa sổ nhắc thêm chuyện tốn token và chuyện xoay nhiều key làm hỏng prompt cache.
 10. **Chunk tokens (ước lượng chars/4)** — ô số, mặc định 1500. Chú: "Đổi số này thì trang job sẽ nhắc chunk lại (chunk lại là mất bản dịch cũ)."
@@ -329,7 +331,9 @@ Trượt từ **phải**, rộng tối đa 448px, nền phủ đen 30%. Bấm ng
 1. Chú thích: "App tự nối output contract vào cuối mỗi prompt — đừng tự viết luật thẻ trong này."
 2. **Thanh preset** (CR v0.3) — xem 6.1.
 3. Dải cảnh báo vàng khi prompt có chứa `<translation>` / `<summary>` / `<context>`: app đã tự nối luật thẻ, viết thêm dễ đá nhau. Chỉ cảnh báo, không chặn.
-4. **System prompt (dịch)** — textarea 16 dòng mono. Dưới: chú "Nối thêm: bắt buộc thẻ <translation>." + link **Về mặc định** bên phải.
+4. **System prompt (dịch)** — textarea 16 dòng mono, link **Về mặc định** bên phải. Dưới ô có ba thứ (CR v0.7):
+   - chú: app chỉ nối thêm đúng luật thẻ `<translation>`, mọi khối ngữ cảnh đều do placeholder quyết định;
+   - **bảng biến** gập lại mặc định, dòng "Biến dùng được trong prompt (7)" bấm để xổ; mở ra là mỗi dòng một `{{ten_bien}}` font mono kèm mô tả ngắn, bấm là chép vào clipboard và hiện "đã chép". Đầu danh sách nhắc luật biến rỗng thì cả đoạn văn chứa nó biến mất.
 5. **Summary prompt (tóm tắt section)** — textarea 12 dòng, tương tự.
 6. **Context prompt (ngữ cảnh chung)** — textarea thấp hơn (~130px), placeholder "Để trống = dùng prompt mặc định của app.". Link **Xem mặc định** bên phải mở khối read-only chứa `CONTEXT_PROMPT` để copy ra sửa. Chú: "App vẫn tự nối contract thẻ <context> và ghi chú skeleton khi tài liệu bị cắt."
 
@@ -394,6 +398,7 @@ Dialog riêng của app (không còn dùng `confirm()` của trình duyệt): th
 
 | Khi | Nội dung hiện tại |
 |---|---|
+| Reset toàn bộ job? | Xoá toàn bộ bản dịch, tóm tắt chunk và tóm tắt section; mọi thẻ về pending để chạy lại từ đầu. Giữ nguyên văn bản gốc, phần nguồn đã sửa tay, bố cục chunk và ngữ cảnh chung. |
 | Xoá job | Xoá job "tên"? Toàn bộ chunk và section sẽ mất. |
 | Chunk lại | Chunk lại sẽ XOÁ toàn bộ bản dịch và tóm tắt section của job này. Tiếp tục? |
 | Gom lại section | Gom lại section sẽ XOÁ toàn bộ tóm tắt section. Tiếp tục? |

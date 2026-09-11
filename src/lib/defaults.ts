@@ -1,11 +1,33 @@
 import type { ChunkRuleKind } from "./chunker";
 
+/**
+ * CR v0.7 — prompt dịch mặc định mang sẵn placeholder. App không tự nối khối ngữ
+ * cảnh nữa: đoạn nào có biến rỗng thì cả đoạn biến mất, nên bản mặc định này chạy
+ * đúng như v0.6 mà người dùng vẫn sửa được từng chữ. Xem `promptVars.ts`.
+ */
 export const DEFAULT_SYSTEM_PROMPT = `Bạn là dịch giả chuyên nghiệp. Dịch văn bản Markdown sau sang tiếng Việt.
 Yêu cầu:
 - Giữ nguyên cấu trúc Markdown: heading, list, bảng, link, hình, code block, inline code.
 - Không dịch nội dung trong code block và inline code. Không dịch URL.
 - Giữ nguyên thuật ngữ kỹ thuật phổ biến bằng tiếng Anh.
-- Dịch tự nhiên, không dịch máy móc từng từ.`;
+- Dịch tự nhiên, không dịch máy móc từng từ.
+
+<document_context>
+{{general_context}}
+</document_context>
+Dùng ngữ cảnh trên để hiểu tài liệu và giữ thuật ngữ nhất quán. Chỉ xử lý nội dung trong <source>.
+
+<translated_so_far>
+{{sliding_window_context}}
+</translated_so_far>
+Đây là phần đã dịch trước đoạn cần dịch, xếp theo thứ tự: tóm tắt các đoạn xa trước, nguyên văn mấy đoạn gần nhất sau.
+Dùng khối này để giữ mạch, giọng văn, cách xưng hô và cách dịch tên riêng cho nhất quán.
+KHÔNG dịch lại, KHÔNG viết tiếp, KHÔNG lặp lại bất kỳ nội dung nào trong khối này. Chỉ dịch đúng phần nằm trong <source>.
+
+<previous_chunk_summary>
+{{previous_chunk_summary}}
+</previous_chunk_summary>
+Đây là tóm tắt đoạn ngay trước đoạn cần dịch, chỉ để hiểu mạch và giữ giọng, xưng hô nhất quán. Không dịch, không lặp lại nội dung này.`;
 
 export const DEFAULT_SUMMARY_PROMPT = `Tóm tắt đoạn văn bản Markdown sau bằng tiếng Việt, 3–5 gạch đầu dòng.
 Nêu ý chính, kết luận, con số hoặc quyết định quan trọng nếu có.
@@ -80,23 +102,6 @@ export function normalizeChunkSummary(raw: unknown): string | null {
   return text ? text.slice(0, MAX_CHUNK_SUMMARY) : null;
 }
 
-/** Khối tóm tắt đoạn ngay trước, bơm sau ngữ cảnh chung (CR v0.5 §4.1). */
-export function previousChunkSummaryBlock(summary: string): string {
-  return `<previous_chunk_summary>
-${summary}
-</previous_chunk_summary>
-Đây là tóm tắt đoạn ngay trước đoạn cần dịch, chỉ để hiểu mạch và giữ giọng, xưng hô nhất quán. Không dịch, không lặp lại nội dung này.`;
-}
-
-/**
- * CR v0.7 — ba câu cấm cuối khối `<translated_so_far>`. Cố ý không cho preset ghi
- * đè: rủi ro lớn nhất của cửa sổ trượt là model nhìn thấy vài nghìn token văn xuôi
- * của chính nó rồi kể tiếp thay vì dịch đúng đoạn trong <source>.
- */
-export const TRANSLATED_SO_FAR_NOTE = `Đây là phần đã dịch trước đoạn cần dịch, xếp theo thứ tự: tóm tắt các đoạn xa trước, nguyên văn mấy đoạn gần nhất sau.
-Dùng khối này để giữ mạch, giọng văn, cách xưng hô và cách dịch tên riêng cho nhất quán.
-KHÔNG dịch lại, KHÔNG viết tiếp, KHÔNG lặp lại bất kỳ nội dung nào trong khối này. Chỉ dịch đúng phần nằm trong <source>.`;
-
 /** Câu warning của luồng chuỗi — route ghi vào chunk, UI so chuỗi nên để một chỗ. */
 export const WARN_NO_CHUNK_SUMMARY = "Model không trả tóm tắt chunk";
 export const WARN_NO_PREV_SUMMARY = "Không có tóm tắt đoạn trước";
@@ -106,7 +111,10 @@ export function warnContextTrimmed(dropped: number): string {
   return `Ngữ cảnh bị cắt: bỏ ${dropped} tóm tắt xa nhất`;
 }
 
-/** Block ngữ cảnh chung, dùng chung cho cả luồng dịch lẫn luồng tóm tắt section. */
+/**
+ * Block ngữ cảnh chung. Từ CR v0.7 luồng dịch không dùng nữa (đã có placeholder
+ * `{{general_context}}`), chỉ còn luồng tóm tắt section và tạo ngữ cảnh chung.
+ */
 export function documentContextBlock(context: string): string {
   return `<document_context>
 ${context}
